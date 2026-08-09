@@ -6,8 +6,10 @@
  * only one accent, so anything that wants to stand out competes for the same slot
  * rather than adding a colour.
  *
- * Contrast ratios below are against `surface` (#FFFFFF) unless noted, and exist so
- * the accessibility baseline is checkable rather than assumed.
+ * Contrast ratios below are measured, not estimated, and written as white/ground —
+ * text sits on both surfaces, and the warm ground is always the weaker of the two,
+ * so it is the number that decides whether a pairing passes. Every one clears the
+ * 4.5:1 AA body-text baseline on both. Re-measure if any value here changes.
  */
 
 export const tokens = {
@@ -18,21 +20,23 @@ export const tokens = {
     surfaceSunken: '#F2EBE3',
     border: '#E7DCD0',
 
-    /** The one accent. 5.2:1 on white — passes AA for body text. */
+    /** The one accent. 5.18:1 on white, 4.81:1 on ground. */
     accent: '#C2410C',
-    /** Pressed/hover state for the accent. */
+    /** Pressed state. 7.32:1 — deliberately darker, not just a tint shift. */
     accentPressed: '#9A340A',
-    /** Pale accent wash for selected rows and quiet emphasis. */
+    /** Pale accent wash for selected rows and quiet emphasis. Never bears text. */
     accentWash: '#FCEDE6',
-    /** White on `accent` is the same 5.2:1 ratio, inverted. */
+    /** White on `accent` is the same 5.18:1, inverted. */
     accentContrast: '#FFFFFF',
 
-    /** 13.9:1 on white. */
+    /** 15.40:1 on white, 14.31:1 on ground. */
     textPrimary: '#2B2320',
-    /** 5.4:1 on white — AA for body text, not just large. */
+    /** 6.33:1 on white, 5.88:1 on ground — AA for body text, not merely large. */
     textSecondary: '#6B5D54',
 
+    /** 5.99:1 on white, 5.57:1 on ground. */
     positive: '#2F6F4E',
+    /** 7.06:1 on white, 6.56:1 on ground. */
     negative: '#A32E24',
   },
 
