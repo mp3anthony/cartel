@@ -1,29 +1,35 @@
 /**
  * Design tokens — the single source of every visual value in the app.
  *
- * The colour values here are PROVISIONAL and chosen to be replaced. Per
- * 02-DESIGN-REFERENCE.md the real palette is picked in Slice 1, against actual
- * screens, because choosing colours with nothing to judge them against is guessing.
- * What this file locks in early is the plumbing, so that no screen ever hardcodes a
- * value and swapping the palette later is an edit to one file rather than a hunt.
+ * The palette was chosen in Slice 1 against real screens, as 02-DESIGN-REFERENCE.md
+ * required. Burnt orange carries every emphasis in the app: there is deliberately
+ * only one accent, so anything that wants to stand out competes for the same slot
+ * rather than adding a colour.
  *
- * The values below do respect the directional constraints that ARE settled: a light
- * ground, warm rather than cool neutrals, a single saturated accent carrying all
- * emphasis, and nothing in the neon register.
+ * Contrast ratios below are against `surface` (#FFFFFF) unless noted, and exist so
+ * the accessibility baseline is checkable rather than assumed.
  */
 
 export const tokens = {
   color: {
+    /** Warm off-white. The ground everywhere — the app is light-only. */
     ground: '#FAF6F1',
     surface: '#FFFFFF',
     surfaceSunken: '#F2EBE3',
     border: '#E7DCD0',
 
-    /** The one accent. Emphasis anywhere in the app resolves to this. */
+    /** The one accent. 5.2:1 on white — passes AA for body text. */
     accent: '#C2410C',
+    /** Pressed/hover state for the accent. */
+    accentPressed: '#9A340A',
+    /** Pale accent wash for selected rows and quiet emphasis. */
+    accentWash: '#FCEDE6',
+    /** White on `accent` is the same 5.2:1 ratio, inverted. */
     accentContrast: '#FFFFFF',
 
+    /** 13.9:1 on white. */
     textPrimary: '#2B2320',
+    /** 5.4:1 on white — AA for body text, not just large. */
     textSecondary: '#6B5D54',
 
     positive: '#2F6F4E',
@@ -55,8 +61,9 @@ export const tokens = {
 
   /**
    * Soft shadows over hard borders is a stated tone requirement, so the elevation
-   * treatment is a token rather than a per-component decision. iOS and Android read
-   * different keys off the same object.
+   * treatment is a token rather than a per-component decision. iOS reads the shadow
+   * keys, Android reads `elevation`, and react-native-web synthesises a box-shadow
+   * from the former. None of these three paths has been exercised on device yet.
    */
   elevation: {
     card: {

@@ -56,10 +56,18 @@ jobs, and Shopping Mode's job is legibility at arm's length while distracted.
 
 - **Brand assets:** none. Cartel starts fresh — no logo, palette, or type
   commitment exists.
-- **Palette: deliberately not locked here.** Actual values get chosen during
-  Slice 1 UI work, informed by the references above. The binding constraints
-  are directional, not numeric: light ground, single saturated accent, warm rather
-  than cool neutrals, nothing in the neon register.
+- **Palette: LOCKED 2026-08-10, during Slice 1.** Chosen against real household
+  screens rather than in the abstract, as intended. Values live in
+  `mobile/src/theme/tokens.ts` — that file is the source of truth, not this one.
+  - Accent: **burnt orange `#C2410C`**, 5.2:1 on white. Terracotta and olive were
+    the alternatives; olive lost because its neutrals drift cool, and terracotta
+    lost to reference 1 being the stated tie-breaker. Burnt orange is also the
+    loudest of the three, which suits Shopping Mode more than list-building — worth
+    re-checking when Slice 5 lands.
+  - Ground `#FAF6F1`, warm neutrals, one accent carrying all emphasis. Light-only:
+    `userInterfaceStyle` is `light` and there is no dark palette.
+  - Original directional constraints, all met: light ground, single saturated
+    accent, warm rather than cool neutrals, nothing in the neon register.
   *(Amended 2026-08-09, after Slice 0 was split out:* the theme provider and token
   file are built in Slice 0 with **provisional** values, so no screen ever hardcodes
   a colour. Choosing the real values stays Slice 1 work — plumbing early, palette
