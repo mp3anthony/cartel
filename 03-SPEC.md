@@ -128,6 +128,12 @@ and had nine. Each of these shapes the schema or the acceptance test:*
   `is not distinct from`, `null = null` is *true* and every householdless user sees
   every other householdless user's lists. Same class as the § 0 invariant Slice 1
   guarded, so it gets a policy test rather than a comment.
+- **A minimal policy-test harness is built in this slice** to make the line above
+  true. Slice 0 deferred all test infrastructure and no later slice picks it up, so
+  the promise of a test would otherwise cash out as a comment — on the one decision
+  we called invariant-class. Scope is deliberately narrow: SQL-level assertions
+  about RLS policies only (two householdless users cannot see each other; a
+  non-member cannot see a household list), not app or component tests.
 - **Personal → household is allowed; household → personal is not.** Slice 1 made
   households optional and created later, so fixing scope at creation would strand
   every list built before pairing. Demotion is the opposite: it removes a list from
@@ -146,6 +152,21 @@ and had nine. Each of these shapes the schema or the acceptance test:*
   collisions. Two members moving into the same slot can compute the same key —
   `id` breaks the tie identically on every device. That also makes the append
   read-then-write race benign.
+- **The `position` column is declared `collate "C"`.** Base-62 keys sort correctly
+  only under byte order. This database is `en_US.UTF-8` under the ICU provider,
+  where `'a1' < 'A1'` is *true* and byte order says the opposite — measured, not
+  assumed. Left to the default collation the ordering is silently wrong, and only
+  once mixed-case keys exist, which is around the sixty-third insert into one list.
+  The key generator and the column must agree on collation or neither is correct.
+- **Key generation is the `fractional-indexing` package, not hand-rolled.** CC0,
+  zero dependencies, base-62 by default. It already handles the cases a 50-line
+  version gets subtly wrong — prepending with no lower bound, appending without
+  unbounded string growth, subdividing adjacent keys, and the trailing-zero
+  invariant that keeps value and string representation one-to-one. Its failure mode
+  is not a crash but items quietly out of order weeks later on a shared list, which
+  is the worst kind of thing to own untested. Note: passing `digits` explicitly
+  yields a different keyspace than omitting it — that choice is a stored-data format
+  commitment, made once and never changed.
 - **New items append to the end, and check-off never writes `position`.** One
   gesture, one fact. Checked items stay where they are; grouping them is a UI concern.
 - **Removal is a soft delete on both `lists` and `list_items`.** Supabase does not
@@ -157,6 +178,17 @@ and had nine. Each of these shapes the schema or the acceptance test:*
   additionally gives Slice 3 one mechanism instead of two, makes undo possible, and
   keeps Slice 9's history resolvable. Hard-deleting a list would cascade into exactly
   the `list_items` delete storm this avoids.
+- **`deleted_at` is filtered in the client query, never in the RLS policy.** Realtime
+  authorises each event against the subscriber's SELECT policy evaluated on the *new*
+  row. A policy saying `deleted_at is null` would therefore filter out the very
+  UPDATE that sets it, the deletion would never reach other members, and soft delete
+  would have bought nothing — the same failure it was adopted to prevent, one layer
+  along. Filtering client-side is also correct whichever way that Realtime behaviour
+  turns out to go: Supabase documents the DELETE gap verbatim but never states the
+  UPDATE case, and confirming it needs two live subscribers, which is Slice 3's work.
+  The accepted consequence is that soft-deleted rows stay *readable* by household
+  members. That is still household-scoped so § 0 holds, but "deleted" here means
+  hidden by the client, which is a weaker claim than the word suggests.
 - **Writes go direct to table under RLS `with check`; only promote-to-household is an
   RPC.** This deviates from Slice 1's write-through-RPC split deliberately. That
   split exists for invariants RLS cannot express atomically, and Slice 2 has none —
