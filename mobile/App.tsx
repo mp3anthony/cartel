@@ -11,24 +11,17 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Body, ErrorNote, Heading, Screen } from './src/components/ui';
 import { useAnonymousSession } from './src/hooks/useAnonymousSession';
 import { useHousehold } from './src/hooks/useHousehold';
+import { useLists } from './src/hooks/useLists';
 import { envResult, type Env } from './src/lib/env';
 import { getSupabaseClient } from './src/lib/supabase';
+import type { RootStackParamList } from './src/navigation/types';
 import { ConfigErrorScreen } from './src/screens/ConfigErrorScreen';
 import { HouseholdScreen } from './src/screens/HouseholdScreen';
 import { HouseholdSetupScreen } from './src/screens/HouseholdSetupScreen';
+import { ListDetailScreen } from './src/screens/ListDetailScreen';
+import { ListsScreen } from './src/screens/ListsScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 import type { Tokens } from './src/theme/tokens';
-
-/**
- * Every route's parameters, in one place. React Navigation cannot check a route
- * parameter it has not been told about, and a deep link is the one caller that can
- * arrive with any shape at all — an untyped param is `undefined` at runtime the
- * first time someone opens a hand-edited URL.
- */
-export type RootStackParamList = {
-  HouseholdSetup: undefined;
-  Household: undefined;
-};
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -37,11 +30,24 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * history, and the Vercel build — the agreed review surface — answers Back by
  * leaving the app. The web origin is implicit, so only the native scheme (declared
  * in `app.json`) needs listing here.
+ *
+ * `Lists` takes the empty path because it is the home screen for every user, with or
+ * without a household.
+ *
+ * `initialRouteName` is what puts `Lists` underneath a deep-linked screen rather than
+ * replacing it. Without it, opening `/list/<id>` cold builds a stack one screen deep:
+ * the header draws no back button and browser Back leaves the app — the exact failure
+ * the navigator was adopted to fix, reintroduced through the door deep links use. The
+ * navigator's own `initialRouteName` does not cover this; a state rehydrated from a
+ * URL is used as given.
  */
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ['cartel://'],
   config: {
+    initialRouteName: 'Lists',
     screens: {
+      Lists: '',
+      ListDetail: 'list/:listId',
       HouseholdSetup: 'household/setup',
       Household: 'household',
     },
@@ -78,14 +84,27 @@ export default function App() {
  * of returning them: from Slice 2 on, back and the browser URL have to mean
  * something, and that is the whole reason the navigator was adopted.
  *
- * Which screens are registered still depends on the data. Registering both and
- * navigating between them would let a user land on the household screen without a
- * household, and the type would not stop them.
+ * `Lists` is home for every user. Slice 1 made the household screens the whole app
+ * for anyone without a household, and Slice 2 cannot keep that: a user who has never
+ * created or joined one still builds lists, so the household became a place you go
+ * rather than the door you come in through.
+ *
+ * Which of the two household screens is registered still depends on the data. It is
+ * one or the other, never both — registering both and navigating between them would
+ * let a user land on the household screen without a household, and the type would
+ * not stop them.
+ *
+ * The list index is loaded here rather than inside the screen that shows it, because
+ * the detail screen reads its own list's name and scope out of the same array. One
+ * copy means promoting a list on the detail screen changes the badge on the index
+ * too, without either screen knowing the other exists.
  */
 function Bootstrapped({ env }: { env: Env }) {
   const client = useMemo(() => getSupabaseClient(env), [env]);
   const session = useAnonymousSession(client);
-  const { view, refresh } = useHousehold(client, session.status === 'ready');
+  const ready = session.status === 'ready';
+  const { view, refresh } = useHousehold(client, ready);
+  const lists = useLists(client, ready);
   const tokens = useTheme();
   const screenOptions = useMemo(() => headerOptions(tokens), [tokens]);
 
@@ -116,9 +135,35 @@ function Bootstrapped({ env }: { env: Env }) {
 
   return (
     <NavigationContainer linking={linking} fallback={<Loading />}>
-      <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Navigator initialRouteName="Lists" screenOptions={screenOptions}>
+        <Stack.Screen name="Lists" options={{ title: 'Cartel' }}>
+          {(props) => (
+            <ListsScreen
+              {...props}
+              client={client}
+              view={lists.view}
+              refresh={lists.refresh}
+              household={state.status === 'member' ? state.household : null}
+            />
+          )}
+        </Stack.Screen>
+
+        {/* The title is a placeholder: the screen replaces it with the list's name
+            once the index resolves, which on a cold deep link is a moment later. */}
+        <Stack.Screen name="ListDetail" options={{ title: 'List' }}>
+          {(props) => (
+            <ListDetailScreen
+              {...props}
+              client={client}
+              lists={lists.view}
+              onListsChanged={lists.refresh}
+              inHousehold={state.status === 'member'}
+            />
+          )}
+        </Stack.Screen>
+
         {state.status === 'none' ? (
-          <Stack.Screen name="HouseholdSetup" options={{ title: 'Cartel' }}>
+          <Stack.Screen name="HouseholdSetup" options={{ title: 'Household' }}>
             {() => <HouseholdSetupScreen client={client} onJoined={refresh} />}
           </Stack.Screen>
         ) : (
