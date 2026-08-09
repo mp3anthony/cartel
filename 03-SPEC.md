@@ -50,8 +50,33 @@ each slice below assumes exists.
 
 ## 2. Vertical Slices
 
-### Slice 1 — Household Identity & Pairing
+### Slice 0 — Project Scaffolding
 **Depends on:** nothing (first slice).
+**Scope:** Expo (managed workflow) app boots on iOS and Android and renders a
+single placeholder screen. Supabase project exists and the client is configured
+against it, with credentials supplied by environment and never committed.
+Connectivity is proven by a trivial live call, not assumed from config alone. A
+theme provider and design-token file exist and the placeholder screen consumes
+tokens rather than hardcoded values — token *values* at this stage are provisional
+(see `02-DESIGN-REFERENCE.md`; the real palette is chosen in Slice 1 against actual
+screens).
+
+Deliberately **not** in this slice: authentication of any kind (anonymous sign-in
+belongs to Slice 1), any table in the data model, any navigation structure, and any
+test or CI harness.
+
+**Acceptance test:** A clean checkout with valid environment credentials boots on
+both platforms and renders the placeholder screen; the live Supabase connectivity
+check succeeds and fails loudly (not silently) when credentials are absent or
+wrong; no secret appears anywhere in the repository.
+
+*Why this slice exists:* Slices 1-9 are each specced as complete vertical paths,
+which quietly assumes an app and a backend already exist. They don't. Rather than
+inflate Slice 1 with everything that has to happen first, that setup is isolated
+here — this is the one slice that is honestly horizontal, and it is the only one.
+
+### Slice 1 — Household Identity & Pairing
+**Depends on:** Slice 0.
 **Scope:** App opens straight into anonymous session (no signup screen). User can
 create a household, and generates an invite code another user redeems to join the
 same household. All members of a household are equal rank — no owner/admin
