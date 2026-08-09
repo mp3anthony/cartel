@@ -60,6 +60,10 @@ jobs, and Shopping Mode's job is legibility at arm's length while distracted.
   Slice 1 UI work, informed by the references above. The binding constraints
   are directional, not numeric: light ground, single saturated accent, warm rather
   than cool neutrals, nothing in the neon register.
+  *(Amended 2026-08-09, after Slice 0 was split out:* the theme provider and token
+  file are built in Slice 0 with **provisional** values, so no screen ever hardcodes
+  a colour. Choosing the real values stays Slice 1 work — plumbing early, palette
+  late, because picking colours with no screens to judge them against is guessing.)
 - **Accessibility (baseline, revisit if it bites):** WCAG AA contrast (4.5:1 body,
   3:1 large text); touch targets ≥44pt, larger in Shopping Mode; never encode
   meaning in colour alone — the section-colour chip from reference 2 always needs a
