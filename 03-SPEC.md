@@ -36,9 +36,10 @@ Full column-level schema is a build-time (not spec-time) detail; this is the sha
 each slice below assumes exists.
 
 - `households`, `household_members` (user ↔ household, all members equal rank)
-- `lists` (household_id nullable — null means personal/private to owner; `type`:
-  personal | household)
-- `list_items` (list_id, name, checked, position, location_tag_id nullable)
+- `lists` (owner_id, household_id nullable — null means personal/private to owner,
+  and is the *only* record of scope; `deleted_at` nullable)
+- `list_items` (list_id, name, `checked_at` nullable, position, location_tag_id
+  nullable, `deleted_at` nullable)
 - `locations` (supermarket instances — name, lat/lng, created_by anonymized)
 - `location_items` (per-location, crowdsourced: item name → shelf/section, vote
   state)
@@ -111,7 +112,84 @@ lists are visible only to their owner even inside a household.
 **Acceptance test:** A user builds a list across multiple sessions (items added,
 none removed by app restart), a personal list is invisible to a second household
 member, a household list is visible to them (sync arrives in Slice 3 — visibility
-after manual reload is enough to pass this slice).
+after manual reload is enough to pass this slice). A user who has never joined a
+household can build a personal list, and two such users cannot see each other's.
+
+*Agreed 2026-08-10, at Protocol Step 2 — the issue was labelled "no open questions"
+and had nine. Each of these shapes the schema or the acceptance test:*
+
+- **Scope is `household_id` alone; there is no `type` column.** § 1 above lists both,
+  which is one fact stored twice with two of its four states invalid. Nothing reads
+  the second copy. The inverse (keep `type`, always store `household_id`) is
+  unavailable, because a user with no household has no id to store.
+- **The read policy compares with `=`, never `is not distinct from`.** For a user
+  with no household `current_household_id()` is null, so `household_id = null` is
+  null → false and personal lists match on ownership alone. Written with
+  `is not distinct from`, `null = null` is *true* and every householdless user sees
+  every other householdless user's lists. Same class as the § 0 invariant Slice 1
+  guarded, so it gets a policy test rather than a comment.
+- **Personal → household is allowed; household → personal is not.** Slice 1 made
+  households optional and created later, so fixing scope at creation would strand
+  every list built before pairing. Demotion is the opposite: it removes a list from
+  people who added items to it, which under Slice 3 is a list vanishing off someone's
+  screen live. The want behind it is *copy*, which Slice 9 already builds.
+  Promotion is one-way, publishes existing item text, and is confirmed before it runs.
+- **`position` is manual order only. Slice 7 never writes it.** Route order is a
+  property of list × location, computed as a sort at read time. Persisting it would
+  rewrite every row on arrival at a shop, broadcast that rewrite to the whole
+  household through Slice 3, and destroy the user's own order permanently.
+- **Order is a fractional base-62 key, sorted `order by position, id`.** A move
+  writes exactly one row and subdivision never exhausts, so no renumbering path
+  exists. Contiguous integers make a move an N-row rewrite that races whole-list
+  against whole-list under Slice 3; sparse integers and float midpoints only make
+  that rare, and Slice 1 already rejected "rare" when it retried invite-code
+  collisions. Two members moving into the same slot can compute the same key —
+  `id` breaks the tie identically on every device. That also makes the append
+  read-then-write race benign.
+- **New items append to the end, and check-off never writes `position`.** One
+  gesture, one fact. Checked items stay where they are; grouping them is a UI concern.
+- **Removal is a soft delete on both `lists` and `list_items`.** Supabase does not
+  apply RLS to `DELETE` statements ("there is no way for Postgres to verify that a
+  user has access to a deleted record"), so a hard delete broadcasts to every
+  subscriber of the table regardless of household. Only primary keys travel, but § 0
+  makes list data household-private a hard invariant, so that is not a judgement call
+  to make quietly. Soft delete makes removal an `UPDATE`, which *is* filtered — and
+  additionally gives Slice 3 one mechanism instead of two, makes undo possible, and
+  keeps Slice 9's history resolvable. Hard-deleting a list would cascade into exactly
+  the `list_items` delete storm this avoids.
+- **Writes go direct to table under RLS `with check`; only promote-to-household is an
+  RPC.** This deviates from Slice 1's write-through-RPC split deliberately. That
+  split exists for invariants RLS cannot express atomically, and Slice 2 has none —
+  "you may only write a list you can see" and "you may only create a household list
+  in *your* household" are both plain check expressions. Promotion has real
+  conditions (owner only, own household only, must be a member) and keeps its RPC.
+- **`checked_at timestamptz null` replaces the `checked` boolean** listed in § 1.
+  Strictly more information for one column; storing both would repeat the mistake
+  the first decision above corrects.
+- **Reorder ships as a plain control (move up/down), not a drag gesture.** The
+  fractional-key decision still gets exercised and tested. Real drag needs
+  `react-native-gesture-handler` and `react-native-reanimated`, neither installed,
+  and it is the first gesture code in a project where native has never been run and
+  where web drag is a different input model. Polished drag lands where it can be
+  verified on a device.
+- **Item quantities are out of spec and stay out.** `list_items` has no quantity
+  field and the CRD never asks for one. Logged in `CHANGE-LOG.md` as pending.
+- **A navigation library is adopted before any feature work in this slice** — see
+  the note below.
+
+*Navigation, revisited at Protocol Step 2 as planned:* Slice 1's branches were
+states (booting, signed out, in a household, not). Slice 2 adds a list index and a
+list detail, and detail is the first screen taking a parameter and the first with a
+real back relationship — places, not states. Hand-rolling that is genuinely small,
+but on web it means no URL, and the Vercel link is the agreed review surface: a
+tester in a list detail presses browser Back and falls out of the app. Android's
+hardware back does the same. Slices 4, 5 and 9 each add screens, so the refactor
+only gets more expensive and would otherwise land tangled in Slice 5's acceptance
+test. React Navigation (`native-stack`) is chosen over Expo Router because Expo
+Router would move the entry point and change `vercel.json`'s output config, which is
+a large blast radius on a working deploy. It lands as its own commit before any
+feature work, so a web-export break on Expo 57 / RN 0.86 / React 19.2 is isolated
+and revertable.
 
 ### Slice 3 — Real-Time Household Sync
 **Depends on:** Slice 2.
