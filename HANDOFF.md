@@ -7,8 +7,8 @@
 
 - Ticket / spec section: 03-SPEC.md § Slice 0, filed as issue #10.
 - Ticket / spec section: 03-SPEC.md § Slice 1, filed as issue #1.
-- Status: **Slice 0 done and closed** (#10, PR #11). Deployed at https://cartel-kappa.vercel.app. **Slice 1 (#1) is now active, at Protocol Step 2** — scope questions raised with the client, not yet answered, no planning started.
-- Next step: agree the Slice 1 scope questions (multi-household? invite-code lifecycle? is a household optional?), then the palette, then plan.
+- Status: **Slice 1 built and deployed**, issue #1 still open pending the client's call. Schema + RLS + pairing RPCs applied; anonymous session with AsyncStorage persistence; four screens; palette locked to burnt orange. Live at https://cartel-kappa.vercel.app. Verified across two independent browser sessions.
+- Next step: close #1 if the client accepts, then **Slice 2 (#2, Lists & Items)** — which is also where the no-navigation-library decision starts costing, and where the "usable with no household" claim first becomes testable.
 
 ## Notes for next session
 
@@ -26,4 +26,7 @@
 - Vercel project `cartel` (mp3anthony's projects, Hobby) builds from `main` with Root Directory `mobile`; build/output come from `mobile/vercel.json`. Env vars `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are set for Production and Preview — a new variable needs a redeploy, since Expo bakes them in at build time.
 - Vercel's root-directory picker at import time only ever offered the repo root, even after `mobile/` was on `main` — its cached file tree was stale and the field is read-only there. Set it in Settings → Build and Deployment instead, where it's free text.
 - Android and iOS have **never been run**. Recorded on #10 rather than implied to pass. The Vercel link is the agreed review surface for the client and their testers; Expo Go was considered and rejected as day-to-day workflow. First native run lands in Slice 1 — treat any native-only breakage as expected-but-undiscovered, not a regression.
-- Slice 0 set `persistSession: false` on the Supabase client because there was no storage adapter and no auth. Slice 1 must add one (AsyncStorage), or every app restart mints a fresh anonymous user and the household is lost. This is scope Slice 1's issue does not mention.
+- Slice 1 uses no navigation library — a deliberate client call, taken knowing the cost lands in Slice 2. Screens are chosen from state in `App.tsx`. Revisit at Slice 2 rather than treating the conditional rendering as a pattern to extend.
+- Writes go through security-definer RPCs (`create_household`, `create_invite`, `redeem_invite`); reads go through RLS. Keep that split for later slices — it is what makes the invariants atomic and checkable in one place.
+- Gotcha, cost an hour: RLS policy expressions run as the *querying* user, so revoking a policy-helper function's EXECUTE from `authenticated` silently breaks every read while writes keep working. See migration `20260810000002`.
+- Test users are anonymous rows in `auth.users` with `is_anonymous = true`; cleaning up between test runs is `delete from public.households; delete from auth.users where is_anonymous = true;`.
