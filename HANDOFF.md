@@ -6,8 +6,9 @@
 ## Last active
 
 - Ticket / spec section: 03-SPEC.md § Slice 0, filed as issue #10.
-- Status: **Slice 0 built and merged to `main`** (PR #11). Expo app in `mobile/`, Supabase project `cartel` live, theme tokens plumbed. Deployed at https://cartel-kappa.vercel.app — verified connecting from a clean session at both desktop and phone width. Both failure paths (wrong key, missing key) verified on screen. Android boot is the one remaining unchecked item on #10.
-- Next step: Android boot check to close #10, then **Slice 1 (#1)**, which starts with the palette decision.
+- Ticket / spec section: 03-SPEC.md § Slice 1, filed as issue #1.
+- Status: **Slice 0 done and closed** (#10, PR #11). Deployed at https://cartel-kappa.vercel.app. **Slice 1 (#1) is now active, at Protocol Step 2** — scope questions raised with the client, not yet answered, no planning started.
+- Next step: agree the Slice 1 scope questions (multi-household? invite-code lifecycle? is a household optional?), then the palette, then plan.
 
 ## Notes for next session
 
@@ -24,3 +25,5 @@
 - Local branch `main` still holds the abandoned sync-engine history; `origin/main` is the fresh root. Anyone checking out `main` locally gets the wrong repo. Worth deleting or renaming.
 - Vercel project `cartel` (mp3anthony's projects, Hobby) builds from `main` with Root Directory `mobile`; build/output come from `mobile/vercel.json`. Env vars `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are set for Production and Preview — a new variable needs a redeploy, since Expo bakes them in at build time.
 - Vercel's root-directory picker at import time only ever offered the repo root, even after `mobile/` was on `main` — its cached file tree was stale and the field is read-only there. Set it in Settings → Build and Deployment instead, where it's free text.
+- Android and iOS have **never been run**. Recorded on #10 rather than implied to pass. The Vercel link is the agreed review surface for the client and their testers; Expo Go was considered and rejected as day-to-day workflow. First native run lands in Slice 1 — treat any native-only breakage as expected-but-undiscovered, not a regression.
+- Slice 0 set `persistSession: false` on the Supabase client because there was no storage adapter and no auth. Slice 1 must add one (AsyncStorage), or every app restart mints a fresh anonymous user and the household is lost. This is scope Slice 1's issue does not mention.
