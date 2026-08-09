@@ -159,14 +159,20 @@ and had nine. Each of these shapes the schema or the acceptance test:*
   once mixed-case keys exist, which is around the sixty-third insert into one list.
   The key generator and the column must agree on collation or neither is correct.
 - **Key generation is the `fractional-indexing` package, not hand-rolled.** CC0,
-  zero dependencies, base-62 by default. It already handles the cases a 50-line
-  version gets subtly wrong — prepending with no lower bound, appending without
-  unbounded string growth, subdividing adjacent keys, and the trailing-zero
-  invariant that keeps value and string representation one-to-one. Its failure mode
-  is not a crash but items quietly out of order weeks later on a shared list, which
-  is the worst kind of thing to own untested. Note: passing `digits` explicitly
-  yields a different keyspace than omitting it — that choice is a stored-data format
-  commitment, made once and never changed.
+  zero dependencies. It already handles the cases a 50-line version gets subtly
+  wrong — prepending with no lower bound, appending without unbounded string
+  growth, subdividing adjacent keys, and the trailing-zero invariant that keeps
+  value and string representation one-to-one. Its failure mode is not a crash but
+  items quietly out of order weeks later on a shared list, which is the worst kind
+  of thing to own untested. **`digits` is never passed to `generateKeyBetween`,
+  anywhere, permanently.** Calling it with no third argument is not "base-62 by
+  default" as loosely stated elsewhere — the package's *value* digits default to
+  base 62, but its *integer-head* alphabet (`intDigits`) defaults to base 52 only
+  when `digits` is omitted, and to a different, self-headed base-62 scheme when
+  `digits` is passed explicitly. The two are incompatible keyspaces. Whichever one
+  a first insert uses is the stored-data format forever; the only safe rule is
+  "never pass it," not "pass base 62," because the obvious-looking fix corrupts
+  every existing key's ordering against new ones.
 - **New items append to the end, and check-off never writes `position`.** One
   gesture, one fact. Checked items stay where they are; grouping them is a UI concern.
 - **Removal is a soft delete on both `lists` and `list_items`.** Supabase does not
