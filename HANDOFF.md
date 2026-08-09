@@ -6,8 +6,8 @@
 ## Last active
 
 - Ticket / spec section: 03-SPEC.md § Slice 0, filed as issue #10.
-- Status: **Slice 0 built** on branch `slice-0-scaffolding` (pushed, no PR yet). Expo app in `mobile/`, Supabase project `cartel` live, theme tokens plumbed. Verified on web: connects, and both failure paths (wrong key, missing key) show on screen. Android boot and the Vercel deploy are still unverified — see below.
-- Next step: finish #10 (Android boot check + Vercel import), then **Slice 1 (#1)**, which starts with the palette decision.
+- Status: **Slice 0 built and merged to `main`** (PR #11). Expo app in `mobile/`, Supabase project `cartel` live, theme tokens plumbed. Deployed at https://cartel-kappa.vercel.app — verified connecting from a clean session at both desktop and phone width. Both failure paths (wrong key, missing key) verified on screen. Android boot is the one remaining unchecked item on #10.
+- Next step: Android boot check to close #10, then **Slice 1 (#1)**, which starts with the palette decision.
 
 ## Notes for next session
 
@@ -22,3 +22,5 @@
 - The connectivity probe uses `/auth/v1/health`, not the PostgREST root. The root answers 401 for every key while no schema is exposed, so it cannot tell a healthy project from bad credentials. Revisit once Slice 2 adds tables — a real query is the stronger check.
 - Vercel was agreed as a **review surface** (shareable link, home-screen bookmark), not a platform change. React Native stays the target per 03-SPEC.md § 0. Drag-to-reorder and animated transitions (Slice 5+) don't behave the same under react-native-web, so those acceptance tests need a real device.
 - Local branch `main` still holds the abandoned sync-engine history; `origin/main` is the fresh root. Anyone checking out `main` locally gets the wrong repo. Worth deleting or renaming.
+- Vercel project `cartel` (mp3anthony's projects, Hobby) builds from `main` with Root Directory `mobile`; build/output come from `mobile/vercel.json`. Env vars `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are set for Production and Preview — a new variable needs a redeploy, since Expo bakes them in at build time.
+- Vercel's root-directory picker at import time only ever offered the repo root, even after `mobile/` was on `main` — its cached file tree was stale and the field is read-only there. Set it in Settings → Build and Deployment instead, where it's free text.
