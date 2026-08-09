@@ -1,4 +1,5 @@
--- Fixes a break introduced by the blanket revoke in the previous migration.
+-- Fixes a break introduced by the blanket revoke at the end of
+-- 20260810000000_household_identity.sql, not by the previous migration.
 --
 -- RLS policy expressions are evaluated as the querying user, not as the table owner.
 -- A policy that calls a function the caller cannot execute fails with "permission
