@@ -85,6 +85,24 @@ distinction anywhere in permissions.
 shares an invite code, the second redeems it, both now see themselves as members of
 the same household with identical permissions.
 
+*Agreed 2026-08-10, at Protocol Step 2 — none of this was settled by the CRD, and
+each one shapes the schema:*
+- **One household per user.** Matches the CRD's framing of a household as a couple.
+  Redeeming a second invite is not a silent join — it is an explicit move, or it
+  fails. Chosen over multi-household because every list query and RLS policy in
+  slices 2, 3 and 9 would otherwise need a "which household am I acting as" concept.
+- **A household is optional.** The app is fully usable solo; personal lists work
+  with no household at all. Slice 2 already allows a null `household_id`, so
+  requiring one here would contradict it and put a wall in front of the CRD's first
+  flow. Household creation is a deliberate action taken when sharing is wanted.
+- **Invite codes are single-use and expire.** A leaked or screenshotted code must
+  not quietly admit a stranger to a household weeks later. The cost is one
+  "generate a new code" action per person invited, which is accepted.
+- **Session persistence is Slice 1 scope**, though the issue does not say so. Slice 0
+  deliberately left `persistSession: false` because it had no storage adapter and no
+  auth. Without one, every restart mints a fresh anonymous user and the household is
+  lost — which would make this slice's acceptance test pass and the feature useless.
+
 ### Slice 2 — Lists & Items (single-user)
 **Depends on:** Slice 1 (a list belongs to a user and optionally a household).
 **Scope:** Create a list, mark it personal or household, add/edit/remove/check-off
