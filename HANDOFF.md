@@ -5,28 +5,64 @@
 
 ## Last active
 
-- Ticket / spec section: 03-SPEC.md § Slice 0, filed as issue #10.
-- Ticket / spec section: 03-SPEC.md § Slice 1, filed as issue #1.
-- Status: **Slice 1 built and deployed**, issue #1 still open pending the client's call. Schema + RLS + pairing RPCs applied; anonymous session with AsyncStorage persistence; four screens; palette locked to burnt orange. Live at https://cartel-kappa.vercel.app. Verified across two independent browser sessions.
-- Next step: close #1 if the client accepts, then **Slice 2 (#2, Lists & Items)** — which is also where the no-navigation-library decision starts costing, and where the "usable with no household" claim first becomes testable.
+- Ticket / spec section: 03-SPEC.md § Slice 1, filed as issue #1. **Closed.**
+- Status: Slices 0 and 1 are done, merged to `main`, and live at
+  https://cartel-kappa.vercel.app. Anonymous session persists across restarts,
+  household creation and invite-code pairing work end to end, palette is locked.
+  Verified across two independent browser sessions — never on a device.
+- Next step: **Slice 2 (#2, Lists & Items)**, starting at Protocol Step 2. Its
+  label says "no open questions"; that was also claimed for #1 and there were four.
+  Interrogate it before planning.
 
 ## Notes for next session
 
-- Repo was recreated fresh at https://github.com/mp3anthony/cartel — old sync-engine-era history was deliberately left behind, not carried forward (see commit b653b3d, root commit of `main`).
-- Design reference locked 2026-08-09 from five client screenshots (now in `design-refs/`). Tone is warm & friendly; the two dark/neon refs are recorded as *anti*-references, keeping only the ring-progress motif. Glanceability was deliberately scoped to Shopping Mode alone, not the whole app — that split is intentional, don't "fix" it.
-- Palette was deliberately left unlocked: directional constraints only (light ground, single saturated accent, warm neutrals, no neon). Actual values get chosen during Slice 1 UI work.
-- The accessibility baseline in 02-DESIGN-REFERENCE.md was written by the orchestrator, not specified by the client — it's a sensible default, not a client requirement. Revisit if it conflicts with something.
-- Slice 0 was split out 2026-08-10 because slices 1-9 are all specced as vertical paths that assume an app and backend already exist. Three scope calls were made deliberately: anon auth stays in Slice 1 (so #1 needed no edit), theme *plumbing* is Slice 0 but palette *values* stay Slice 1, and no test/CI harness is in Slice 0 at all. Note issue #10 sorts after #9 despite being first — title carries the order, not the number.
-- #4 and #7 were partly ready-for-human because the design reference was missing. That block is now lifted — worth re-checking whether they can move to ready-for-agent.
-- CLAUDE.md's "## Rules" section still has placeholder bullets — fill in before relying on it for project-specific rules.
-- Supabase project is `cartel`, ref `chacavfoewyiwrfgvxtj`, ap-southeast-2, free tier. Free-tier projects pause after ~7 days idle; the first call back then times out until it's woken from the dashboard.
-- The connectivity probe uses `/auth/v1/health`, not the PostgREST root. The root answers 401 for every key while no schema is exposed, so it cannot tell a healthy project from bad credentials. Revisit once Slice 2 adds tables — a real query is the stronger check.
-- Vercel was agreed as a **review surface** (shareable link, home-screen bookmark), not a platform change. React Native stays the target per 03-SPEC.md § 0. Drag-to-reorder and animated transitions (Slice 5+) don't behave the same under react-native-web, so those acceptance tests need a real device.
-- Local branch `main` still holds the abandoned sync-engine history; `origin/main` is the fresh root. Anyone checking out `main` locally gets the wrong repo. Worth deleting or renaming.
-- Vercel project `cartel` (mp3anthony's projects, Hobby) builds from `main` with Root Directory `mobile`; build/output come from `mobile/vercel.json`. Env vars `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are set for Production and Preview — a new variable needs a redeploy, since Expo bakes them in at build time.
-- Vercel's root-directory picker at import time only ever offered the repo root, even after `mobile/` was on `main` — its cached file tree was stale and the field is read-only there. Set it in Settings → Build and Deployment instead, where it's free text.
-- Android and iOS have **never been run**. Recorded on #10 rather than implied to pass. The Vercel link is the agreed review surface for the client and their testers; Expo Go was considered and rejected as day-to-day workflow. First native run lands in Slice 1 — treat any native-only breakage as expected-but-undiscovered, not a regression.
-- Slice 1 uses no navigation library — a deliberate client call, taken knowing the cost lands in Slice 2. Screens are chosen from state in `App.tsx`. Revisit at Slice 2 rather than treating the conditional rendering as a pattern to extend.
-- Writes go through security-definer RPCs (`create_household`, `create_invite`, `redeem_invite`); reads go through RLS. Keep that split for later slices — it is what makes the invariants atomic and checkable in one place.
-- Gotcha, cost an hour: RLS policy expressions run as the *querying* user, so revoking a policy-helper function's EXECUTE from `authenticated` silently breaks every read while writes keep working. See migration `20260810000002`.
-- Test users are anonymous rows in `auth.users` with `is_anonymous = true`; cleaning up between test runs is `delete from public.households; delete from auth.users where is_anonymous = true;`.
+**Project setup**
+- Supabase project `cartel`, ref `chacavfoewyiwrfgvxtj`, ap-southeast-2, free tier.
+  Free-tier projects pause after ~7 days idle; the first call back times out until
+  it is woken from the dashboard. Anonymous sign-ins are enabled.
+- Vercel project `cartel` (mp3anthony's projects, Hobby) builds from `main`, Root
+  Directory `mobile`, build/output from `mobile/vercel.json`. Both `EXPO_PUBLIC_*`
+  env vars are set for Production and Preview. Expo bakes env values in at build
+  time, so a changed variable needs a redeploy, not just a save.
+- Repo was recreated fresh; old sync-engine history was deliberately left behind.
+  Local branch `main` still holds that abandoned history — `origin/main` is the real
+  one. Anyone checking out `main` locally gets the wrong repo. Worth deleting.
+
+**Decisions that will look like mistakes if you don't know why**
+- **No navigation library.** A deliberate client call, taken knowing the cost lands
+  in Slice 2. Screens are chosen from state in `App.tsx`. Slice 2 is the moment to
+  revisit it — do not silently extend the conditional rendering as if it were a
+  pattern.
+- **Writes go through security-definer RPCs, reads go through RLS.** Keep the split.
+  It is what makes invariants like "one household per user" and "one redemption per
+  code" atomic and checkable in one place instead of scattered through client code.
+- **No RLS policy tests for merely being signed in.** Anonymous users carry the
+  `authenticated` role, so "allow authenticated" means "allow everyone" — the exact
+  failure 03-SPEC.md § 0 calls a hard invariant violation. Policies test membership.
+- **Glanceability applies to Shopping Mode alone**, not the whole app. Intentional
+  split, don't "fix" it.
+- The accessibility baseline in 02-DESIGN-REFERENCE.md was written by the
+  orchestrator, not asked for by the client. Sensible default, not a requirement.
+
+**Traps**
+- RLS policy expressions run as the *querying* user. Revoking a policy-helper
+  function's EXECUTE from `authenticated` silently breaks every read while writes
+  keep working — creating a row succeeds and reading it back throws. Cost an hour;
+  see migration `20260810000002`.
+- Android and iOS have **never been run**, and that is recorded on #10 and #1 rather
+  than implied to pass. The Vercel link is the agreed review surface for the client
+  and their testers; Expo Go was considered and rejected as day-to-day workflow.
+  Treat native-only breakage as expected-but-undiscovered, not a regression.
+- Test users are anonymous rows in `auth.users` with `is_anonymous = true`. Reset
+  between runs with
+  `delete from public.households; delete from auth.users where is_anonymous = true;`
+
+**Loose ends**
+- Palette is locked (burnt orange `#C2410C`) with measured contrast ratios in
+  `mobile/src/theme/tokens.ts` — that file is the source of truth, not the design doc.
+- #4 (location merge UX) and #7 (route-learning heuristic) were labelled
+  ready-for-human because the design reference was missing. That block is lifted —
+  re-check whether they can move to ready-for-agent.
+- `CHANGE-LOG.md` has two pending items neither of which is built: captcha on
+  anonymous sign-in, and orphaned households after member removal.
+- CLAUDE.md's "## Rules" section still has placeholder bullets.
