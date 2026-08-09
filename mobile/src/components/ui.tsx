@@ -2,13 +2,13 @@ import { useMemo, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   View,
   type TextInputProps,
 } from 'react-native';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -16,17 +16,35 @@ import type { Tokens } from '../theme/tokens';
 /**
  * The shared surface every screen sits on. Centralising it is what keeps the ground
  * colour, the gutter and the safe-area handling from drifting screen by screen.
+ *
+ * `edges` exists because a screen inside the navigator already has a header holding
+ * the top inset, and insetting again pads twice. Screens outside the navigator take
+ * the default and inset on all four sides themselves.
+ *
+ * This SafeAreaView is the one from `react-native-safe-area-context`, never the
+ * react-native core one. They are not interchangeable: core pads on iOS only, the
+ * context version reports real insets everywhere. Mixing them means one of the two
+ * is wrong on every platform.
  */
-export function Screen({ children }: { children: ReactNode }) {
+export function Screen({
+  children,
+  edges = ['top', 'bottom', 'left', 'right'],
+}: {
+  children: ReactNode;
+  edges?: readonly Edge[];
+}) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   return (
-    <SafeAreaView style={styles.ground}>
+    <SafeAreaView edges={edges} style={styles.ground}>
       <View style={styles.content}>{children}</View>
     </SafeAreaView>
   );
 }
+
+/** For screens the navigator renders: its header has already taken the top inset. */
+export const NAVIGATOR_EDGES: readonly Edge[] = ['bottom', 'left', 'right'];
 
 export function Heading({ children }: { children: ReactNode }) {
   const tokens = useTheme();

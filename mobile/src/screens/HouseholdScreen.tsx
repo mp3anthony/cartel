@@ -6,12 +6,12 @@ import {
   Body,
   Card,
   ErrorNote,
-  Heading,
+  NAVIGATOR_EDGES,
   PrimaryButton,
   Screen,
   SecondaryButton,
 } from '../components/ui';
-import { createInvite, type Household, type Invite } from '../lib/household';
+import { createInvite, type Invite } from '../lib/household';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
@@ -21,15 +21,17 @@ import type { Tokens } from '../theme/tokens';
  *
  * There is no "remove member" or "make admin" control, and that is not an omission:
  * every member is equal rank by spec, so there is no rank for a control to change.
+ *
+ * The household's name is missing here on purpose: the navigator header carries it,
+ * because that header is also what carries back. Naming it twice on one screen was
+ * what the header replaced.
  */
 export function HouseholdScreen({
   client,
-  household,
   memberCount,
   onRefresh,
 }: {
   client: SupabaseClient;
-  household: Household;
   memberCount: number;
   onRefresh: () => void;
 }) {
@@ -55,8 +57,7 @@ export function HouseholdScreen({
   }
 
   return (
-    <Screen>
-      <Heading>{household.name}</Heading>
+    <Screen edges={NAVIGATOR_EDGES}>
       <Body>
         {memberCount === 1
           ? 'Just you so far.'
