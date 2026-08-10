@@ -5,53 +5,16 @@
 
 ## Last active
 
-- Ticket / spec section: 03-SPEC.md § Slice 4, issue #4. **Step 3 (build)
-  complete — all three phases done** (backend, native-permissions, UI).
-  **[PR #15](https://github.com/mp3anthony/cartel/pull/15) open against
-  `main`, live-verified on the Vercel preview this session, not yet
-  merged** — that's the next decision, not this session's to make. PR #14
-  (list rename/remove UI) and Slice 3 (PR #13) are merged and closed, no
-  longer worth their own entries here.
-- **This session's build ran the full Investigator → Planner → Code Writer
-  → Code Reviewer chain autonomously**, with one checkpoint agreed with the
-  user along the way (already resolved, not a standing decision to revisit):
-  Slice 4 has nothing to attach a selected location *to* yet (`lists` has no
-  location column — that's Slice 5), so a tap/merge-confirm sets an
-  **ephemeral, client-only `selected` state** with a "Selected" `Badge` —
-  nothing persisted. Gives Slice 5 a working UI hook instead of nothing.
-  The prior session's two backend checkpoints (merge-race-window accepted;
-  `earthdistance`/`cube` over PostGIS) are already recorded in
-  `02-DESIGN-REFERENCE.md` § Slice 4 and still stand, not repeated here.
-- **Native-permissions phase**: `expo-location` added, `mobile/app.json` gained
-  an `expo.plugins` entry with the iOS usage-description copy. New
-  `mobile/src/lib/geolocation.ts` wraps `requestForegroundPermissionsAsync`/
-  `getCurrentPositionAsync`, collapsing every non-granted outcome (including a
-  thrown call — unsupported browser, etc.) into a single `denied` result; a
-  GPS-fetch failure *after* grant is a separate, retryable `error` outcome.
-  Denial is **sticky for the screen's mounted lifetime** — no retry button, no
-  settings deep-link, since neither is asked for by the spec — deliberately
-  narrower than a shipped consumer app would want.
-- **UI phase**: new `mobile/src/screens/LocationsScreen.tsx`, reached via a
-  second `ListsScreen` header button alongside `Household`. Search filters the
-  already-loaded index client-side (works identically whether permission was
-  granted or denied). Merge-confirm reuses the existing `Confirm` component
-  with `02-DESIGN-REFERENCE.md`'s locked copy verbatim.
-- **Code review** (separate pass, fresh eyes) found no blockers on spec
-  conformance or codebase conventions; two copy bugs fixed directly — a denial
-  message pointing "below" when the search field is above it, and a
-  zero-locations empty state that contradicted itself when permission was
-  denied.
-- **Live-verified on the Vercel preview** (mocking `navigator.geolocation` +
-  `navigator.permissions.query` via injected JS, not real device GPS): direct
-  create with no nearby match, merge-prompt trigger + confirm (creates
-  nothing, selects existing) + cancel (creates nothing, returns to composer
-  with name intact), denial fallback (real unmocked browser permission state —
-  see Traps), search filter (case-insensitive substring, both match and
-  no-match copy), row-selection toggling between multiple rows, `/locations`
-  deep-link, header layout at 375px width. Confirmed via direct SQL that no
-  duplicate rows leaked from any of the above. Not verified: real-device GPS
-  (native has never been run — see Traps, unchanged this slice).
-  Test rows created during verification were deleted afterward.
+- **Slice 4 is done and merged.** [PR #15](https://github.com/mp3anthony/cartel/pull/15)
+  (backend + native-permissions + UI, built and live-verified across two
+  sessions) merged to `main` as `f3a71c3`, closing issue #4. Feature branch
+  deleted, both locally and on origin.
+- **Next up: Slice 5 — Shopping Mode, issue #5** (`ready-for-agent`, was
+  blocked on #4, now unblocked). Scope: attach a list to a location, enter a
+  shopping view with live check-off. The Locations screen's ephemeral
+  "Selected" `Badge` (see below) exists specifically as this slice's UI hook —
+  nothing persisted yet, that's #5's job.
+- Not yet started; no Investigator/Planner work done for it this session.
 
 ## Notes for next session
 
@@ -101,6 +64,18 @@
   never passed, anywhere.** This database sorts `'a1' < 'A1'` under its default
   ICU collation; base-62 keys only sort correctly under byte order. `03-SPEC.md`
   § Slice 2 has the full mechanism.
+- **`LocationsScreen`'s "Selected" state is ephemeral and client-only — nothing
+  persisted.** Slice 4 had nothing to attach a selected location *to* (`lists`
+  has no location column; that's Slice 5's job), so a row tap or merge-confirm
+  just sets local React state and renders a `Badge`. Don't mistake this for a
+  half-built persistence feature — it's a deliberate placeholder UI hook for
+  Slice 5 to wire real attachment into, not a bug to "finish."
+- **Location-permission denial is sticky for the screen's mounted lifetime,
+  with no retry button and no settings deep-link.** Once `requestLocation()`
+  comes back non-granted, `LocationsScreen` never asks again until it
+  remounts. Deliberately narrower than a shipped consumer app would want —
+  built to satisfy issue #4's acceptance test exactly, not more. If a later
+  slice wants a "check settings" flow, that's new scope, not a gap to patch.
 
 **Traps**
 - RLS policy expressions run as the *querying* user. Revoking a policy-helper
