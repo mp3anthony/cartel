@@ -5,42 +5,53 @@
 
 ## Last active
 
-- Ticket / spec section: 03-SPEC.md § Slice 4, issue #4. **Step 3 (build) in
-  progress. Backend/data-layer phase done; native-permissions and UI phases
-  not started.** PR #14 (list rename/remove UI) merged last session
-  (`9c1dbe4`) — that thread is fully closed, no longer worth its own entry
-  here. Slice 3 is merged (PR #13, `b9b8420`).
-- **This session ran Step 3's first half autonomously** (Investigator →
-  Planner → Code Writer for the backend chunk only), with two checkpoints
-  agreed with the user along the way, both already recorded in
-  `02-DESIGN-REFERENCE.md` § Slice 4 and not repeated here:
-  1. The merge-check-then-create race window (two users creating
-     near-duplicate locations seconds apart) is **accepted, not engineered
-     against** — mirrors the Slice 1 invite-collision precedent.
-  2. Geo-distance uses **`earthdistance`/`cube`**, not full PostGIS — a
-     100m point-radius check doesn't need PostGIS's geometry machinery.
-- **Backend built and verified, branch `slice-4-locations`, commit
-  `c357f1e`, pushed but no PR opened yet** (there's no UI to review
-  alongside it):
-  - `supabase/migrations/20260810000005_locations.sql` — `public.locations`
-    (deliberately global RLS, no household/owner predicate — hard invariant
-    per `03-SPEC.md` § 0), `created_by` stored but withheld from the SELECT
-    grant, and a `nearby_locations(lat, lng, radius_m)` RPC.
-  - `supabase/tests/rls_locations.sql` — passes; core assertion is the
-    *inverse* of `rls_lists.sql`'s (a user sharing nothing with the creator
-    must still see the location — proves "global").
-  - `mobile/src/lib/locations.ts`, `mobile/src/hooks/useLocations.ts` — no
-    realtime subscription (no live-sync acceptance test this slice).
-  - Drive-by fix: `humanise()` in `mobile/src/lib/household.ts` had a
-    hardcoded list-specific fallback string that `locations.ts` would have
-    inherited verbatim; generalized.
-  - `tsc --noEmit` clean, `get_advisors` clean.
-- Next step: **native-permissions phase, then UI phase, in a new session**
-  (user is wrapping this one here). See that session's opening prompt for
-  the detailed build brief — the Planner's full step-by-step plan lived only
-  in this session's context and wasn't persisted to a file, since the plan
-  itself isn't a decision worth documenting once the code exists; the prompt
-  carries what's needed to continue without re-deriving it.
+- Ticket / spec section: 03-SPEC.md § Slice 4, issue #4. **Step 3 (build)
+  complete — all three phases done** (backend, native-permissions, UI).
+  **[PR #15](https://github.com/mp3anthony/cartel/pull/15) open against
+  `main`, live-verified on the Vercel preview this session, not yet
+  merged** — that's the next decision, not this session's to make. PR #14
+  (list rename/remove UI) and Slice 3 (PR #13) are merged and closed, no
+  longer worth their own entries here.
+- **This session's build ran the full Investigator → Planner → Code Writer
+  → Code Reviewer chain autonomously**, with one checkpoint agreed with the
+  user along the way (already resolved, not a standing decision to revisit):
+  Slice 4 has nothing to attach a selected location *to* yet (`lists` has no
+  location column — that's Slice 5), so a tap/merge-confirm sets an
+  **ephemeral, client-only `selected` state** with a "Selected" `Badge` —
+  nothing persisted. Gives Slice 5 a working UI hook instead of nothing.
+  The prior session's two backend checkpoints (merge-race-window accepted;
+  `earthdistance`/`cube` over PostGIS) are already recorded in
+  `02-DESIGN-REFERENCE.md` § Slice 4 and still stand, not repeated here.
+- **Native-permissions phase**: `expo-location` added, `mobile/app.json` gained
+  an `expo.plugins` entry with the iOS usage-description copy. New
+  `mobile/src/lib/geolocation.ts` wraps `requestForegroundPermissionsAsync`/
+  `getCurrentPositionAsync`, collapsing every non-granted outcome (including a
+  thrown call — unsupported browser, etc.) into a single `denied` result; a
+  GPS-fetch failure *after* grant is a separate, retryable `error` outcome.
+  Denial is **sticky for the screen's mounted lifetime** — no retry button, no
+  settings deep-link, since neither is asked for by the spec — deliberately
+  narrower than a shipped consumer app would want.
+- **UI phase**: new `mobile/src/screens/LocationsScreen.tsx`, reached via a
+  second `ListsScreen` header button alongside `Household`. Search filters the
+  already-loaded index client-side (works identically whether permission was
+  granted or denied). Merge-confirm reuses the existing `Confirm` component
+  with `02-DESIGN-REFERENCE.md`'s locked copy verbatim.
+- **Code review** (separate pass, fresh eyes) found no blockers on spec
+  conformance or codebase conventions; two copy bugs fixed directly — a denial
+  message pointing "below" when the search field is above it, and a
+  zero-locations empty state that contradicted itself when permission was
+  denied.
+- **Live-verified on the Vercel preview** (mocking `navigator.geolocation` +
+  `navigator.permissions.query` via injected JS, not real device GPS): direct
+  create with no nearby match, merge-prompt trigger + confirm (creates
+  nothing, selects existing) + cancel (creates nothing, returns to composer
+  with name intact), denial fallback (real unmocked browser permission state —
+  see Traps), search filter (case-insensitive substring, both match and
+  no-match copy), row-selection toggling between multiple rows, `/locations`
+  deep-link, header layout at 375px width. Confirmed via direct SQL that no
+  duplicate rows leaked from any of the above. Not verified: real-device GPS
+  (native has never been run — see Traps, unchanged this slice).
+  Test rows created during verification were deleted afterward.
 
 ## Notes for next session
 
@@ -125,6 +136,29 @@
   that reaches for an extension-provided operator (not just a function) hits
   this — `supabase/migrations/20260810000005_locations.sql`'s header comment
   has the full explanation.
+- **Testing `expo-location` on the web preview needs both browser APIs mocked,
+  not just one.** Overriding `navigator.geolocation.getCurrentPosition` alone
+  isn't enough — `requestForegroundPermissionsAsync()` checks
+  `navigator.permissions.query({name:'geolocation'})` first, and a headless
+  browser's real default for that query is `denied`/unanswerable, not
+  `granted`. Without also mocking `permissions.query`, every "granted" test
+  scenario silently exercises the denial path instead — discovered when a
+  mocked-granted create still came back denied. Confirmed harmless in this
+  case only because it's the *same* fallback code path Slice 4 already needed
+  to test; a future slice relying on this same shortcut wouldn't get so lucky.
+- **Browser-pane `left_click` on a `ref_N` from `read_page` is unreliable on
+  the first attempt right after a screen transition or full navigation** on
+  this app's `react-native-web` stack — it silently no-ops (no error, no
+  state change) rather than failing loud. Symptom: the UI looks like the
+  click never happened. Retrying the same ref sometimes works after 2-3
+  tries; the reliable fallback is `javascript_tool` doing
+  `element.click()` directly (find by `textContent`), which worked every
+  time it was tried. Text inputs have the matching failure mode — `computer`
+  `type` can silently not land — verify via reading the input's `.value` and,
+  if empty, set it with the native `HTMLInputElement` value setter +
+  `dispatchEvent(new Event('input', {bubbles:true}))` rather than retrying
+  `type` blindly (React-controlled inputs ignore a plain `.value =`
+  assignment without the setter/event combo).
 - There is still no test harness beyond SQL run via the Supabase MCP's
   `execute_sql` against the hosted project (no local CLI, no `config.toml`, no
   Docker). Each call commits in its own transaction regardless of an open
@@ -137,8 +171,6 @@
 - Palette is locked (burnt orange `#C2410C`) with measured contrast ratios in
   `mobile/src/theme/tokens.ts` — that file is the source of truth, not the design
   doc.
-- `renameList`/`removeList` are now wired to `ListDetailScreen.tsx` — **[PR
-  #14](https://github.com/mp3anthony/cartel/pull/14), merged.** Done.
 - #7 (route-learning heuristic) is still labelled ready-for-human over a
   missing design reference — genuinely unchecked this session (only #4 was
   investigated). Worth the same treatment #4 got: check whether
