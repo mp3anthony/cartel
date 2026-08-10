@@ -7,6 +7,7 @@ import {
   ErrorNote,
   Field,
   Heading,
+  NAVIGATOR_EDGES,
   PrimaryButton,
   Screen,
   SecondaryButton,
@@ -68,7 +69,7 @@ export function HouseholdSetupScreen({
 
   if (mode === 'create') {
     return (
-      <Screen>
+      <Screen edges={NAVIGATOR_EDGES}>
         <Heading>Name your household</Heading>
         <Body>Everyone who joins sees this name. You can be the only member.</Body>
         <Field
@@ -101,7 +102,7 @@ export function HouseholdSetupScreen({
 
   if (mode === 'join') {
     return (
-      <Screen>
+      <Screen edges={NAVIGATOR_EDGES}>
         <Heading>Enter the code</Heading>
         <Body>
           Ask whoever set up the household for their invite code. Codes work once and
@@ -139,8 +140,7 @@ export function HouseholdSetupScreen({
   }
 
   return (
-    <Screen>
-      <Heading>Cartel</Heading>
+    <Screen edges={NAVIGATOR_EDGES}>
       <Body>
         Share a shopping list with the people you live with. You can do this later —
         your own lists work without a household.

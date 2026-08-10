@@ -33,13 +33,40 @@ const MESSAGES: Record<string, string> = {
   invalid_or_expired_code:
     "That code isn't valid. Codes are single-use and expire after 24 hours.",
   could_not_generate_code: 'Could not generate a code just now. Try again.',
+  list_not_found: 'That list no longer exists.',
+  not_list_owner: 'Only the person who made a list can share it.',
+  already_shared: 'That list is already shared with your household.',
 };
 
-function humanise(error: { message: string }): string {
+/**
+ * Lists and items are written direct to table under RLS rather than through an RPC, so
+ * their likeliest failure is not one of the named exceptions above. A `with check`
+ * violation and a withheld column privilege both arrive as raw Postgres prose — `new
+ * row violates row-level security policy for table "lists"`, `permission denied for
+ * column household_id` — under SQLSTATE 42501. Falling those through verbatim would
+ * hand a user the schema. They are predictable, so they get prose; the fallthrough
+ * below stays for the errors that genuinely are unfamiliar.
+ *
+ * Both the code and the text are checked because the code is the reliable signal when
+ * it is present and PostgREST does not always carry one (a network or gateway failure
+ * surfaces through the same error shape with no SQLSTATE at all).
+ */
+const DENIED = "You don't have access to that list.";
+
+const DENIAL_TEXT = [
+  'violates row-level security policy',
+  'permission denied for column',
+];
+
+export function humanise(error: { message: string; code?: string }): string {
   for (const [code, message] of Object.entries(MESSAGES)) {
     if (error.message.includes(code)) {
       return message;
     }
+  }
+
+  if (error.code === '42501' || DENIAL_TEXT.some((text) => error.message.includes(text))) {
+    return DENIED;
   }
 
   return error.message;
