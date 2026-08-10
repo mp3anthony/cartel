@@ -58,20 +58,32 @@ export function ListsScreen({
       // list for the top of the screen, and it is where the destination — a different
       // place, not a mode of this one — belongs.
       headerRight: () => (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() =>
-            household
-              ? navigation.navigate('Household')
-              : navigation.navigate('HouseholdSetup')
-          }
-          style={({ pressed }) => [
-            styles.headerButton,
-            pressed && styles.headerButtonPressed,
-          ]}
-        >
-          <Text style={styles.headerButtonLabel}>Household</Text>
-        </Pressable>
+        <View style={styles.headerButtons}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('Locations')}
+            style={({ pressed }) => [
+              styles.headerButton,
+              pressed && styles.headerButtonPressed,
+            ]}
+          >
+            <Text style={styles.headerButtonLabel}>Locations</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              household
+                ? navigation.navigate('Household')
+                : navigation.navigate('HouseholdSetup')
+            }
+            style={({ pressed }) => [
+              styles.headerButton,
+              pressed && styles.headerButtonPressed,
+            ]}
+          >
+            <Text style={styles.headerButtonLabel}>Household</Text>
+          </Pressable>
+        </View>
       ),
     });
   }, [household, navigation, styles]);
@@ -209,6 +221,10 @@ export function ListsScreen({
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     composer: {
+      gap: tokens.space.sm,
+    },
+    headerButtons: {
+      flexDirection: 'row',
       gap: tokens.space.sm,
     },
     headerButton: {

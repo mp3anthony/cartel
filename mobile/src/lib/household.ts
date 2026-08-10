@@ -50,8 +50,13 @@ const MESSAGES: Record<string, string> = {
  * Both the code and the text are checked because the code is the reliable signal when
  * it is present and PostgREST does not always carry one (a network or gateway failure
  * surfaces through the same error shape with no SQLSTATE at all).
+ *
+ * The message stays table-agnostic on purpose: this fallback fires for whichever
+ * table's RLS or column grant the caller tripped, and `locations.ts` (Slice 4) calls
+ * the same `humanise()` — list-specific wording here would be wrong for a locations
+ * denial.
  */
-const DENIED = "You don't have access to that list.";
+const DENIED = "You don't have access to that.";
 
 const DENIAL_TEXT = [
   'violates row-level security policy',

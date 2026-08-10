@@ -22,6 +22,14 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "output": "single"
-    }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Cartel uses your location to check whether the supermarket you're adding already exists, so it isn't listed twice."
+        }
+      ]
+    ]
   }
 }
