@@ -103,3 +103,13 @@ improvised mid-build:
   - Confirm button: `Use this location`
   - Cancel: the component's fixed "Cancel" — creates nothing, same as every other
     Cancel in the app.
+- **The merge-check-then-create race window is accepted, not engineered against.**
+  The check and the eventual write are necessarily two separate round-trips with a
+  person deciding in between (unlike this app's other RPCs, which enforce their
+  invariants atomically in one round-trip) — so two users creating near-duplicate
+  locations seconds apart, each having seen "nothing nearby," is possible. Decided
+  during Slice 4 build (2026-08-10, surfaced by the Investigator, not anticipated
+  at the original Step 2 pass above) to accept this rather than add a serialized
+  guard: it mirrors the invite-code collision risk Slice 1 already accepted as
+  "rare, not never" (`03-SPEC.md` § 1), the harm is a duplicate row a later slice's
+  dedup tooling can clean up, and no acceptance test asks for a stronger guarantee.
