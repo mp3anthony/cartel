@@ -25,7 +25,9 @@ import {
   moveItem,
   promoteList,
   removeItem,
+  removeList,
   renameItem,
+  renameList,
   setChecked,
   type ListItemRow,
 } from '../lib/lists';
@@ -65,7 +67,10 @@ export function ListDetailScreen({
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [renamingList, setRenamingList] = useState(false);
+  const [listNameDraft, setListNameDraft] = useState('');
   const [confirmingShare, setConfirmingShare] = useState(false);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -177,6 +182,45 @@ export function ListDetailScreen({
         // settles both.
         await onListsChanged();
         setConfirmingShare(false);
+      },
+    );
+  }
+
+  function startRenameList() {
+    if (!list) {
+      return;
+    }
+
+    setError(null);
+    setListNameDraft(list.name);
+    setRenamingList(true);
+  }
+
+  function commitRenameList() {
+    if (listNameDraft.trim().length === 0) {
+      return;
+    }
+
+    // Same reasoning as share(): the name lives on the list row the index loaded,
+    // not on anything useListItems reloads, so the header and the Lists screen
+    // behind it both need that index reloaded to agree with the database.
+    void mutate(
+      () => renameList(client, listId, listNameDraft),
+      async () => {
+        await onListsChanged();
+        setRenamingList(false);
+      },
+    );
+  }
+
+  function removeListNow() {
+    void mutate(
+      () => removeList(client, listId),
+      async () => {
+        // A removed list has nothing left on this screen to show — reload the index
+        // so it drops out there too, and leave for the one that still does.
+        await onListsChanged();
+        navigation.navigate('Lists');
       },
     );
   }
@@ -319,6 +363,57 @@ export function ListDetailScreen({
             }
           />
         ),
+      )}
+
+      {renamingList ? (
+        <View style={styles.editor}>
+          <Field
+            label="List name"
+            value={listNameDraft}
+            onChangeText={setListNameDraft}
+            autoCapitalize="sentences"
+            autoFocus
+            maxLength={60}
+            editable={!busy}
+            onSubmitEditing={commitRenameList}
+            returnKeyType="done"
+          />
+          <SecondaryButton
+            label="Save"
+            onPress={commitRenameList}
+            disabled={busy || listNameDraft.trim().length === 0}
+          />
+          <SecondaryButton
+            label="Cancel"
+            onPress={() => setRenamingList(false)}
+            disabled={busy}
+          />
+        </View>
+      ) : (
+        <SecondaryButton
+          label="Rename list"
+          onPress={startRenameList}
+          disabled={busy}
+        />
+      )}
+
+      {confirmingRemove ? (
+        <Confirm
+          message="Removing this list takes it off your Lists screen for good, along with everything on it. This can’t be undone."
+          confirmLabel="Remove list"
+          onConfirm={removeListNow}
+          onCancel={() => setConfirmingRemove(false)}
+          busy={busy}
+        />
+      ) : (
+        <SecondaryButton
+          label="Remove list"
+          onPress={() => {
+            setError(null);
+            setConfirmingRemove(true);
+          }}
+          disabled={busy}
+        />
       )}
 
       {canShare && confirmingShare ? (
