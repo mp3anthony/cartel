@@ -5,16 +5,16 @@
 
 ## Last active
 
-- **Slice 4 is done and merged.** [PR #15](https://github.com/mp3anthony/cartel/pull/15)
-  (backend + native-permissions + UI, built and live-verified across two
-  sessions) merged to `main` as `f3a71c3`, closing issue #4. Feature branch
-  deleted, both locally and on origin.
-- **Next up: Slice 5 — Shopping Mode, issue #5** (`ready-for-agent`, was
-  blocked on #4, now unblocked). Scope: attach a list to a location, enter a
-  shopping view with live check-off. The Locations screen's ephemeral
-  "Selected" `Badge` (see below) exists specifically as this slice's UI hook —
-  nothing persisted yet, that's #5's job.
-- Not yet started; no Investigator/Planner work done for it this session.
+- **Slice 5 — Shopping Mode, issue #5, is built end to end and
+  live-verified.** [PR #16](https://github.com/mp3anthony/cartel/pull/16)
+  (schema + `LocationsScreen` attach wiring + new `ShoppingScreen`) open
+  against `main` on branch `slice-5-shopping-mode`, not yet merged — that's
+  the next decision, not this session's to make.
+- Slice 4 is merged — [PR #15](https://github.com/mp3anthony/cartel/pull/15),
+  `f3a71c3`, closing issue #4 — no longer worth its own entry.
+- **Next up once #16 merges: Slice 6 — Crowdsourced Location Tagging, issue
+  #6** (was blocked on #5, now unblocked). Not yet started; no
+  Investigator/Planner work done for it this session.
 
 ## Notes for next session
 
@@ -29,6 +29,9 @@
   shareable link rather than assuming a bare preview URL loads.
 - Repo was recreated fresh; old sync-engine history was deliberately left behind.
   `origin/main` is always the real `main` if a stale local branch ever disagrees.
+- `.claude/launch.json` (new this slice) runs the web preview on port 8082, not
+  Expo's default 8081 — 8081 was occupied in the session that added it. Use
+  8082 going forward rather than assuming the default.
 
 **Decisions that will look like mistakes if you don't know why**
 - **Realtime is enabled per-table via publication membership, not per-row.**
@@ -64,18 +67,66 @@
   never passed, anywhere.** This database sorts `'a1' < 'A1'` under its default
   ICU collation; base-62 keys only sort correctly under byte order. `03-SPEC.md`
   § Slice 2 has the full mechanism.
-- **`LocationsScreen`'s "Selected" state is ephemeral and client-only — nothing
-  persisted.** Slice 4 had nothing to attach a selected location *to* (`lists`
-  has no location column; that's Slice 5's job), so a row tap or merge-confirm
-  just sets local React state and renders a `Badge`. Don't mistake this for a
-  half-built persistence feature — it's a deliberate placeholder UI hook for
-  Slice 5 to wire real attachment into, not a bug to "finish."
+- **`LocationsScreen`'s "Selected" `Badge` is no longer a placeholder — Slice 5
+  wired it up.** A new optional nav param `Locations: { attachToListId?:
+  string }` and a single `handleSelect()` function are what make a selection
+  "become real": absent the param it's still byte-identical to Slice 4
+  (client-side badge only); present, every path that finalizes a choice (row
+  tap, merge-confirm, just-created location) writes `location_id` via
+  `attachLocation()` and navigates back to `ListDetail` instead. Two slices of
+  HANDOFF called this "not a bug to finish" — it's finished now; don't add a
+  second, parallel selection mechanism if a later slice wants attachment
+  triggered from somewhere other than this screen.
 - **Location-permission denial is sticky for the screen's mounted lifetime,
   with no retry button and no settings deep-link.** Once `requestLocation()`
   comes back non-granted, `LocationsScreen` never asks again until it
   remounts. Deliberately narrower than a shipped consumer app would want —
   built to satisfy issue #4's acceptance test exactly, not more. If a later
   slice wants a "check settings" flow, that's new scope, not a gap to patch.
+- **No `shop_sessions` table this slice, and no RPC for the `location_id`
+  write.** `lists.location_id` (migration
+  `20260810000006_lists_location_attachment.sql`) is a plain nullable FK, `on
+  delete set null` (mirrors `locations.created_by`'s own deletion story),
+  gated by the pre-existing `lists_update_visible` RLS policy plus a new
+  column-level `grant update (location_id)` — no new policy, because that
+  predicate already has no per-column awareness to add one for. "Closed and
+  resumed without losing check-off state" is satisfied entirely by
+  `list_items.checked_at` (already existed since Slice 2, already persists,
+  `useListItems` already reloads fresh on every mount) — `shop_sessions` is
+  real but later scope (Slice 7/9, feeds history/route-learning), and
+  building it now would be schema nobody reads yet. Confirmed by
+  `supabase/tests/rls_lists_locations.sql` (6 assertions plus a positive
+  control, following the `rls_lists.sql`/`rls_locations.sql` template) —
+  including that a household mate may attach too (equal-rank invariant) and
+  that `public.locations` stays globally visible to a stranger regardless
+  (§0's household-private/location-global boundary still holds).
+- **`attachLocation(client, listId, locationId)` is one function for attach,
+  change, and detach** — detach is just a call with `null`. A separate
+  `detachLocation` would only be this call with its second argument
+  hard-coded.
+- **`ShoppingScreen` tracks per-item pending state (`Set<string>` of
+  in-flight item ids) instead of `ListDetailScreen`'s one shared `busy`
+  boolean.** Deliberate: Shopping Mode's whole point is checking off several
+  items in quick succession while walking, so one shared flag would
+  serialize every tap behind the previous row's round trip. The `Set` only
+  guards a row against double-tapping itself — different rows are free to be
+  in flight together.
+- **`CheckTarget` grew optional `size`/`label` props rather than a new
+  parallel component.** When `label` is passed, the whole row (circle + text)
+  renders as one `Pressable` — deliberately not a bare-circle `CheckTarget`
+  nested inside a `Row`'s own `onPress`, which `Row`'s own doc comment already
+  flags as two touchables reacting to one tap. Both props default to values
+  that leave every pre-Slice-5 call site (`ListDetailScreen`'s per-item
+  circle, `ListsScreen`'s share checkbox) rendering byte-identically. Two new
+  tokens ride along in `tokens.ts`: `fontSize.large` (26) and
+  `minTouchTargetLarge` (64, Material's "large touch target" tier), both
+  Shopping-Mode-only — `tokens.ts` had carried a comment since Slice 4
+  anticipating this ("Shopping Mode raises it in Slice 5"), now resolved as a
+  sibling token rather than a replacement of `minTouchTarget`.
+- **No "Finish shopping" button, no reordering or grouping of checked items in
+  `ShoppingScreen`.** Out of scope by this slice's own plan — there's no
+  session row to finalize, and Slice 2 already decided check-off never writes
+  `position`.
 
 **Traps**
 - RLS policy expressions run as the *querying* user. Revoking a policy-helper
@@ -87,6 +138,24 @@
   the deletion. This was a theoretical risk recorded in Slice 2 and a live-verified
   fact as of Slice 3 — the soft-delete UPDATE was confirmed arriving over both
   sessions' subscriptions before the client-side filter hid the row.
+- **Two mounted `useListItems` instances for the same `listId` collide on the
+  same Realtime channel and crash.** `ListDetailScreen` stays mounted
+  underneath `ShoppingScreen` in the native-stack navigator when navigating
+  between them, so both hooks called `client.channel('list-items:<id>')`
+  with the same bare topic — Supabase's `client.channel(topic)` returns the
+  *existing* channel for a topic it's already seen rather than creating a new
+  one, and calling `.on()` on a channel that's already `subscribe()`d throws.
+  Slice 3's original doc comment on `useListItems` had explicitly flagged
+  this as theoretically possible but left it undefended as "not reachable
+  today"; Slice 5 made it reachable and it crashed live (an uncaught error on
+  `ShoppingScreen`) before the fix. Fixed by suffixing the channel topic with
+  a per-mount-instance `useId()` (`mobile/src/hooks/useListItems.ts`) — both
+  instances still filter server-side on the same `list_id`, so two screens
+  showing the same list now redundantly self-refresh on each other's writes
+  too, accepted under the same "redundant but harmless" reasoning `useLists`
+  already relies on for a write's own echo. Watch for this again any time a
+  future slice mounts a second concurrent consumer of the same list-scoped
+  hook.
 - **Two tabs of one browser profile are the same user.** `localStorage` is shared
   per-origin, not per-tab. Genuine two-session verification needs two separate
   browser profiles (Browser pane + Claude-in-Chrome), confirmed by checking the

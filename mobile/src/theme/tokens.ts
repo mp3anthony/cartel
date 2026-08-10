@@ -61,6 +61,9 @@ export const tokens = {
     body: 16,
     title: 22,
     display: 30,
+    /** Shopping Mode's item text only. Clears the ~24px "large text" WCAG 3:1
+     * contrast threshold per 02-DESIGN-REFERENCE.md's Glanceability section. */
+    large: 26,
   },
 
   /**
@@ -79,8 +82,11 @@ export const tokens = {
     },
   },
 
-  /** Design reference sets 44pt as the floor; Shopping Mode raises it in Slice 5. */
+  /** Design reference sets 44pt as the floor for every ordinary control. */
   minTouchTarget: 44,
+  /** Shopping Mode only — Material Design's "large touch target" tier, for the
+   * oversized check-off rows a user taps while walking and not looking closely. */
+  minTouchTargetLarge: 64,
 } as const;
 
 export type Tokens = typeof tokens;

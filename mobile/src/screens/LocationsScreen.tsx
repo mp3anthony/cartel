@@ -18,6 +18,7 @@ import {
 } from '../components/ui';
 import { useLocations } from '../hooks/useLocations';
 import { requestLocation } from '../lib/geolocation';
+import { attachLocation } from '../lib/lists';
 import {
   createLocation,
   findNearbyLocations,
@@ -31,6 +32,7 @@ import type { Tokens } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Locations'> & {
   client: SupabaseClient;
+  onListsChanged: () => Promise<void>;
 };
 
 /**
@@ -41,18 +43,28 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Locations'> & {
  * made". `locations.ts` already withholds `created_by` from the SELECT grant — there
  * is no ownership concept here to accidentally add.
  *
- * `selected` is client-side and ephemeral. Nothing about "which location is
- * selected" is persisted or sent to the backend; it exists only so a row can show a
- * "Selected" badge for the rest of this screen's mounted lifetime.
+ * `selected` is client-side and ephemeral when `attachToListId` is absent — nothing
+ * about "which location is selected" is persisted or sent to the backend in that
+ * case; it exists only so a row can show a "Selected" badge for the rest of this
+ * screen's mounted lifetime. This is Slice 4's whole selection story, unchanged.
  *
  * `permissionDenied` is sticky for the same lifetime, once set. There is no retry
  * button and no settings deep link this phase — a user who denies location access
  * falls back to searching the existing index for the rest of this visit.
+ *
+ * `attachToListId` (Slice 5) is what turns a selection from client-side badging
+ * into a real write. `handleSelect` is the one place a selection "becomes real" —
+ * every path that finalizes a choice (row tap, merge-confirm, just-created-location)
+ * calls it rather than setting `selected` directly, so the attach-vs-badge branch
+ * lives in exactly one function. Absent, `handleSelect` does exactly what this
+ * screen did before Slice 5 existed; present, it writes `location_id` onto that list
+ * and returns to it instead.
  */
-export function LocationsScreen({ client }: Props) {
+export function LocationsScreen({ client, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const { view, refresh } = useLocations(client);
+  const attachToListId = route.params?.attachToListId;
 
   const [search, setSearch] = useState('');
   const [composing, setComposing] = useState(false);
@@ -64,6 +76,43 @@ export function LocationsScreen({ client }: Props) {
   const [selected, setSelected] = useState<{ id: string; name: string } | null>(
     null,
   );
+
+  /**
+   * The single place a selection "becomes real". Absent `attachToListId`, this is
+   * byte-identical to Slice 4's row tap: set the ephemeral badge state and stop.
+   * Present, it writes instead — `.eq('id', ...)`-style scoping and RLS already
+   * cover who may attach (see migration 20260810000006), so this never re-derives
+   * an authorization check the database already makes.
+   *
+   * The `busy` guard only applies on the attach path: a bare badge-select has
+   * nothing to race, so gating it here too would make the no-`attachToListId`
+   * branch stop being byte-identical to before.
+   */
+  async function handleSelect(id: string, name: string) {
+    if (!attachToListId) {
+      setSelected({ id, name });
+      return;
+    }
+
+    if (busy) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+
+    const outcome = await attachLocation(client, attachToListId, id);
+
+    if (!outcome.ok) {
+      setBusy(false);
+      setError(outcome.message);
+      return;
+    }
+
+    await onListsChanged();
+    setBusy(false);
+    navigation.navigate('ListDetail', { listId: attachToListId });
+  }
 
   function beginComposing() {
     setError(null);
@@ -129,11 +178,15 @@ export function LocationsScreen({ client }: Props) {
       return;
     }
 
+    // Captured before setName('') clears it, and before handleSelect's own attach
+    // path may navigate this screen away.
+    const createdName = name.trim();
+
     await refresh();
     setBusy(false);
     setComposing(false);
-    setSelected({ id: created.value, name: name.trim() });
     setName('');
+    await handleSelect(created.value, createdName);
   }
 
   function confirmMerge() {
@@ -141,9 +194,11 @@ export function LocationsScreen({ client }: Props) {
       return;
     }
 
-    // No write: the nearby location already exists, so "using" it is purely a
-    // client-side selection.
-    setSelected({ id: nearbyMatch.id, name: nearbyMatch.name });
+    // The nearby location already exists, so there is no write for the location
+    // itself here — "using" it is either a client-side selection (byte-identical to
+    // before) or the same attach write every other selection path uses, decided by
+    // handleSelect, not here.
+    void handleSelect(nearbyMatch.id, nearbyMatch.name);
     setNearbyMatch(null);
     setComposing(false);
     setName('');
@@ -191,7 +246,7 @@ export function LocationsScreen({ client }: Props) {
         <Row
           key={location.id}
           label={location.name}
-          onPress={() => setSelected({ id: location.id, name: location.name })}
+          onPress={() => void handleSelect(location.id, location.name)}
           trailing={
             location.id === selected?.id ? <Badge label="Selected" /> : undefined
           }

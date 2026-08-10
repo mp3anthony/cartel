@@ -273,20 +273,78 @@ export function Row({
  * `accessibilityLabel` is required because the visible content is a glyph. In a Row
  * the neighbouring label reads as the name to a sighted user, but nothing in the
  * accessibility tree connects the two, so the control has to name itself.
+ *
+ * `size` and `label` are Shopping Mode's addition (Slice 5), both optional and
+ * backward compatible — every call site that omits them renders exactly as before.
+ * `label`, when present, folds the row's label into this same `Pressable` rather
+ * than leaving `CheckTarget` a bare circle for a `Row`'s `leading` slot to wrap in
+ * its *own* `onPress`. `Row`'s own doc comment already establishes why: a circle
+ * nested inside another row's touchable is two nested `Pressable`s reacting to one
+ * tap, which is the pattern to avoid, not a component to build. Folding the label in
+ * here keeps it to one `Pressable` and reuses the dual `aria-checked`/
+ * `accessibilityState` spelling below rather than re-deriving that react-native-web
+ * 0.21 gap for a second component. Checked state on the label is strikethrough plus
+ * muted colour, on top of the same glyph-and-fill the bare circle already uses —
+ * colour is never the only signal, on the label any more than on the circle.
  */
 export function CheckTarget({
   checked,
   onToggle,
   accessibilityLabel,
   disabled = false,
+  size = 'default',
+  label,
 }: {
   checked: boolean;
   onToggle: () => void;
   accessibilityLabel: string;
   disabled?: boolean;
+  size?: 'default' | 'large';
+  label?: string;
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const large = size === 'large';
+
+  const circle = (
+    <View
+      style={[
+        styles.checkCircle,
+        large && styles.checkCircleLarge,
+        checked && styles.checkCircleChecked,
+      ]}
+    >
+      {checked ? (
+        <Text style={[styles.checkGlyph, large && styles.checkGlyphLarge]}>✓</Text>
+      ) : null}
+    </View>
+  );
+
+  if (label !== undefined) {
+    return (
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityLabel={accessibilityLabel}
+        aria-checked={checked}
+        accessibilityState={{ checked, disabled }}
+        disabled={disabled}
+        onPress={onToggle}
+        style={({ pressed }) => [
+          styles.checkRow,
+          pressed && styles.rowPressed,
+          disabled && styles.buttonInactive,
+        ]}
+      >
+        {circle}
+        <Text
+          numberOfLines={2}
+          style={[styles.checkRowLabel, checked && styles.checkRowLabelChecked]}
+        >
+          {label}
+        </Text>
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
@@ -302,14 +360,12 @@ export function CheckTarget({
       disabled={disabled}
       onPress={onToggle}
       style={({ pressed }) => [
-        styles.touchTarget,
+        large ? styles.touchTargetLarge : styles.touchTarget,
         pressed && styles.touchTargetPressed,
         disabled && styles.buttonInactive,
       ]}
     >
-      <View style={[styles.checkCircle, checked && styles.checkCircleChecked]}>
-        {checked ? <Text style={styles.checkGlyph}>✓</Text> : null}
-      </View>
+      {circle}
     </Pressable>
   );
 }
@@ -604,6 +660,15 @@ function createStyles(tokens: Tokens) {
     touchTargetPressed: {
       backgroundColor: tokens.color.surfaceSunken,
     },
+    // Shopping Mode's bare-circle sizing (size="large", no label) — same shape as
+    // touchTarget, floored at the large tier instead of the default one.
+    touchTargetLarge: {
+      width: tokens.minTouchTargetLarge,
+      height: tokens.minTouchTargetLarge,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: tokens.radius.pill,
+    },
     checkCircle: {
       width: tokens.space.lg,
       height: tokens.space.lg,
@@ -612,6 +677,12 @@ function createStyles(tokens: Tokens) {
       borderColor: tokens.color.border,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    // Shopping Mode's larger circle — bigger than the default row's, still well
+    // short of the 64pt touch target box it sits inside.
+    checkCircleLarge: {
+      width: tokens.space.xl,
+      height: tokens.space.xl,
     },
     checkCircleChecked: {
       backgroundColor: tokens.color.accent,
@@ -622,6 +693,32 @@ function createStyles(tokens: Tokens) {
       fontSize: tokens.fontSize.caption,
       fontWeight: '700',
       lineHeight: tokens.fontSize.caption,
+    },
+    checkGlyphLarge: {
+      fontSize: tokens.fontSize.title,
+      lineHeight: tokens.fontSize.title,
+    },
+    // Shopping Mode's full-width row: circle and label in one Pressable, floored at
+    // the large touch target rather than the default one — see CheckTarget's doc
+    // comment for why this isn't a Row wrapping a bare CheckTarget.
+    checkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.md,
+      minHeight: tokens.minTouchTargetLarge,
+      paddingHorizontal: tokens.space.md,
+      paddingVertical: tokens.space.sm,
+      backgroundColor: tokens.color.surface,
+      borderRadius: tokens.radius.md,
+    },
+    checkRowLabel: {
+      flex: 1,
+      fontSize: tokens.fontSize.large,
+      color: tokens.color.textPrimary,
+    },
+    checkRowLabelChecked: {
+      color: tokens.color.textSecondary,
+      textDecorationLine: 'line-through',
     },
     iconGlyph: {
       color: tokens.color.textPrimary,

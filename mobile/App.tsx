@@ -21,6 +21,7 @@ import { HouseholdSetupScreen } from './src/screens/HouseholdSetupScreen';
 import { ListDetailScreen } from './src/screens/ListDetailScreen';
 import { ListsScreen } from './src/screens/ListsScreen';
 import { LocationsScreen } from './src/screens/LocationsScreen';
+import { ShoppingScreen } from './src/screens/ShoppingScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 import type { Tokens } from './src/theme/tokens';
 
@@ -41,6 +42,10 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * the navigator was adopted to fix, reintroduced through the door deep links use. The
  * navigator's own `initialRouteName` does not cover this; a state rehydrated from a
  * URL is used as given.
+ *
+ * `Locations` carries no path template for `attachToListId` — that param is only
+ * ever set via in-app `navigation.navigate(...)` from ListDetailScreen, never a URL,
+ * so there is nothing for the linking config to parse out of a path.
  */
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ['cartel://'],
@@ -52,6 +57,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       HouseholdSetup: 'household/setup',
       Household: 'household',
       Locations: 'locations',
+      Shopping: 'shop/:listId',
     },
   },
 };
@@ -165,7 +171,21 @@ function Bootstrapped({ env }: { env: Env }) {
         </Stack.Screen>
 
         <Stack.Screen name="Locations" options={{ title: 'Locations' }}>
-          {(props) => <LocationsScreen {...props} client={client} />}
+          {(props) => (
+            <LocationsScreen
+              {...props}
+              client={client}
+              onListsChanged={lists.refresh}
+            />
+          )}
+        </Stack.Screen>
+
+        {/* Title is a placeholder for the same reason ListDetail's is: the screen
+            replaces it with the list's name once the index resolves. */}
+        <Stack.Screen name="Shopping" options={{ title: 'Shopping' }}>
+          {(props) => (
+            <ShoppingScreen {...props} client={client} lists={lists.view} />
+          )}
         </Stack.Screen>
 
         {state.status === 'none' ? (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { loadItems, type ListItemRow } from '../lib/lists';
@@ -24,6 +24,9 @@ export type ItemsView =
 export function useListItems(client: SupabaseClient, listId: string) {
   const [view, setView] = useState<ItemsView>({ status: 'loading' });
   const active = useRef(true);
+  // Distinguishes this mounted instance's channel from any other instance's, for
+  // the same listId — see the subscription effect below for why that now matters.
+  const instanceId = useId();
 
   // Declared before the loading effect so its cleanup runs first on unmount.
   useEffect(() => {
@@ -73,14 +76,23 @@ export function useListItems(client: SupabaseClient, listId: string) {
     // the screen switches to a different list, not stay attached to the one it first
     // subscribed to.
     //
-    // Current navigation never pushes a second `ListDetail` instance for the same
-    // listId — nothing in this screen navigates to itself — so two subscriptions
-    // colliding on the same channel name `list-items:<id>` is not reachable today.
-    // Left undefended rather than solved: if it ever became reachable, two
-    // identically-named channel subscriptions would have version-inconsistent
-    // supabase-js behaviour, but there is nothing to design against yet.
+    // The topic carries `instanceId`, not just `listId`. Slice 3's comment here
+    // used to say a second concurrent mount of this hook for the same list was
+    // unreachable and so left undefended; Slice 5 made it reachable —
+    // `ListDetailScreen` stays mounted underneath when it navigates to
+    // `ShoppingScreen`, and both call this hook for the same list id. Supabase's
+    // `client.channel(topic)` returns the *existing* channel for a topic it has
+    // already seen rather than creating a second one, so two instances sharing a
+    // bare `list-items:<id>` topic would both grab the same already-`subscribe()`d
+    // channel object, and the second instance's `.on()` call throws — reproduced
+    // live (an uncaught error crashing the newer screen) before this fix landed.
+    // Suffixing the topic per mounted instance gives each its own channel; both
+    // still filter on the same `list_id`, so both still hear the same Postgres
+    // events, which duplicates a refresh between two screens showing the same list
+    // at once — the same "redundant but harmless" tradeoff `useLists`'s own doc
+    // comment already accepts for a write's own echo.
     const channel = client
-      .channel(`list-items:${listId}`)
+      .channel(`list-items:${listId}:${instanceId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'list_items', filter: `list_id=eq.${listId}` },
@@ -93,7 +105,7 @@ export function useListItems(client: SupabaseClient, listId: string) {
     return () => {
       void client.removeChannel(channel);
     };
-  }, [client, listId, refresh]);
+  }, [client, listId, instanceId, refresh]);
 
   return { view, refresh };
 }

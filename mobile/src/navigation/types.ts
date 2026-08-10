@@ -18,5 +18,15 @@ export type RootStackParamList = {
   ListDetail: { listId: string };
   HouseholdSetup: undefined;
   Household: undefined;
-  Locations: undefined;
+  /**
+   * `attachToListId` is Slice 5's addition. Absent, this screen behaves exactly as
+   * Slice 4 left it — a plain browse/create index with an ephemeral "Selected"
+   * badge. Present, a finalized selection (row tap, merge-confirm, or a
+   * just-created location) writes that location onto the named list instead of
+   * merely badging it, then returns to that list. Only ever set via in-app
+   * `navigation.navigate(...)`, never a URL — see `linking.config.screens` in
+   * App.tsx for why it carries no path template of its own.
+   */
+  Locations: { attachToListId?: string } | undefined;
+  Shopping: { listId: string };
 };
