@@ -6,20 +6,21 @@
 ## Last active
 
 - Ticket / spec section: 03-SPEC.md § Slice 4, issue #4. **Step 2 (Problem
-  Agreement) done, Step 3 (build) not started.** Slice 3 itself is merged (PR
-  #13, `b9b8420`) — see prior entries below, kept for their still-relevant
+  Agreement) done, Step 3 (build) starting now.** Slice 3 itself is merged
+  (PR #13, `b9b8420`) — see prior entries below, kept for their still-relevant
   Traps/Decisions.
-- Two threads closed out this session, in the order the user asked for:
+- Two threads closed out last session, in the order the user asked for:
   1. **Wire list rename/remove to the UI** — an open task chip from Slice 3's
      code review, not scoped under any Slice issue. User chose "straight to
      PR" over filing an issue first (small single-file diff, established
      pattern). **[PR #14](https://github.com/mp3anthony/cartel/pull/14),
-     open, not yet merged** — adds "Rename list"/"Remove list" to
+     merged (`9c1dbe4`)** — adds "Rename list"/"Remove list" to
      `ListDetailScreen.tsx`, reusing `mutate()` and the `Field`/`Confirm`
      patterns already there for item rename and "Share with household".
      `tsc --noEmit` clean; Vercel preview check passed; also verified live
      against the local dev server (create → rename → remove, header and Lists
-     index both updated correctly, no unrelated console errors).
+     index both updated correctly, no unrelated console errors). Reviewed
+     clean (mergeable, checks green) and merged this session.
   2. **Slice 4 Step 2.** Issue #4 was `ready-for-human` since 2026-07-31,
      citing a blank `02-DESIGN-REFERENCE.md`. The file was filled in
      2026-08-09 — before this issue was next touched — but that fill-in never
@@ -38,12 +39,13 @@
      `main` as a planning-doc change, same as this file). Issue #4 edited to
      match (scope, testing checklist, Step 2 note) and `ready-for-human`
      removed.
-- Next step: **user chose to stop before Step 3** — Slice 4 is a real build
-  (new `locations` table + geo-distance query, a new mobile screen, device
-  location permissions) and this session had already covered a PR plus a full
-  Problem Agreement. Next session: get PR #14 reviewed/merged, then start
-  Step 3 (Investigator → Planner → Code Writer → Docs) for Slice 4 — issue #4
-  is ready to hand to Planner as-is, no further scoping needed first.
+- Next step: PR #14 is merged, so Step 3 (Investigator → Planner → Code
+  Writer → Docs) for Slice 4 is starting now — issue #4 was already ready to
+  hand to Planner as-is. Slice 4 is a real build (new `locations` table +
+  geo-distance query, a new mobile screen, device location permissions);
+  expect a checkpoint with the user before Code Writer touches the schema or
+  native permissions, even though the protocol allows running straight
+  through without interrupting.
 
 ## Notes for next session
 
@@ -132,9 +134,7 @@
   `mobile/src/theme/tokens.ts` — that file is the source of truth, not the design
   doc.
 - `renameList`/`removeList` are now wired to `ListDetailScreen.tsx` — **[PR
-  #14](https://github.com/mp3anthony/cartel/pull/14), open but not merged.**
-  Don't treat this as done until it lands; check PR state before assuming the
-  UI path exists.
+  #14](https://github.com/mp3anthony/cartel/pull/14), merged.** Done.
 - #7 (route-learning heuristic) is still labelled ready-for-human over a
   missing design reference — genuinely unchecked this session (only #4 was
   investigated). Worth the same treatment #4 got: check whether
