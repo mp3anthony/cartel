@@ -5,9 +5,9 @@
 
 ## Last active
 
-- Ticket / spec section: 03-SPEC.md § Slice 3, filed as issue #3. **PR #13 open**
-  on branch `slice-3-realtime-sync`, not yet merged.
-  https://github.com/mp3anthony/cartel/pull/13
+- Ticket / spec section: 03-SPEC.md § Slice 3, filed as issue #3. **Merged to
+  `main`** via PR #13 (merge commit `b9b8420`, 2026-08-10). Issue #3 auto-closed
+  on merge. https://github.com/mp3anthony/cartel/pull/13
 - Status: Step 2 widened the issue's scope before any planning started — the
   original "no open questions" label only covered item-level sync (matching the
   literal acceptance test); agreed to also cover list-index-level sync (a list
@@ -25,14 +25,20 @@
   neither has a UI path (see Loose ends) — which incidentally is a stronger test
   of the underlying mechanism than clicking a button would have been, since it
   proves Realtime delivers the event regardless of which client (or no client)
-  performed the write. Native never run, as always. No code-review pass yet —
-  that normally happens before merge, same as Slice 2, and hasn't run this
-  session. Preview URL:
-  https://cartel-git-slice-3-realtime-sync-mp3anthonys-projects.vercel.app
-- Next step: run the `code-review` skill against the merge-base, then merge
-  #13. After that, **Slice 4 (#4, Locations)** is currently labelled
-  ready-for-human (design reference was missing) — check whether that block is
-  actually lifted before trusting the label either way.
+  performed the write. Native never run, as always.
+- Before merging, a `code-review` pass ran (Standards + Spec axes, parallel
+  sub-agents) against the merge-base. Standards: one non-blocking judgement
+  call — the two new subscription effects in `useLists.ts`/`useListItems.ts`
+  are duplicated-shape (channel → one `postgres_changes` listener → `refresh()`
+  → cleanup), a second instance of the same smell category Slice 2's review
+  already logged once (six same-shaped write-wrappers in `lists.ts`) — worth
+  extracting to a shared `useTableSubscription` helper if a third instance
+  shows up, not fixed inline. Spec: nothing wrong or out of scope; one finding
+  worth carrying forward — see Loose ends re: rename/remove having no UI path,
+  which a task chip now tracks.
+- Next step: **Slice 4 (#4, Locations)** is currently labelled ready-for-human
+  (design reference was missing) — check whether that block is actually
+  lifted before trusting the label either way.
 
 ## Notes for next session
 
@@ -123,7 +129,10 @@
 - `renameList`/`removeList` in `mobile/src/lib/lists.ts` are still **not** wired
   to any screen. Slice 3 exercised both directly against the database to test
   Realtime propagation (see Last active) — that is not the same as them being
-  reachable from the app, and still isn't an oversight to silently fix.
+  reachable from the app. Slice 3's code-review resurfaced this as a concrete
+  gap (its own acceptance test can't be reproduced by a human clicking through
+  the app), so it now has an open task chip ("Wire list rename/remove to the
+  UI") rather than being silently left as before.
 - #7 (route-learning heuristic) was labelled ready-for-human because the design
   reference was missing — unchecked this session, still worth re-checking before
   trusting the label.
