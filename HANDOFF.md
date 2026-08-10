@@ -5,28 +5,34 @@
 
 ## Last active
 
-- Ticket / spec section: 03-SPEC.md § Slice 2, filed as issue #2. **Merged to
-  `main`** via PR #12 (merge commit `685b668`, 2026-08-10).
-  https://github.com/mp3anthony/cartel/pull/12
-- Status: before merging, a final code-review pass ran the `code-review` skill
-  (Standards + Spec axes, parallel sub-agents) against the merge-base. Spec axis
-  came back clean — both priority checks (no RLS SELECT policy references
-  `deleted_at`; `digits` never passed to `generateKeyBetween`) verified by grep,
-  not eyeballed. Standards axis found three non-blocking judgement calls (no
-  repo standards doc exists, so these are Fowler-baseline smells, not rule
-  violations): duplicated write-wrapping boilerplate in `mobile/src/lib/lists.ts`
-  (six functions, same shape), `ListsScreen.submit()` re-inlining the
-  busy/error/write/refresh sequence that `ListDetailScreen`'s `mutate()` helper
-  already named and solved, and `mobile/src/lib/household.ts` picking up
-  list-domain error codes it wasn't originally scoped for. None acted on —
-  left as an easy follow-up, not urgent enough to hold the merge.
-- All ten of issue #2's checklist items verified live pre-merge, across two
-  genuinely independent anonymous sessions (see the Traps entry on browser tabs
-  below — the first attempt at this used two tabs and proved nothing). Native
-  never run, as always. Preview URL (now superseded by `main`, kept for
-  reference): https://cartel-git-slice-2-lists-items-mp3anthonys-projects.vercel.app
-- Next step: **Slice 3 (#3, Real-Time Household Sync)** starts at Protocol
-  Step 2. Expect its "no open questions" label to be wrong too — check first.
+- Ticket / spec section: 03-SPEC.md § Slice 3, filed as issue #3. **PR #13 open**
+  on branch `slice-3-realtime-sync`, not yet merged.
+  https://github.com/mp3anthony/cartel/pull/13
+- Status: Step 2 widened the issue's scope before any planning started — the
+  original "no open questions" label only covered item-level sync (matching the
+  literal acceptance test); agreed to also cover list-index-level sync (a list
+  created/renamed/removed/promoted by another member updates the lists home
+  screen live too), since leaving that screen on manual-refresh right next to a
+  live-updating list would have been an inconsistent UX the CRD's own "real-time
+  sync across household members" language doesn't support. Issue #3 was edited
+  to record the widened scope and its testing checklist before Planner ran.
+- All three of issue #3's checklist items verified live pre-merge, across two
+  genuinely independent anonymous sessions (Browser pane + Claude-in-Chrome,
+  `auth.uid()`s confirmed to differ first). Item-level add and check-off tested
+  both directions; list-index create, promote, rename and soft-delete all
+  confirmed propagating live with no manual refresh. Rename and soft-delete were
+  triggered with a direct `execute_sql` UPDATE rather than through the app —
+  neither has a UI path (see Loose ends) — which incidentally is a stronger test
+  of the underlying mechanism than clicking a button would have been, since it
+  proves Realtime delivers the event regardless of which client (or no client)
+  performed the write. Native never run, as always. No code-review pass yet —
+  that normally happens before merge, same as Slice 2, and hasn't run this
+  session. Preview URL:
+  https://cartel-git-slice-3-realtime-sync-mp3anthonys-projects.vercel.app
+- Next step: run the `code-review` skill against the merge-base, then merge
+  #13. After that, **Slice 4 (#4, Locations)** is currently labelled
+  ready-for-human (design reference was missing) — check whether that block is
+  actually lifted before trusting the label either way.
 
 ## Notes for next session
 
@@ -40,90 +46,88 @@
   own auth — use the Vercel MCP's `get_access_to_vercel_url` for a 23-hour
   shareable link rather than assuming a bare preview URL loads.
 - Repo was recreated fresh; old sync-engine history was deliberately left behind.
-  Local branch `main` held that abandoned history until this session, when merging
-  PR #12 forced a real touch of `main` and it got repaired (`git branch -f main
-  origin/main`) instead of deleted. If a checkout elsewhere still has the old
-  local `main`, the same fix applies — `origin/main` was always the real one.
+  `origin/main` is always the real `main` if a stale local branch ever disagrees.
 
 **Decisions that will look like mistakes if you don't know why**
+- **Realtime is enabled per-table via publication membership, not per-row.**
+  Migration `20260810000004` adds `lists`/`list_items` to the `supabase_realtime`
+  publication — Slice 2 already wrote both tables' RLS with Realtime's
+  authorization model in mind, but never actually switched it on. A table absent
+  from that publication emits no `postgres_changes` events no matter what the
+  client subscribes to; this was true and silent from Slice 2 until this slice.
+- **`useLists`' subscription is unfiltered; `useListItems`' is filtered on
+  `list_id`.** A user's visible `lists` rows are `owner = me OR household =
+  mine` — one `postgres_changes` filter is a single equality expression and
+  can't express that OR, so the index subscription relies on RLS alone to scope
+  what arrives, same philosophy `loadLists()` already used for the query itself.
+  `list_items` has no such OR (a `ListDetailScreen` is always exactly one list),
+  so it filters. Don't "fix" the index subscription to match the item one — the
+  asymmetry is deliberate, not an inconsistency.
+- **No optimistic reconciliation, still.** A `postgres_changes` event just calls
+  the hook's existing `refresh()` — the same full reload a manual write already
+  triggers. A write on the writer's own device can now double-refresh (once from
+  its own post-write call, once from the echoed event); harmless, not suppressed.
 - **React Navigation, adopted as its own commit ahead of Slice 2's feature work.**
-  Lists is the home screen for everyone now, household-or-not — Slice 1's "the
-  household screen is the whole app until you pair" could not survive Slice 2's own
-  acceptance test. The household is a route reached from the header, registered as
-  one screen or the other but never both, so the type system rules out landing on
-  a household screen with no household to show.
+  Lists is the home screen for everyone now, household-or-not — the household is
+  a route reached from the header, registered as one screen or the other but
+  never both.
 - **`lists`/`list_items` are written direct-to-table under RLS**, not through
-  RPCs — a deliberate departure from Slice 1's rule. That rule exists for
-  invariants RLS can't express atomically; Slice 2 has none except promotion,
-  which kept its RPC. Don't silently extend the direct-write pattern to a future
-  slice that *does* have an atomicity invariant — re-derive it, don't copy it.
-- **No demotion function, and none should get added.** The want behind "make this
-  personal again" is *copy*, which is Slice 9's job. Enforced by a withheld
-  column-level UPDATE grant on `household_id`, not a trigger — grep for a trigger
-  here and you'll find nothing and wrongly conclude it's unenforced.
+  RPCs, except promotion. Don't silently extend the direct-write pattern to a
+  future slice that *does* have an atomicity invariant — re-derive it, don't
+  copy it.
+- **No demotion function, and none should get added.** The want behind "make
+  this personal again" is *copy*, which is Slice 9's job. Enforced by a
+  withheld column-level UPDATE grant on `household_id`, not a trigger.
 - **`position` is `collate "C"`, and `fractional-indexing`'s `digits` argument is
-  never passed, anywhere.** Both are measured, not stylistic: this database sorts
-  `'a1' < 'A1'` under its default ICU collation, byte order says the opposite, and
-  base-62 keys only sort correctly under byte order. Separately, the package's
-  *value* digits default to base 62 but its *integer-head* alphabet defaults to
-  base 52 only when `digits` is omitted — passing it explicitly to "be consistent"
-  produces an incompatible keyspace and corrupts existing ordering against new
-  keys. `03-SPEC.md` § Slice 2 has the full mechanism.
-- `renameList`/`removeList` exist in `mobile/src/lib/lists.ts` and are **not**
-  wired to any screen — issue #2's checklist never needed list-level rename/delete,
-  so no UI was built for it. Known dead code, not an oversight.
+  never passed, anywhere.** This database sorts `'a1' < 'A1'` under its default
+  ICU collation; base-62 keys only sort correctly under byte order. `03-SPEC.md`
+  § Slice 2 has the full mechanism.
 
 **Traps**
 - RLS policy expressions run as the *querying* user. Revoking a policy-helper
   function's EXECUTE from `authenticated` silently breaks every read while writes
-  keep working — creating a row succeeds and reading it back throws. Cost an hour
-  in Slice 1; see migration `20260810000002` (whose own header comment pointed at
-  the wrong file until this slice fixed it — the revoke is in `20260810000000`).
+  keep working. See migration `20260810000002`.
 - **A soft-delete policy must never reference `deleted_at`.** Realtime authorises
   each event against the subscriber's SELECT policy evaluated on the *new* row, so
   a policy saying `deleted_at is null` would suppress the very UPDATE that performs
-  the deletion — other members would never see a removal. Filtering `deleted_at` is
-  the client query's job, always. Getting this backwards is invisible until Slice 3
-  actually has two live subscribers.
+  the deletion. This was a theoretical risk recorded in Slice 2 and a live-verified
+  fact as of Slice 3 — the soft-delete UPDATE was confirmed arriving over both
+  sessions' subscriptions before the client-side filter hid the row.
 - **Two tabs of one browser profile are the same user.** `localStorage` is shared
-  per-origin, not per-tab — the anonymous session lives there, so two tabs prove
-  nothing about cross-household visibility. Confirmed by accident this session:
-  clearing one pane tab's storage to force a second identity silently clobbered the
-  *other* tab's session too, because they were never independent. Genuine
-  two-session verification needs two separate browser profiles (this session used
-  the in-app Browser pane for one and Claude-in-Chrome for the other), confirmed by
-  checking the two sessions' `auth.uid()`s actually differ before trusting the test.
+  per-origin, not per-tab. Genuine two-session verification needs two separate
+  browser profiles (Browser pane + Claude-in-Chrome), confirmed by checking the
+  two sessions' `auth.uid()`s actually differ before trusting the test.
 - `react-native-web` 0.21 does not map `accessibilityState.checked` (or `.busy`) to
-  the DOM's `aria-checked`/`aria-busy`. `CheckTarget` in `ui.tsx` carries both an
-  explicit `aria-checked` prop and `accessibilityState` for this reason — without
-  it the control announced `role="checkbox"` with no state at all, worse than no
-  role. `PrimaryButton` has the equivalent gap for `aria-busy`, not yet fixed — a
-  task chip was filed for it.
-- Android and iOS have **never been run**, and that is recorded on #10 and #1
-  rather than implied to pass. The Vercel link is the agreed review surface for
-  the client and their testers; Expo Go was considered and rejected as day-to-day
-  workflow. Treat native-only breakage as expected-but-undiscovered, not a
-  regression.
+  the DOM's `aria-checked`/`aria-busy`. `CheckTarget` in `ui.tsx` carries both for
+  this reason. `PrimaryButton`'s `aria-busy` gap is still open (task chip filed).
+- Android and iOS have **never been run** (#10, #1). The Vercel link is the
+  agreed review surface. Treat native-only breakage as expected-but-undiscovered.
 - Test users are anonymous rows in `auth.users` with `is_anonymous = true`. Reset
   between runs with
   `delete from public.households; delete from auth.users where is_anonymous = true;`
-  — this now also cascades `public.lists` and `public.list_items`.
-- There is still no test harness beyond `supabase/tests/rls_lists.sql` (SQL-level
-  RLS assertions only, run via the Supabase MCP's `execute_sql` against the hosted
-  project — there is no local CLI, no `config.toml`, no Docker). That tool commits
-  each call in its own transaction regardless of an open `begin`, so state never
-  survives between separate `execute_sql` calls; a multi-statement script in one
-  call is fine, chaining state across calls is not.
+  — cascades `public.lists` and `public.list_items`. Done at the end of this
+  session; stale rows from a prior session's testing were also found and cleared
+  at the *start* of this one — always check before assuming a clean slate.
+- There is still no test harness beyond SQL run via the Supabase MCP's
+  `execute_sql` against the hosted project (no local CLI, no `config.toml`, no
+  Docker). Each call commits in its own transaction regardless of an open
+  `begin` — a multi-statement script in one call is fine, chaining state across
+  calls is not. `supabase/tests/realtime_lists.sql` (new this slice) checks
+  publication membership only — it cannot and does not test that events arrive
+  over a live socket; that's the manual two-session check.
 
 **Loose ends**
 - Palette is locked (burnt orange `#C2410C`) with measured contrast ratios in
   `mobile/src/theme/tokens.ts` — that file is the source of truth, not the design
   doc.
-- #4 (location merge UX) and #7 (route-learning heuristic) were labelled
-  ready-for-human because the design reference was missing. That block is lifted —
-  re-check whether they can move to ready-for-agent.
+- `renameList`/`removeList` in `mobile/src/lib/lists.ts` are still **not** wired
+  to any screen. Slice 3 exercised both directly against the database to test
+  Realtime propagation (see Last active) — that is not the same as them being
+  reachable from the app, and still isn't an oversight to silently fix.
+- #7 (route-learning heuristic) was labelled ready-for-human because the design
+  reference was missing — unchecked this session, still worth re-checking before
+  trusting the label.
 - `CHANGE-LOG.md` has three pending items, none built: captcha on anonymous
-  sign-in, orphaned households after member removal, and item quantities
-  (raised at Slice 2 Step 2, deliberately left out of that slice).
+  sign-in, orphaned households after member removal, and item quantities.
 - `PrimaryButton`'s missing `aria-busy` (see Traps) has an open task chip.
 - CLAUDE.md's "## Rules" section still has placeholder bullets.

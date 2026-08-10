@@ -1,0 +1,35 @@
+-- Slice 3 — Real-Time Household Sync.
+--
+-- Adds `public.lists` and `public.list_items` to the `supabase_realtime`
+-- publication. Verified via `pg_publication_tables` before writing this migration
+-- that the publication currently has zero tables in it — Slice 2 shipped both
+-- tables' RLS policies with Realtime's authorization model already in mind (see
+-- the header of 20260810000003), but never actually turned Realtime on for them.
+-- A table absent from this publication never emits `postgres_changes` events no
+-- matter what the client subscribes to; the subscription code added in this slice
+-- would otherwise sit there silently doing nothing.
+--
+-- Authorization model: this project uses the default `postgres_changes` model,
+-- not `realtime.messages` broadcast authorization. Each change is authorized
+-- per-subscriber against the table's existing SELECT policy, evaluated against
+-- the row's *new* values — there is no separate Realtime-specific grant or
+-- channel-authorization function to write. Publication membership is the whole
+-- of what this migration needs to do.
+--
+-- Reaffirmed, not touched: neither `lists_select_visible` nor
+-- `list_items_select_visible` may ever reference `deleted_at`. Realtime
+-- authorizes UPDATEs — which is what a soft delete is — against the new row, so
+-- a policy saying `deleted_at is null` would suppress the very event that
+-- performs the deletion, and other household members would never see a removal
+-- arrive. Filtering `deleted_at` stays the client query's job, as it already was
+-- before this migration.
+--
+-- Replica identity is deliberately left at its default (`d`, primary-key only)
+-- rather than raised to `FULL`. `FULL` only changes what *old*-row data ships on
+-- UPDATE/DELETE payloads; the *new* row always ships in full regardless, and
+-- that's all either client handler uses — both call `refresh()`, a fresh SELECT,
+-- rather than reading the payload itself. There is also no DELETE policy or
+-- grant on either table (removal is a soft-delete UPDATE, per 20260810000003),
+-- so DELETE's old-row behaviour is moot here anyway.
+
+alter publication supabase_realtime add table public.lists, public.list_items;
