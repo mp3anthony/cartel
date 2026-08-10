@@ -18,4 +18,5 @@ export type RootStackParamList = {
   ListDetail: { listId: string };
   HouseholdSetup: undefined;
   Household: undefined;
+  Locations: undefined;
 };

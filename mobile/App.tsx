@@ -20,6 +20,7 @@ import { HouseholdScreen } from './src/screens/HouseholdScreen';
 import { HouseholdSetupScreen } from './src/screens/HouseholdSetupScreen';
 import { ListDetailScreen } from './src/screens/ListDetailScreen';
 import { ListsScreen } from './src/screens/ListsScreen';
+import { LocationsScreen } from './src/screens/LocationsScreen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 import type { Tokens } from './src/theme/tokens';
 
@@ -50,6 +51,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       ListDetail: 'list/:listId',
       HouseholdSetup: 'household/setup',
       Household: 'household',
+      Locations: 'locations',
     },
   },
 };
@@ -160,6 +162,10 @@ function Bootstrapped({ env }: { env: Env }) {
               inHousehold={state.status === 'member'}
             />
           )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Locations" options={{ title: 'Locations' }}>
+          {(props) => <LocationsScreen {...props} client={client} />}
         </Stack.Screen>
 
         {state.status === 'none' ? (
