@@ -5,40 +5,45 @@
 
 ## Last active
 
-- Ticket / spec section: 03-SPEC.md § Slice 3, filed as issue #3. **Merged to
-  `main`** via PR #13 (merge commit `b9b8420`, 2026-08-10). Issue #3 auto-closed
-  on merge. https://github.com/mp3anthony/cartel/pull/13
-- Status: Step 2 widened the issue's scope before any planning started — the
-  original "no open questions" label only covered item-level sync (matching the
-  literal acceptance test); agreed to also cover list-index-level sync (a list
-  created/renamed/removed/promoted by another member updates the lists home
-  screen live too), since leaving that screen on manual-refresh right next to a
-  live-updating list would have been an inconsistent UX the CRD's own "real-time
-  sync across household members" language doesn't support. Issue #3 was edited
-  to record the widened scope and its testing checklist before Planner ran.
-- All three of issue #3's checklist items verified live pre-merge, across two
-  genuinely independent anonymous sessions (Browser pane + Claude-in-Chrome,
-  `auth.uid()`s confirmed to differ first). Item-level add and check-off tested
-  both directions; list-index create, promote, rename and soft-delete all
-  confirmed propagating live with no manual refresh. Rename and soft-delete were
-  triggered with a direct `execute_sql` UPDATE rather than through the app —
-  neither has a UI path (see Loose ends) — which incidentally is a stronger test
-  of the underlying mechanism than clicking a button would have been, since it
-  proves Realtime delivers the event regardless of which client (or no client)
-  performed the write. Native never run, as always.
-- Before merging, a `code-review` pass ran (Standards + Spec axes, parallel
-  sub-agents) against the merge-base. Standards: one non-blocking judgement
-  call — the two new subscription effects in `useLists.ts`/`useListItems.ts`
-  are duplicated-shape (channel → one `postgres_changes` listener → `refresh()`
-  → cleanup), a second instance of the same smell category Slice 2's review
-  already logged once (six same-shaped write-wrappers in `lists.ts`) — worth
-  extracting to a shared `useTableSubscription` helper if a third instance
-  shows up, not fixed inline. Spec: nothing wrong or out of scope; one finding
-  worth carrying forward — see Loose ends re: rename/remove having no UI path,
-  which a task chip now tracks.
-- Next step: **Slice 4 (#4, Locations)** is currently labelled ready-for-human
-  (design reference was missing) — check whether that block is actually
-  lifted before trusting the label either way.
+- Ticket / spec section: 03-SPEC.md § Slice 4, issue #4. **Step 2 (Problem
+  Agreement) done, Step 3 (build) not started.** Slice 3 itself is merged (PR
+  #13, `b9b8420`) — see prior entries below, kept for their still-relevant
+  Traps/Decisions.
+- Two threads closed out this session, in the order the user asked for:
+  1. **Wire list rename/remove to the UI** — an open task chip from Slice 3's
+     code review, not scoped under any Slice issue. User chose "straight to
+     PR" over filing an issue first (small single-file diff, established
+     pattern). **[PR #14](https://github.com/mp3anthony/cartel/pull/14),
+     open, not yet merged** — adds "Rename list"/"Remove list" to
+     `ListDetailScreen.tsx`, reusing `mutate()` and the `Field`/`Confirm`
+     patterns already there for item rename and "Share with household".
+     `tsc --noEmit` clean; Vercel preview check passed; also verified live
+     against the local dev server (create → rename → remove, header and Lists
+     index both updated correctly, no unrelated console errors).
+  2. **Slice 4 Step 2.** Issue #4 was `ready-for-human` since 2026-07-31,
+     citing a blank `02-DESIGN-REFERENCE.md`. The file was filled in
+     2026-08-09 — before this issue was next touched — but that fill-in never
+     actually addressed the merge-prompt decision the label was really
+     protecting; the label's literal wording had gone stale, its substance
+     hadn't. Worked the real decision through with the user: merge is
+     mandatory (no force-create-anyway override), the prompt names the
+     existing location and its ~10m-rounded distance (safe — location data is
+     global/anonymous per `03-SPEC.md` § 0, not a cross-household
+     disclosure), radius locked at **100m** (tight end of the spec's
+     ~100-150m range), and Slice 4 gets its **own standalone Locations
+     screen** independently testable with no list involved — the issue's
+     "attaching a list..." acceptance-test wording was loose carryover from
+     Slice 5, not a real Slice 4/5 dependency. Recorded in
+     `02-DESIGN-REFERENCE.md` § Slice 4 (commit `9def6b1`, pushed straight to
+     `main` as a planning-doc change, same as this file). Issue #4 edited to
+     match (scope, testing checklist, Step 2 note) and `ready-for-human`
+     removed.
+- Next step: **user chose to stop before Step 3** — Slice 4 is a real build
+  (new `locations` table + geo-distance query, a new mobile screen, device
+  location permissions) and this session had already covered a PR plus a full
+  Problem Agreement. Next session: get PR #14 reviewed/merged, then start
+  Step 3 (Investigator → Planner → Code Writer → Docs) for Slice 4 — issue #4
+  is ready to hand to Planner as-is, no further scoping needed first.
 
 ## Notes for next session
 
@@ -126,16 +131,17 @@
 - Palette is locked (burnt orange `#C2410C`) with measured contrast ratios in
   `mobile/src/theme/tokens.ts` — that file is the source of truth, not the design
   doc.
-- `renameList`/`removeList` in `mobile/src/lib/lists.ts` are still **not** wired
-  to any screen. Slice 3 exercised both directly against the database to test
-  Realtime propagation (see Last active) — that is not the same as them being
-  reachable from the app. Slice 3's code-review resurfaced this as a concrete
-  gap (its own acceptance test can't be reproduced by a human clicking through
-  the app), so it now has an open task chip ("Wire list rename/remove to the
-  UI") rather than being silently left as before.
-- #7 (route-learning heuristic) was labelled ready-for-human because the design
-  reference was missing — unchecked this session, still worth re-checking before
-  trusting the label.
+- `renameList`/`removeList` are now wired to `ListDetailScreen.tsx` — **[PR
+  #14](https://github.com/mp3anthony/cartel/pull/14), open but not merged.**
+  Don't treat this as done until it lands; check PR state before assuming the
+  UI path exists.
+- #7 (route-learning heuristic) is still labelled ready-for-human over a
+  missing design reference — genuinely unchecked this session (only #4 was
+  investigated). Worth the same treatment #4 got: check whether
+  `02-DESIGN-REFERENCE.md`'s literal blocking claim is stale before trusting
+  the label either way, same as #4's turned out to be — the design reference
+  being non-blank doesn't by itself mean the *specific* decision the label
+  cites has actually been made.
 - `CHANGE-LOG.md` has three pending items, none built: captcha on anonymous
   sign-in, orphaned households after member removal, and item quantities.
 - `PrimaryButton`'s missing `aria-busy` (see Traps) has an open task chip.
