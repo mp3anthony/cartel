@@ -5,16 +5,13 @@
 
 ## Last active
 
-- **Slice 5 — Shopping Mode, issue #5, is built end to end and
-  live-verified.** [PR #16](https://github.com/mp3anthony/cartel/pull/16)
-  (schema + `LocationsScreen` attach wiring + new `ShoppingScreen`) open
-  against `main` on branch `slice-5-shopping-mode`, not yet merged — that's
-  the next decision, not this session's to make.
-- Slice 4 is merged — [PR #15](https://github.com/mp3anthony/cartel/pull/15),
-  `f3a71c3`, closing issue #4 — no longer worth its own entry.
-- **Next up once #16 merges: Slice 6 — Crowdsourced Location Tagging, issue
-  #6** (was blocked on #5, now unblocked). Not yet started; no
-  Investigator/Planner work done for it this session.
+- **Slice 5 is done and merged.** [PR #16](https://github.com/mp3anthony/cartel/pull/16)
+  (schema + `LocationsScreen` attach wiring + new `ShoppingScreen`, built and
+  live-verified in one session) merged to `main`, closing issue #5. Feature
+  branch deleted, both locally and on origin.
+- **Next up: Slice 6 — Crowdsourced Location Tagging, issue #6** (was blocked
+  on #5, now unblocked).
+- Not yet started; no Investigator/Planner work done for it this session.
 
 ## Notes for next session
 
