@@ -78,3 +78,28 @@ jobs, and Shopping Mode's job is legibility at arm's length while distracted.
   text or icon partner; respect OS dynamic type and reduce-motion, the latter
   mattering because drag-to-reorder and animated transitions are v1 requirements
   per `01-CRD.md`.
+
+## Slice 4 — location merge prompt (LOCKED 2026-08-10, during Step 2)
+
+Agreed at Problem Agreement, ahead of Planner, so the merge behaviour isn't
+improvised mid-build:
+
+- **Merge is mandatory, not optional.** A new location found within the ~100-150m
+  radius has exactly two outcomes: use the existing one, or create nothing. There
+  is no third "create anyway, I promise it's different" path — two real
+  supermarkets that close together is an edge case the CRD's use case doesn't need
+  to solve for v1, and adding an override multiplies the interaction (and the
+  component) for a case that may never come up.
+- **The prompt names the existing location and its distance.** Safe to do because
+  `03-SPEC.md` § 0 already makes location data global and anonymous — this isn't a
+  cross-household disclosure, it's the same fact anyone creating a location nearby
+  would eventually see anyway.
+- **Distance rounds to the nearest 10m** (`~80m`, never `83m`) — GPS accuracy
+  doesn't support that precision, and a `~` says so honestly rather than implying
+  exactness the reading doesn't have.
+- Uses the existing `Confirm` component as-is, no new component needed:
+  - Message: `There's already a location nearby: "{name}" (~{distance}m away).
+    Cartel keeps one location per spot to avoid duplicates.`
+  - Confirm button: `Use this location`
+  - Cancel: the component's fixed "Cancel" — creates nothing, same as every other
+    Cancel in the app.
