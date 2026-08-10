@@ -206,7 +206,7 @@ export function LocationsScreen({ client }: Props) {
         permissionDenied ? (
           <EmptyState
             heading="No locations yet"
-            body="Create one to get started."
+            body="Location access isn’t available, so new locations can’t be created this session."
           />
         ) : (
           <EmptyState
@@ -260,10 +260,10 @@ export function LocationsScreen({ client }: Props) {
         <PrimaryButton label="New location" onPress={beginComposing} />
       ) : null}
 
-      {permissionDenied ? (
+      {permissionDenied && locations.length > 0 ? (
         <Body>
           Location access isn’t available, so new locations can’t be created this
-          session. Search for an existing one below.
+          session. Search for an existing one above.
         </Body>
       ) : null}
     </Screen>
