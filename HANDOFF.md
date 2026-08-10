@@ -5,47 +5,42 @@
 
 ## Last active
 
-- Ticket / spec section: 03-SPEC.md § Slice 4, issue #4. **Step 2 (Problem
-  Agreement) done, Step 3 (build) starting now.** Slice 3 itself is merged
-  (PR #13, `b9b8420`) — see prior entries below, kept for their still-relevant
-  Traps/Decisions.
-- Two threads closed out last session, in the order the user asked for:
-  1. **Wire list rename/remove to the UI** — an open task chip from Slice 3's
-     code review, not scoped under any Slice issue. User chose "straight to
-     PR" over filing an issue first (small single-file diff, established
-     pattern). **[PR #14](https://github.com/mp3anthony/cartel/pull/14),
-     merged (`9c1dbe4`)** — adds "Rename list"/"Remove list" to
-     `ListDetailScreen.tsx`, reusing `mutate()` and the `Field`/`Confirm`
-     patterns already there for item rename and "Share with household".
-     `tsc --noEmit` clean; Vercel preview check passed; also verified live
-     against the local dev server (create → rename → remove, header and Lists
-     index both updated correctly, no unrelated console errors). Reviewed
-     clean (mergeable, checks green) and merged this session.
-  2. **Slice 4 Step 2.** Issue #4 was `ready-for-human` since 2026-07-31,
-     citing a blank `02-DESIGN-REFERENCE.md`. The file was filled in
-     2026-08-09 — before this issue was next touched — but that fill-in never
-     actually addressed the merge-prompt decision the label was really
-     protecting; the label's literal wording had gone stale, its substance
-     hadn't. Worked the real decision through with the user: merge is
-     mandatory (no force-create-anyway override), the prompt names the
-     existing location and its ~10m-rounded distance (safe — location data is
-     global/anonymous per `03-SPEC.md` § 0, not a cross-household
-     disclosure), radius locked at **100m** (tight end of the spec's
-     ~100-150m range), and Slice 4 gets its **own standalone Locations
-     screen** independently testable with no list involved — the issue's
-     "attaching a list..." acceptance-test wording was loose carryover from
-     Slice 5, not a real Slice 4/5 dependency. Recorded in
-     `02-DESIGN-REFERENCE.md` § Slice 4 (commit `9def6b1`, pushed straight to
-     `main` as a planning-doc change, same as this file). Issue #4 edited to
-     match (scope, testing checklist, Step 2 note) and `ready-for-human`
-     removed.
-- Next step: PR #14 is merged, so Step 3 (Investigator → Planner → Code
-  Writer → Docs) for Slice 4 is starting now — issue #4 was already ready to
-  hand to Planner as-is. Slice 4 is a real build (new `locations` table +
-  geo-distance query, a new mobile screen, device location permissions);
-  expect a checkpoint with the user before Code Writer touches the schema or
-  native permissions, even though the protocol allows running straight
-  through without interrupting.
+- Ticket / spec section: 03-SPEC.md § Slice 4, issue #4. **Step 3 (build) in
+  progress. Backend/data-layer phase done; native-permissions and UI phases
+  not started.** PR #14 (list rename/remove UI) merged last session
+  (`9c1dbe4`) — that thread is fully closed, no longer worth its own entry
+  here. Slice 3 is merged (PR #13, `b9b8420`).
+- **This session ran Step 3's first half autonomously** (Investigator →
+  Planner → Code Writer for the backend chunk only), with two checkpoints
+  agreed with the user along the way, both already recorded in
+  `02-DESIGN-REFERENCE.md` § Slice 4 and not repeated here:
+  1. The merge-check-then-create race window (two users creating
+     near-duplicate locations seconds apart) is **accepted, not engineered
+     against** — mirrors the Slice 1 invite-collision precedent.
+  2. Geo-distance uses **`earthdistance`/`cube`**, not full PostGIS — a
+     100m point-radius check doesn't need PostGIS's geometry machinery.
+- **Backend built and verified, branch `slice-4-locations`, commit
+  `c357f1e`, pushed but no PR opened yet** (there's no UI to review
+  alongside it):
+  - `supabase/migrations/20260810000005_locations.sql` — `public.locations`
+    (deliberately global RLS, no household/owner predicate — hard invariant
+    per `03-SPEC.md` § 0), `created_by` stored but withheld from the SELECT
+    grant, and a `nearby_locations(lat, lng, radius_m)` RPC.
+  - `supabase/tests/rls_locations.sql` — passes; core assertion is the
+    *inverse* of `rls_lists.sql`'s (a user sharing nothing with the creator
+    must still see the location — proves "global").
+  - `mobile/src/lib/locations.ts`, `mobile/src/hooks/useLocations.ts` — no
+    realtime subscription (no live-sync acceptance test this slice).
+  - Drive-by fix: `humanise()` in `mobile/src/lib/household.ts` had a
+    hardcoded list-specific fallback string that `locations.ts` would have
+    inherited verbatim; generalized.
+  - `tsc --noEmit` clean, `get_advisors` clean.
+- Next step: **native-permissions phase, then UI phase, in a new session**
+  (user is wrapping this one here). See that session's opening prompt for
+  the detailed build brief — the Planner's full step-by-step plan lived only
+  in this session's context and wasn't persisted to a file, since the plan
+  itself isn't a decision worth documenting once the code exists; the prompt
+  carries what's needed to continue without re-deriving it.
 
 ## Notes for next session
 
@@ -121,6 +116,15 @@
   — cascades `public.lists` and `public.list_items`. Done at the end of this
   session; stale rows from a prior session's testing were also found and cleared
   at the *start* of this one — always check before assuming a clean slate.
+- **`set search_path = ''` breaks bare operators, not just bare function
+  names.** `nearby_locations()` (Slice 4) needed `OPERATOR(extensions.@>)`
+  instead of plain `@>` for the `cube`/`earthdistance` bounding-box check —
+  writing `extensions.` in front of the left-hand operand doesn't
+  schema-qualify an *operator* the way it does a function call; Postgres
+  fails to resolve it and the migration won't apply. Every future function
+  that reaches for an extension-provided operator (not just a function) hits
+  this — `supabase/migrations/20260810000005_locations.sql`'s header comment
+  has the full explanation.
 - There is still no test harness beyond SQL run via the Supabase MCP's
   `execute_sql` against the hosted project (no local CLI, no `config.toml`, no
   Docker). Each call commits in its own transaction regardless of an open
