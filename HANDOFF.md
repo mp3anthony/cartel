@@ -5,15 +5,18 @@
 
 ## Last active
 
-- Ticket / spec section: 03-SPEC.md § Slice 2, filed as issue #2. **Deployed,
-  awaiting acceptance** — not merged to `main`.
-- Status: branch `slice-2-lists-items` (six commits, pushed) builds clean and is
-  live at the preview URL below. All ten of issue #2's checklist items verified
-  live, across two genuinely independent anonymous sessions (see the Traps entry
-  on browser tabs below — the first attempt at this used two tabs and proved
-  nothing). Native never run, as always.
+- Ticket / spec section: 03-SPEC.md § Slice 2, filed as issue #2. **PR open,
+  awaiting your merge** — not yet merged to `main`.
+  https://github.com/mp3anthony/cartel/pull/12
+- Status: branch `slice-2-lists-items` (six commits, pushed) builds clean — the
+  exact Vercel build command (`npx expo export --platform web`) was re-run
+  against the branch tip before opening the PR — and is live at the preview URL
+  below. All ten of issue #2's checklist items verified live, across two
+  genuinely independent anonymous sessions (see the Traps entry on browser tabs
+  below — the first attempt at this used two tabs and proved nothing). Native
+  never run, as always.
   https://cartel-git-slice-2-lists-items-mp3anthonys-projects.vercel.app
-- Next step: **your review of the preview**, then a decision on merging to `main`.
+- Next step: **you merge PR #12 on GitHub** once you're happy with the PR view.
   After that, **Slice 3 (#3, Real-Time Household Sync)** starts at Protocol Step 2.
   Expect its "no open questions" label to be wrong too — check first.
 
