@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
   Badge,
+  Body,
   CheckTarget,
   Confirm,
   EmptyState,
@@ -19,9 +20,11 @@ import {
 } from '../components/ui';
 import { useListItems } from '../hooks/useListItems';
 import type { ListsView } from '../hooks/useLists';
+import { useLocations } from '../hooks/useLocations';
 import type { Outcome } from '../lib/household';
 import {
   addItem,
+  attachLocation,
   moveItem,
   promoteList,
   removeItem,
@@ -63,6 +66,10 @@ export function ListDetailScreen({
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const { listId } = route.params;
   const { view, refresh } = useListItems(client, listId);
+  // Resolves the attached location's display name only — attaching/detaching itself
+  // is a plain write on the `lists` row via attachLocation(), not anything this hook
+  // owns. No `refresh` taken from here: nothing on this screen creates a location.
+  const { view: locationsView } = useLocations(client);
 
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -186,6 +193,13 @@ export function ListDetailScreen({
     );
   }
 
+  function removeLocation() {
+    // `location_id` lives on the `lists` row the app-wide index holds, not on
+    // anything useListItems reloads — same reasoning as share()/renameList() above,
+    // so onListsChanged is what settles this screen and the Lists screen behind it.
+    void mutate(() => attachLocation(client, listId, null), onListsChanged);
+  }
+
   function startRenameList() {
     if (!list) {
       return;
@@ -256,10 +270,48 @@ export function ListDetailScreen({
 
   const items = view.status === 'loaded' ? view.items : [];
   const canShare = list.householdId === null && inHousehold;
+  const attachedLocation =
+    list.locationId && locationsView.status === 'loaded'
+      ? locationsView.locations.find((location) => location.id === list.locationId) ??
+        null
+      : null;
 
   return (
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
       <Badge label={list.householdId ? 'Shared' : 'Personal'} />
+
+      {list.locationId ? (
+        <>
+          <Body>
+            {attachedLocation
+              ? `Shopping at ${attachedLocation.name}`
+              : 'Shopping at a location'}
+          </Body>
+          <SecondaryButton
+            label="Start shopping"
+            onPress={() => navigation.navigate('Shopping', { listId })}
+            disabled={busy}
+          />
+          <SecondaryButton
+            label="Change location"
+            onPress={() =>
+              navigation.navigate('Locations', { attachToListId: listId })
+            }
+            disabled={busy}
+          />
+          <SecondaryButton
+            label="Remove location"
+            onPress={removeLocation}
+            disabled={busy}
+          />
+        </>
+      ) : (
+        <SecondaryButton
+          label="Attach a location"
+          onPress={() => navigation.navigate('Locations', { attachToListId: listId })}
+          disabled={busy}
+        />
+      )}
 
       <Field
         label="Add an item"

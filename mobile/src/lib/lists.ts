@@ -7,6 +7,7 @@ export type ListRow = {
   id: string;
   name: string;
   householdId: string | null;
+  locationId: string | null;
   createdAt: string;
 };
 
@@ -26,6 +27,7 @@ type ListRecord = {
   id: string;
   name: string;
   household_id: string | null;
+  location_id: string | null;
   created_at: string;
 };
 
@@ -72,7 +74,7 @@ export async function loadLists(client: SupabaseClient): Promise<Outcome<ListRow
   // deletion. Filtering it here is the whole of the mechanism.
   const { data, error } = await client
     .from('lists')
-    .select('id, name, household_id, created_at')
+    .select('id, name, household_id, location_id, created_at')
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
@@ -88,6 +90,7 @@ export async function loadLists(client: SupabaseClient): Promise<Outcome<ListRow
       id: row.id,
       name: row.name,
       householdId: row.household_id,
+      locationId: row.location_id,
       createdAt: row.created_at,
     })),
   };
@@ -168,6 +171,34 @@ export async function promoteList(
   const { error } = await client.rpc('promote_to_household', {
     target_list_id: listId,
   });
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  return { ok: true, value: undefined };
+}
+
+/**
+ * Points a list at a location, or (passing null) clears the attachment. One
+ * function for all three cases — attach, change, remove — because they are the
+ * same UPDATE with a different value; a separate `detachLocation` would just be
+ * this call with its second argument hard-coded to null.
+ *
+ * `.eq('id', listId)` names the row; it does not authorise the write. The existing
+ * `lists_update_visible` policy already covers this column (see migration
+ * 20260810000006's header) — any household member may call this, not only the
+ * list's owner, matching 03-SPEC.md's "all members equal rank".
+ */
+export async function attachLocation(
+  client: SupabaseClient,
+  listId: string,
+  locationId: string | null,
+): Promise<Outcome<void>> {
+  const { error } = await client
+    .from('lists')
+    .update({ location_id: locationId })
+    .eq('id', listId);
 
   if (error) {
     return { ok: false, message: humanise(error) };
