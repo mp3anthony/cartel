@@ -5,20 +5,28 @@
 
 ## Last active
 
-- Ticket / spec section: 03-SPEC.md § Slice 2, filed as issue #2. **PR open,
-  awaiting your merge** — not yet merged to `main`.
+- Ticket / spec section: 03-SPEC.md § Slice 2, filed as issue #2. **Merged to
+  `main`** via PR #12 (merge commit `685b668`, 2026-08-10).
   https://github.com/mp3anthony/cartel/pull/12
-- Status: branch `slice-2-lists-items` (six commits, pushed) builds clean — the
-  exact Vercel build command (`npx expo export --platform web`) was re-run
-  against the branch tip before opening the PR — and is live at the preview URL
-  below. All ten of issue #2's checklist items verified live, across two
+- Status: before merging, a final code-review pass ran the `code-review` skill
+  (Standards + Spec axes, parallel sub-agents) against the merge-base. Spec axis
+  came back clean — both priority checks (no RLS SELECT policy references
+  `deleted_at`; `digits` never passed to `generateKeyBetween`) verified by grep,
+  not eyeballed. Standards axis found three non-blocking judgement calls (no
+  repo standards doc exists, so these are Fowler-baseline smells, not rule
+  violations): duplicated write-wrapping boilerplate in `mobile/src/lib/lists.ts`
+  (six functions, same shape), `ListsScreen.submit()` re-inlining the
+  busy/error/write/refresh sequence that `ListDetailScreen`'s `mutate()` helper
+  already named and solved, and `mobile/src/lib/household.ts` picking up
+  list-domain error codes it wasn't originally scoped for. None acted on —
+  left as an easy follow-up, not urgent enough to hold the merge.
+- All ten of issue #2's checklist items verified live pre-merge, across two
   genuinely independent anonymous sessions (see the Traps entry on browser tabs
   below — the first attempt at this used two tabs and proved nothing). Native
-  never run, as always.
-  https://cartel-git-slice-2-lists-items-mp3anthonys-projects.vercel.app
-- Next step: **you merge PR #12 on GitHub** once you're happy with the PR view.
-  After that, **Slice 3 (#3, Real-Time Household Sync)** starts at Protocol Step 2.
-  Expect its "no open questions" label to be wrong too — check first.
+  never run, as always. Preview URL (now superseded by `main`, kept for
+  reference): https://cartel-git-slice-2-lists-items-mp3anthonys-projects.vercel.app
+- Next step: **Slice 3 (#3, Real-Time Household Sync)** starts at Protocol
+  Step 2. Expect its "no open questions" label to be wrong too — check first.
 
 ## Notes for next session
 
@@ -32,8 +40,10 @@
   own auth — use the Vercel MCP's `get_access_to_vercel_url` for a 23-hour
   shareable link rather than assuming a bare preview URL loads.
 - Repo was recreated fresh; old sync-engine history was deliberately left behind.
-  Local branch `main` still holds that abandoned history — `origin/main` is the
-  real one. Anyone checking out `main` locally gets the wrong repo. Worth deleting.
+  Local branch `main` held that abandoned history until this session, when merging
+  PR #12 forced a real touch of `main` and it got repaired (`git branch -f main
+  origin/main`) instead of deleted. If a checkout elsewhere still has the old
+  local `main`, the same fix applies — `origin/main` was always the real one.
 
 **Decisions that will look like mistakes if you don't know why**
 - **React Navigation, adopted as its own commit ahead of Slice 2's feature work.**
