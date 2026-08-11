@@ -5,6 +5,76 @@
 
 ## Last active
 
+- **Slice 7 — Route Learning & Auto-Ordering — built end-to-end this
+  session, on branch `slice-7-route-learning`.
+  [PR #19](https://github.com/mp3anthony/cartel/pull/19) open, awaiting
+  review — not merged yet, matching the standing pattern of not merging
+  without the user's go-ahead (see PR #18's entry above for the one
+  deliberate exception).** Closes issue #7 once merged.
+  - **Issue #7 had been accidentally auto-closed** by GitHub's keyword
+    detection matching "resolve #7" in a *previous* session's handoff commit
+    message (`93fca49`) — that commit was only about verifying the label's
+    accuracy, not completing the slice. Reopened at the start of this session
+    with an explanatory comment before any real work started. If a future
+    commit message needs to reference an issue number without triggering
+    auto-close, avoid GitHub's close-keyword list ("closes", "fixes",
+    "resolves" + others) immediately before the `#N`.
+  - **Problem Agreement ran properly this time** (Protocol Step 3's
+    escalation trigger — the ordering heuristic was a genuine open question,
+    confirmed by re-reading `01-CRD.md`/`02-DESIGN-REFERENCE.md` and finding
+    no resolution in either) — three real forks put to the user via
+    `AskUserQuestion` before any Investigator/Planner/Code Writer work:
+    (1) a separate anonymous `location_checkoffs` table vs. building the
+    CRD-sketched combined `shop_sessions` table now, (2) observed-order-primary
+    vs. section-grouped-primary vs. tags-only ordering, (3) a new "Finish
+    shopping" button vs. auto-completing on last item checked. All three
+    resolved to the recommended option. Full reasoning recorded in
+    `03-SPEC.md § Slice 7`'s "Agreed 2026-08-11" block — read that before
+    touching this slice's schema or algorithm again, not this file.
+  - **New table `public.location_checkoffs`** (migration
+    `20260811000001`), global and anonymous like `location_items` — no
+    `household_id`/`list_id`/user column at all, `on delete cascade` on
+    `location_id` (matches `location_items`, not `lists.location_id`'s
+    set-null). One row per completed shop: an ordered array of normalized
+    checked item names + `completed_at`. Not added to the realtime
+    publication (matches `location_items`/`locations`).
+  - **`mobile/src/lib/locationCheckoffs.ts`**: `loadLocationCheckoffs`,
+    `recordLocationCheckoff`, `orderedCheckedItemNames`, and the three-tier
+    `computeRouteOrder` (own history → section-tag fallback → entry order) —
+    doc comments walk through the algorithm in full. `mobile/src/hooks/useLocationCheckoffs.ts`
+    mirrors `useLocationItems.ts` field-for-field.
+  - **`ShoppingScreen.tsx`** now renders `computeRouteOrder`'s output instead
+    of `useListItems`'s raw order (read-time sort only — `position` is still
+    never written, per Slice 2's already-locked decision) and gained a new
+    confirm-gated "Finish shopping" `SecondaryButton` that writes one
+    `location_checkoffs` row from whatever's currently checked. Doesn't reset
+    `checked_at` or touch list reuse across weeks — deliberately out of
+    scope, stays Slice 9's.
+  - **Both acceptance-test bullets live-verified** against a local dev
+    session (`npx expo start --web`, port 8082) rather than production — the
+    Vercel preview/prod origins all point at the same live Supabase project,
+    and production now holds a real household's data (see Traps below), so
+    all test writes went through local dev instead. Verified beyond the
+    minimum: a zero-history location rendered a fresh list in exact entry
+    order; the same location after two recorded shops (checked
+    eggs→bread→milk→apples both times) rendered a *new* list with a
+    *different* entry order (apples→milk→bread→eggs) back in the observed
+    eggs→bread→milk→apples order, reproduced identically after a full cold
+    reload. Additionally isolated and confirmed the section-tag fallback
+    tier specifically: an item ("yogurt") tagged with the same section as an
+    already-observed item ("milk") but never itself checked at that location
+    slotted in at milk's own mean position, tie-broken by entry order — and
+    confirmed the true-zero-signal tier separately (untagged, unchecked
+    "yogurt" sorted last before it was tagged). All test rows (1 location, 2
+    lists, 2 checkoff rows, 2 location_items tags, 1 anonymous user) queried
+    and confirmed as this session's own before deletion, then deleted and
+    reverified at zero — see the corrected cleanup practice in Traps below,
+    followed correctly here.
+  - `npx tsc --noEmit` clean. `supabase/tests/rls_location_checkoffs.sql` (8
+    assertions, positive control + cross-household visibility + structural
+    anonymity + no-household-required-to-write + FK enforcement + cascade
+    delete + both check constraints) ran clean against the live project.
+  - `mobile/app.json` and `mobile/package.json` bumped to `0.0.7`.
 - **Slice 6 is done and merged.** [PR #17](https://github.com/mp3anthony/cartel/pull/17)
   merged to `main`, closing issue #6. Feature branch deleted, both locally and
   on origin.
@@ -37,10 +107,15 @@
   same as before. Merged directly this session (user confirmed the
   go-ahead) rather than left for later, specifically so the live-environment
   verification above could happen rather than being deferred again.
-- **Next up: Slice 7 — Route Learning & Auto-Ordering, issue #7**
-  (depends on Slice 6, now actually unblocked — merged, not just built). See
-  the Loose Ends entry below on #7's label before trusting it either way.
-  Not yet started; no Investigator/Planner work done for it.
+- **Next up: Slice 8 — Location Correction Voting, issue #8** (depends on
+  Slice 6, already merged — no blocker) or Slice 9 — Shop History & List
+  Templates, issue #9 (depends on Slice 5, already merged). Both are
+  labelled `ready-for-agent`; neither has had Investigator/Planner work done.
+  Slice 9 is the slice that finally needs a real, household-attributed
+  `shop_sessions` table (see this session's Slice 7 entry above for why that
+  was deliberately *not* built there) — start Slice 9 by re-reading that
+  reasoning rather than assuming the new `location_checkoffs` table is reusable
+  for it; it structurally can't be (no household/list attribution by design).
 - Full Investigator→Planner→Code Writer cycle run via subagents this session
   (no Problem Agreement round — issue was ready-for-agent and no genuinely
   open question came up). New `public.location_items` table (migration

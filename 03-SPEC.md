@@ -279,6 +279,52 @@ more tags/history — no fixed accuracy target, but the ordering must visibly ch
 entry/arbitrary order; the same location after several shops with location tags
 present produces a stable, repeatable non-arbitrary order for the same item set.
 
+*Agreed 2026-08-11, at Protocol Step 2 — the issue's own `ready-for-human` label
+was correct: neither `01-CRD.md` nor `02-DESIGN-REFERENCE.md` says how tags and
+observed check-off order combine into a route, and none of it was inferable from
+existing code or convention:*
+
+- **No `shop_sessions` table as `§1`'s aspirational schema sketches it — a new,
+  anonymous, location-scoped table instead**, named `location_checkoffs`
+  (mirrors `location_items`' naming). One row per completed shop: `location_id`,
+  an ordered array of normalized item names actually checked during that shop,
+  `completed_at`. No `household_id`, `list_id`, or user attribution of any
+  kind — same reasoning `location_items` already established in Slice 6
+  (stronger than store-and-withhold), and required here because `§0` forbids
+  location-global and household-private data from ever sharing an
+  access-control path. `shop_sessions` as CRD-sketched — a household-attributed
+  list snapshot feeding household-facing history — mixes both, and gets built
+  separately, as its own table, whenever Slice 9 actually needs it. Not built
+  ahead of that slice.
+- **Ordering is observed-order-primary.** For a list opening at a location: an
+  item with its own prior check-off history at this location sorts by its mean
+  historical position (averaged across every `location_checkoffs` row at that
+  location whose array contains it). An item with no check-off history of its
+  own but a known `location_items` tag falls back to that section's mean
+  position (mean position, across the same history, of every *other* item
+  sharing that section text). An item with neither signal — including every
+  item at a location with zero history — keeps its original entry order,
+  appended after every item that resolved a position. This is why zero-history
+  locations produce entry order for free, satisfying the acceptance test's
+  first bullet without a special case.
+- **The mean is a plain arithmetic mean of positional index**, not a weighted
+  or recency-biased average. Simplest thing that satisfies "quality improves as
+  data accumulates, no fixed accuracy target" — revisit only if live use shows
+  a concrete failure this can't explain.
+- **Sorting happens at read time in `ShoppingScreen` only, and never writes
+  `position`.** Already locked by Slice 2's own Agreed block above ("Route
+  order is a property of list × location, computed as a sort at read time");
+  Slice 7 doesn't reopen it. `ListDetailScreen`'s manual order is unaffected —
+  route order is a `ShoppingScreen`-only presentation, matching Slice 5/6's
+  precedent that shopping-specific behavior lives there, not in the shared
+  detail screen.
+- **A new "Finish shopping" action in `ShoppingScreen` writes the
+  `location_checkoffs` row** — snapshotting whatever's checked, in check-off
+  order, the moment it's pressed. It does not reset `checked_at` or touch list
+  reuse across weeks; that's Slice 9 territory and stays out, matching this
+  project's habit (§5/§6's `shop_sessions` deferral, `locations`' no-demotion
+  precedent) of not building ahead of the slice that actually needs it.
+
 ### Slice 8 — Location Correction Voting
 **Depends on:** Slice 6.
 **Scope:** A user can propose a correction to an existing item-location tag (item
