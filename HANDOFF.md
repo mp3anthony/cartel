@@ -8,10 +8,27 @@
 - **Slice 6 is done and merged.** [PR #17](https://github.com/mp3anthony/cartel/pull/17)
   merged to `main`, closing issue #6. Feature branch deleted, both locally and
   on origin.
-- **Next up: Slice 7 — Route Learning & Auto-Ordering, issue #7** (depends on
-  Slice 6, now actually unblocked — merged, not just built). See the Loose
-  Ends entry below on #7's label before trusting it either way.
-- Not yet started; no Investigator/Planner work done for it this session.
+- **Before Slice 7: a small, out-of-spec version-footer task is queued, agreed
+  directly in chat (not a filed issue) — see `CHANGE-LOG.md`'s 2026-08-11 row.**
+  Bottom of the `ListsScreen` only (confirmed with the user — not global, so
+  Shopping Mode's minimal-decoration design and every other screen stay
+  untouched), showing the app version plus a live/preview tag so a build can
+  be told apart from a preview at a glance. Version starts at `0.0.6`
+  (convention: `0.0.<slices completed>` — Slice 7 hasn't started yet, so this
+  still ships as `0.0.6`, not `0.0.7`). Small enough to skip Problem Agreement
+  and go straight to a PR, matching the `wire-list-rename-remove-ui` precedent.
+  Not started — no Investigator work done yet. Mechanism to verify, not
+  assume: Expo only inlines `EXPO_PUBLIC_*`-prefixed vars into the client
+  bundle (`mobile/src/lib/env.ts`'s doc comment explains why), and Vercel's
+  `VERCEL_ENV` (production/preview/development) is a build-time-only var by
+  default — getting it into the client means forwarding it through
+  `mobile/vercel.json`'s `buildCommand` as `EXPO_PUBLIC_VERCEL_ENV=$VERCEL_ENV`,
+  unverified against a real preview+production deploy pair as of this
+  writing.
+- **Next up after that: Slice 7 — Route Learning & Auto-Ordering, issue #7**
+  (depends on Slice 6, now actually unblocked — merged, not just built). See
+  the Loose Ends entry below on #7's label before trusting it either way.
+  Not yet started; no Investigator/Planner work done for it.
 - Full Investigator→Planner→Code Writer cycle run via subagents this session
   (no Problem Agreement round — issue was ready-for-agent and no genuinely
   open question came up). New `public.location_items` table (migration
