@@ -12,6 +12,9 @@
 - **Next up: Slice 6 — Crowdsourced Location Tagging, issue #6** (was blocked
   on #5, now unblocked).
 - Not yet started; no Investigator/Planner work done for it this session.
+- **Before Slice 6 started, fixed a real blocker: production required a new
+  household on every push.** Root cause and fix are recorded under Decisions
+  below — not a code bug, a Vercel project setting.
 
 ## Notes for next session
 
@@ -21,9 +24,16 @@
   it is woken from the dashboard. Anonymous sign-ins are enabled.
 - Vercel project `cartel` (mp3anthony's projects, Hobby) builds from `main` for
   production and from any pushed branch for a preview. Root Directory `mobile`,
-  build/output from `mobile/vercel.json`. Preview deployments sit behind Vercel's
-  own auth — use the Vercel MCP's `get_access_to_vercel_url` for a 23-hour
-  shareable link rather than assuming a bare preview URL loads.
+  build/output from `mobile/vercel.json`. **Production is public, no auth wall**
+  — reach it at the stable alias `cartel-kappa.vercel.app` (or
+  `cartel-mp3anthonys-projects.vercel.app`; both point at whatever is currently
+  live in production and never change). Preview deployments (any non-`main`
+  branch) still sit behind Vercel's own SSO — use the Vercel MCP's
+  `get_access_to_vercel_url` for a 23-hour shareable link for those, rather
+  than assuming a bare preview URL loads. Deployment Protection is scoped to
+  `preview` only (Vercel project setting, not code) — see Decisions below for
+  why this matters and don't re-tighten it to `all` without re-reading that
+  entry first.
 - Repo was recreated fresh; old sync-engine history was deliberately left behind.
   `origin/main` is always the real `main` if a stale local branch ever disagrees.
 - `.claude/launch.json` (new this slice) runs the web preview on port 8082, not
@@ -31,6 +41,31 @@
   8082 going forward rather than assuming the default.
 
 **Decisions that will look like mistakes if you don't know why**
+- **Vercel Deployment Protection is scoped to `preview`, not `all` — flipped
+  this session, before Slice 6.** The symptom reported was "I have to create a
+  new household every time a new version is pushed to main." The identity
+  model (`mobile/src/lib/supabase.ts`, `useAnonymousSession.ts`) was never
+  broken — anonymous auth persisted to `localStorage` is *designed* to survive
+  restarts, and does. The real cause: the project had no custom domain, and
+  `ssoProtection.deploymentType` was `all_except_custom_domains` — meaning
+  *every* URL the project has, production included, sat behind Vercel's own
+  SSO gate. There was no stable, unauthenticated origin for the app to persist
+  `localStorage` against. Whoever opened it — via a fresh
+  `get_access_to_vercel_url` bypass link pointed at the latest deployment's
+  unique per-push subdomain (`cartel-<hash>-mp3anthonys-projects.vercel.app`,
+  which changes on every deploy by construction) — got a brand-new origin each
+  time, hence a brand-new anonymous session, hence no household. Fixed by
+  setting `ssoProtection.deploymentType: "preview"` via the Vercel MCP's
+  `update_project_deployment_protection` — production is now public at the
+  two stable `*-mp3anthonys-projects.vercel.app` aliases, previews stay
+  gated. Confirmed live: same anonymous `sub` claim across repeated reloads of
+  `cartel-kappa.vercel.app` in a fresh browser profile. This also incidentally
+  fixed a bigger latent gap — before this, no household member other than the
+  Vercel account owner could reach the app at all, which contradicts the
+  CRD's explicit no-login-wall intent. Don't re-enable protection on
+  production without solving the origin-stability problem some other way
+  first (e.g. a custom domain, which is exempt from SSO regardless of this
+  setting).
 - **Realtime is enabled per-table via publication membership, not per-row.**
   Migration `20260810000004` adds `lists`/`list_items` to the `supabase_realtime`
   publication — Slice 2 already wrote both tables' RLS with Realtime's
@@ -200,6 +235,15 @@
   `dispatchEvent(new Event('input', {bubbles:true}))` rather than retrying
   `type` blindly (React-controlled inputs ignore a plain `.value =`
   assignment without the setter/event combo).
+- **One-off "JWT issued at future" error, seen once, unresolved.** Immediately
+  after flipping Deployment Protection this session, the very first cold load
+  of `cartel-kappa.vercel.app` in a fresh browser profile threw this on the
+  initial anonymous sign-in; a plain reload succeeded and the same session
+  persisted cleanly across several more reloads afterward. Browser clock was
+  confirmed correct (matched real time) at the point of the error, so it
+  wasn't ordinary client/server clock skew. Not chased further since it
+  didn't recur — flagging in case it shows up again for someone else's first
+  visit to a newly-public origin.
 - There is still no test harness beyond SQL run via the Supabase MCP's
   `execute_sql` against the hosted project (no local CLI, no `config.toml`, no
   Docker). Each call commits in its own transaction regardless of an open
