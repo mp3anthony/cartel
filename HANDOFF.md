@@ -5,16 +5,39 @@
 
 ## Last active
 
-- **Slice 5 is done and merged.** [PR #16](https://github.com/mp3anthony/cartel/pull/16)
-  (schema + `LocationsScreen` attach wiring + new `ShoppingScreen`, built and
-  live-verified in one session) merged to `main`, closing issue #5. Feature
-  branch deleted, both locally and on origin.
-- **Next up: Slice 6 — Crowdsourced Location Tagging, issue #6** (was blocked
-  on #5, now unblocked).
-- Not yet started; no Investigator/Planner work done for it this session.
+- **Slice 6 (Crowdsourced Location Tagging, issue #6) is built end-to-end and
+  live-verified.** [PR #17](https://github.com/mp3anthony/cartel/pull/17) is
+  open against `main`, not yet merged — that decision is next session's (or
+  later this one's) call, not made here, same posture Slice 4/5 took with
+  their own PRs before merge.
+- Full Investigator→Planner→Code Writer cycle run via subagents this session
+  (no Problem Agreement round — issue was ready-for-agent and no genuinely
+  open question came up). New `public.location_items` table (migration
+  `20260811000000`), `mobile/src/lib/locationItems.ts`,
+  `mobile/src/hooks/useLocationItems.ts`, `ShoppingScreen.tsx` changes,
+  `supabase/tests/rls_location_items.sql` (7 assertions, ran clean). Full
+  reasoning for every design fork is in the migration's and `locationItems.ts`'s
+  own doc comments — see Decisions below for the ones likely to look like
+  mistakes without that context.
+- **Both halves of the issue's own acceptance test were live-verified with two
+  separate real anonymous users** (Browser pane + Claude-in-Chrome, confirmed
+  distinct `auth.uid()`s), not just the RLS-level proof: user A tagged "Milk"
+  (`Dairy Aisle 3`) at a location A created; a second, completely unrelated
+  user B — no household, never tagged anything — attached a *different* list's
+  "milk" (lowercase, proving the name-normalization match) to the *same*
+  location by search and saw `Dairy Aisle 3` the moment Shopping Mode loaded,
+  with zero action beyond opening the screen. Also confirmed via
+  `read_network_requests` that the `location_items` fetch's own `select=`
+  query string names only `id,name,section,created_at` — no attribution
+  reaches the wire in either direction.
 - **Before Slice 6 started, fixed a real blocker: production required a new
   household on every push.** Root cause and fix are recorded under Decisions
   below — not a code bug, a Vercel project setting.
+- **Production now holds a real household ("The Paull's") and a real list
+  ("Weekly Shopping 🛒"), created between sessions — not test debris.**
+  Discovered while cleaning up this session's own test rows; see the
+  corrected Traps entry on test-data cleanup below before running the old
+  blanket-wipe query again.
 
 ## Notes for next session
 
@@ -159,6 +182,45 @@
   `ShoppingScreen`.** Out of scope by this slice's own plan — there's no
   session row to finalize, and Slice 2 already decided check-off never writes
   `position`.
+- **`location_items` has no creator column at all — not even one withheld
+  from a grant, unlike `locations.created_by`.** Nothing in this slice, Slice
+  7 (route ordering reads accumulated tags, never who left them), or Slice 8
+  (its own `location_item_votes` table owns supporter-id tracking, a separate
+  concern) ever needed to read a creator off this table, so storing one would
+  be exactly the "schema nobody reads" this project's Slice 5 `shop_sessions`
+  reasoning already rejected once. Omission is also a strictly stronger
+  reading of the issue's "not attributable ... anywhere in ... data" than
+  store-and-withhold. `supabase/tests/rls_location_items.sql` assertion 2
+  checks this structurally (queries `information_schema.columns`), not just
+  that a grant withholds something.
+- **Two households racing to tag the same untagged item is arbitrated by a
+  bare `unique (location_id, name)` constraint, not a function or `.upsert()`.**
+  First `INSERT` wins; the loser's `23505` is treated as *success*, not
+  failure, in `tagItemLocation()` (`mobile/src/lib/locationItems.ts`) — the
+  caller's own post-write `refresh()` (the same write-then-reload shape every
+  mutation in this app already uses) picks up whichever section text actually
+  won, so there's nothing a second round trip would buy. Slice 8 is where a
+  *correction* to an already-set tag gets a real mechanism (quorum voting);
+  this slice deliberately has none, by design, not as a gap.
+- **No stored `list_items.location_tag_id`, despite 03-SPEC.md § 1 listing it
+  in the aspirational schema shape.** "Is this item tagged, and what does it
+  say" is always resolved by a live lookup (`sectionForItemName()`, list's
+  `location_id` + this item's normalized name against `location_items`), with
+  nothing written back onto `list_items`. A stored FK would still need that
+  same lookup to auto-populate for a *second* household's items that never
+  went through any tagging action themselves — which is exactly what the
+  acceptance test requires — so the stored column would be sync work bought
+  for nothing. Don't add it later without a concrete reason a live lookup
+  can't cover (Slice 7's route ordering hasn't been planned yet — check
+  there first).
+- **`location_items` was never added to the `supabase_realtime` publication,
+  matching `locations` (also never added — only `lists`/`list_items` were, in
+  migration `20260810000004`).** `useLocationItems` loads once on mount, no
+  subscription, `refresh()` picks up a tag just written — same shape as
+  `useLocations`. The issue's acceptance test reads as satisfied by a fresh
+  load ("shopping the same location for the first time"), not live push
+  mid-shop; live-verified this session with two real sessions, a fresh
+  `ShoppingScreen` mount was all household B needed.
 
 **Traps**
 - RLS policy expressions run as the *querying* user. Revoking a policy-helper
@@ -197,12 +259,24 @@
   this reason. `PrimaryButton`'s `aria-busy` gap is still open (task chip filed).
 - Android and iOS have **never been run** (#10, #1). The Vercel link is the
   agreed review surface. Treat native-only breakage as expected-but-undiscovered.
-- Test users are anonymous rows in `auth.users` with `is_anonymous = true`. Reset
-  between runs with
+- **The old blanket-wipe cleanup query below is now DANGEROUS — do not run it.**
+  Test users are anonymous rows in `auth.users` with `is_anonymous = true`, and
+  every prior slice's cleanup ran
   `delete from public.households; delete from auth.users where is_anonymous = true;`
-  — cascades `public.lists` and `public.list_items`. Done at the end of this
-  session; stale rows from a prior session's testing were also found and cleared
-  at the *start* of this one — always check before assuming a clean slate.
+  between/after test runs on the (until this session) reasonable assumption that
+  every anonymous row in production was another session's test debris. That
+  assumption broke this session: production has been public and unauthenticated
+  since the Deployment Protection fix above, and a real household ("The Paull's",
+  one member, list "Weekly Shopping 🛒") now exists from genuine use between
+  sessions. A blanket wipe run today would delete a real person's data, not test
+  debris. **Before any cleanup query, `select` first and confirm every row you're
+  about to delete is one you created this session** (Slice 6's cleanup did this —
+  queried households/lists/anon-user ids first, found "The Paull's", scoped the
+  actual delete to only the specific ids this session's testing had created, left
+  everything else untouched). This is a standing change to the cleanup practice,
+  not a one-off caveat — re-derive "is this actually mine" every session from now
+  on rather than trusting a cached blanket query from before production went
+  public.
 - **`set search_path = ''` breaks bare operators, not just bare function
   names.** `nearby_locations()` (Slice 4) needed `OPERATOR(extensions.@>)`
   instead of plain `@>` for the `cube`/`earthdistance` bounding-box check —
@@ -253,6 +327,10 @@
   over a live socket; that's the manual two-session check.
 
 **Loose ends**
+- **[PR #17](https://github.com/mp3anthony/cartel/pull/17) (Slice 6) is open, not
+  merged.** Merge/review is next session's call. Slice 7 (Route Learning &
+  Auto-Ordering, issue #6's successor) depends on Slice 6 per `03-SPEC.md` — treat
+  it as still blocked until #17 actually merges, not merely "code exists."
 - Palette is locked (burnt orange `#C2410C`) with measured contrast ratios in
   `mobile/src/theme/tokens.ts` — that file is the source of truth, not the design
   doc.
