@@ -5,9 +5,10 @@
 
 ## Last active
 
-- **Slice 9 — Shop History & List Templates is implemented and verified,
-  [PR #21](https://github.com/mp3anthony/cartel/pull/21) open pending
-  merge**, closing issue #9 once merged.
+- **Slice 9 — Shop History & List Templates is done and merged.**
+  [PR #21](https://github.com/mp3anthony/cartel/pull/21) merged to `main`
+  (user gave the explicit go-ahead this session), closing issue #9. Feature
+  branch deleted, both locally and on origin.
   - **Label rationale re-checked before starting, per the standing practice
     #7/#8 established.** The two things worth checking specifically (per the
     user's own framing this session) both resolved cleanly with no genuine
@@ -136,8 +137,8 @@
     before deletion, then deleted and reverified at zero.
   - `npx tsc --noEmit` clean. `mobile/app.json` and `mobile/package.json`
     bumped to `0.0.9`.
-  - **Next up: once PR #21 is merged, Slice 9 completes the numbered slice
-    list in `03-SPEC.md`.** Re-read `03-SPEC.md § 3`/`§ 4` and
+  - **Next up: Slice 9 completes the numbered slice list in
+    `03-SPEC.md`.** Re-read `03-SPEC.md § 3`/`§ 4` and
     `CHANGE-LOG.md`'s three pending items (captcha on anonymous sign-in,
     orphaned households after member removal, item quantities) before
     assuming there's a Slice 10 waiting — none of those three has been
