@@ -21,10 +21,12 @@ import {
 import { useListItems } from '../hooks/useListItems';
 import type { ListsView } from '../hooks/useLists';
 import { useLocations } from '../hooks/useLocations';
-import type { Outcome } from '../lib/household';
+import type { Household, Outcome } from '../lib/household';
 import {
   addItem,
+  addItems,
   attachLocation,
+  createList,
   moveItem,
   promoteList,
   removeItem,
@@ -43,6 +45,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ListDetail'> & {
   lists: ListsView;
   onListsChanged: () => Promise<void>;
   inHousehold: boolean;
+  household: Household | null;
 };
 
 /**
@@ -56,6 +59,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ListDetail'> & {
  */
 export function ListDetailScreen({
   client,
+  household,
   inHousehold,
   lists,
   navigation,
@@ -78,6 +82,9 @@ export function ListDetailScreen({
   const [listNameDraft, setListNameDraft] = useState('');
   const [confirmingShare, setConfirmingShare] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [copyComposing, setCopyComposing] = useState(false);
+  const [copyName, setCopyName] = useState('');
+  const [copyShared, setCopyShared] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -237,6 +244,89 @@ export function ListDetailScreen({
         navigation.navigate('Lists');
       },
     );
+  }
+
+  function beginCopy() {
+    if (!list) {
+      return;
+    }
+    setError(null);
+    setCopyName(list.name);
+    setCopyShared(false);
+    setCopyComposing(true);
+  }
+
+  function cancelCopy() {
+    setCopyComposing(false);
+    setCopyName('');
+    setCopyShared(false);
+  }
+
+  /**
+   * A third, explicit copy-composer submit — not shared with HistoryScreen's own
+   * `submitCopy` or ListsScreen's create-list `submit`, despite the visible overlap.
+   * See this function's own header note below: the three composers' submit logic
+   * differs in what feeds `addItems()` (here: this screen's own loaded `items`,
+   * already in scope from `useListItems`) and what happens after `createList()`
+   * succeeds (`attachLocation()` here is conditional on `list.locationId !== null`
+   * — a source list may have no location attached at all — where HistoryScreen's
+   * own version is unconditional, because a `shop_sessions` row's `location_id` is
+   * never null). A shared component would need most of its behaviour prop-drilled
+   * away to cover both differences, which this codebase already treats as not
+   * worth it — see `mutate()`'s own doc comment above for the established stance
+   * on this class of duplication.
+   */
+  async function submitCopy(sourceItems: ListItemRow[]) {
+    if (copyName.trim().length === 0 || busy) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+
+    const createOutcome = await createList(
+      client,
+      copyName,
+      copyShared && household ? household.id : null,
+    );
+
+    if (!createOutcome.ok) {
+      setBusy(false);
+      setError(createOutcome.message);
+      return;
+    }
+
+    const newListId = createOutcome.value;
+
+    const addOutcome = await addItems(
+      client,
+      newListId,
+      sourceItems.map((item) => item.name),
+      null,
+    );
+
+    if (!addOutcome.ok) {
+      setBusy(false);
+      setError(addOutcome.message);
+      cancelCopy();
+      return;
+    }
+
+    if (list && list.locationId !== null) {
+      const attachOutcome = await attachLocation(client, newListId, list.locationId);
+
+      if (!attachOutcome.ok) {
+        setBusy(false);
+        setError(attachOutcome.message);
+        cancelCopy();
+        return;
+      }
+    }
+
+    await onListsChanged();
+    setBusy(false);
+    cancelCopy();
+    navigation.navigate('ListDetail', { listId: newListId });
   }
 
   if (lists.status === 'loading') {
@@ -446,6 +536,47 @@ export function ListDetailScreen({
           label="Rename list"
           onPress={startRenameList}
           disabled={busy}
+        />
+      )}
+
+      {copyComposing ? (
+        <View style={styles.editor}>
+          <Field
+            label="New list name"
+            value={copyName}
+            onChangeText={setCopyName}
+            autoCapitalize="sentences"
+            autoFocus
+            maxLength={60}
+            editable={!busy}
+            onSubmitEditing={() => void submitCopy(items)}
+            returnKeyType="done"
+          />
+          {household ? (
+            <Row
+              label={`Share with ${household.name}`}
+              leading={
+                <CheckTarget
+                  checked={copyShared}
+                  onToggle={() => setCopyShared(!copyShared)}
+                  accessibilityLabel={`Share with ${household.name}`}
+                  disabled={busy}
+                />
+              }
+            />
+          ) : null}
+          <SecondaryButton
+            label="Create"
+            onPress={() => void submitCopy(items)}
+            disabled={busy || copyName.trim().length === 0}
+          />
+          <SecondaryButton label="Cancel" onPress={cancelCopy} disabled={busy} />
+        </View>
+      ) : (
+        <SecondaryButton
+          label="Start new list from this"
+          onPress={beginCopy}
+          disabled={busy || items.length === 0}
         />
       )}
 

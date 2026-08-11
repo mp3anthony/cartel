@@ -29,4 +29,5 @@ export type RootStackParamList = {
    */
   Locations: { attachToListId?: string } | undefined;
   Shopping: { listId: string };
+  History: undefined;
 };

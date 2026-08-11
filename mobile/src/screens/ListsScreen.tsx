@@ -72,6 +72,16 @@ export function ListsScreen({
           </Pressable>
           <Pressable
             accessibilityRole="button"
+            onPress={() => navigation.navigate('History')}
+            style={({ pressed }) => [
+              styles.headerButton,
+              pressed && styles.headerButtonPressed,
+            ]}
+          >
+            <Text style={styles.headerButtonLabel}>History</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
             onPress={() =>
               household
                 ? navigation.navigate('Household')

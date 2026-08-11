@@ -30,6 +30,7 @@ import {
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
 import { setChecked, type ListItemRow } from '../lib/lists';
+import { recordShopSession } from '../lib/shopSessions';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -110,6 +111,20 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * confirm-tap reuse the same shared `pending` Set this screen's other two
  * writes already use, for the same reason Slice 6 gave: each is "this item's
  * row has a write in flight."
+ *
+ * Slice 9 makes "Finish shopping" write two independent rows instead of one.
+ * The pre-existing `location_checkoffs` write (anonymous, feeds route
+ * learning) is unchanged; alongside it, `finishShopping()` now also calls
+ * `recordShopSession()` (`../lib/shopSessions`) to write a household-
+ * attributed `shop_sessions` row — the full item snapshot plus which of them
+ * were checked — that feeds the new History screen and its copy-into-a-new-
+ * list flow. Both are plain direct-to-table writes with no atomicity
+ * requirement in the resolved design, so this is two sequential awaited
+ * calls, not an RPC: a failure landing after the first write succeeds but
+ * before the second is a real, accepted possibility (a checkoff recorded
+ * with no matching session row), the same class of risk this project already
+ * tolerates elsewhere — see Slice 4's accepted location-merge race window —
+ * rather than a case worth an atomic function for.
  */
 export function ShoppingScreen({ client, lists, navigation, route }: Props) {
   const tokens = useTheme();
@@ -326,15 +341,26 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
     setFinishingShopping(true);
     setError(null);
     try {
-      const outcome = await recordLocationCheckoff(
-        client,
-        list.locationId,
-        orderedCheckedItemNames(items),
-      );
-      if (!outcome.ok) {
-        setError(outcome.message);
+      const checkedNames = orderedCheckedItemNames(items);
+
+      const checkoffOutcome = await recordLocationCheckoff(client, list.locationId, checkedNames);
+      if (!checkoffOutcome.ok) {
+        setError(checkoffOutcome.message);
         return;
       }
+
+      const sessionOutcome = await recordShopSession(client, {
+        locationId: list.locationId,
+        householdId: list.householdId,
+        listId: list.id,
+        itemNames: items.map((item) => item.name),
+        checkedItemNames: checkedNames,
+      });
+      if (!sessionOutcome.ok) {
+        setError(sessionOutcome.message);
+        return;
+      }
+
       await refreshCheckoffs();
       setConfirmingFinish(false);
       setJustFinished(true);
