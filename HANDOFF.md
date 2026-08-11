@@ -5,12 +5,10 @@
 
 ## Last active
 
-- **Slice 8 — Location Correction Voting is implemented and verified, PR open,
-  not yet merged.** [PR #20](https://github.com/mp3anthony/cartel/pull/20),
-  branch `slice-8-location-correction-voting`, closes issue #8 on merge.
-  Waiting on the user's explicit go-ahead to merge before this becomes done —
-  don't merge it automatically at the start of next session; ask first, the
-  same gate Slice 6/7/the version-footer task all went through.
+- **Slice 8 — Location Correction Voting is done and merged.**
+  [PR #20](https://github.com/mp3anthony/cartel/pull/20) merged to `main`
+  (user gave the explicit go-ahead this session), closing issue #8. Feature
+  branch deleted, both locally and on origin.
   - **Label rationale re-checked, same as #7's staleness check, and this time
     it held.** `01-CRD.md § 8` explicitly resolves quorum-of-2 as the
     mechanism and `03-SPEC.md § Slice 8` gives the same scope text as the
