@@ -6,8 +6,11 @@
 ## Last active
 
 - **Slice 7 — Route Learning & Auto-Ordering — built end-to-end this
-  session, on branch `slice-7-route-learning`, PR not yet opened as of this
-  write-up (opening next).** Closes issue #7.
+  session, on branch `slice-7-route-learning`.
+  [PR #19](https://github.com/mp3anthony/cartel/pull/19) open, awaiting
+  review — not merged yet, matching the standing pattern of not merging
+  without the user's go-ahead (see PR #18's entry above for the one
+  deliberate exception).** Closes issue #7 once merged.
   - **Issue #7 had been accidentally auto-closed** by GitHub's keyword
     detection matching "resolve #7" in a *previous* session's handoff commit
     message (`93fca49`) — that commit was only about verifying the label's
