@@ -16,6 +16,7 @@ import { envResult, type Env } from './src/lib/env';
 import { getSupabaseClient } from './src/lib/supabase';
 import type { RootStackParamList } from './src/navigation/types';
 import { ConfigErrorScreen } from './src/screens/ConfigErrorScreen';
+import { HistoryScreen } from './src/screens/HistoryScreen';
 import { HouseholdScreen } from './src/screens/HouseholdScreen';
 import { HouseholdSetupScreen } from './src/screens/HouseholdSetupScreen';
 import { ListDetailScreen } from './src/screens/ListDetailScreen';
@@ -58,6 +59,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       Household: 'household',
       Locations: 'locations',
       Shopping: 'shop/:listId',
+      History: 'history',
     },
   },
 };
@@ -166,6 +168,7 @@ function Bootstrapped({ env }: { env: Env }) {
               lists={lists.view}
               onListsChanged={lists.refresh}
               inHousehold={state.status === 'member'}
+              household={state.status === 'member' ? state.household : null}
             />
           )}
         </Stack.Screen>
@@ -185,6 +188,17 @@ function Bootstrapped({ env }: { env: Env }) {
         <Stack.Screen name="Shopping" options={{ title: 'Shopping' }}>
           {(props) => (
             <ShoppingScreen {...props} client={client} lists={lists.view} />
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="History" options={{ title: 'History' }}>
+          {(props) => (
+            <HistoryScreen
+              {...props}
+              client={client}
+              onListsChanged={lists.refresh}
+              household={state.status === 'member' ? state.household : null}
+            />
           )}
         </Stack.Screen>
 

@@ -5,6 +5,146 @@
 
 ## Last active
 
+- **Slice 9 — Shop History & List Templates is implemented and verified,
+  [PR #21](https://github.com/mp3anthony/cartel/pull/21) open pending
+  merge**, closing issue #9 once merged.
+  - **Label rationale re-checked before starting, per the standing practice
+    #7/#8 established.** The two things worth checking specifically (per the
+    user's own framing this session) both resolved cleanly with no genuine
+    open question: (1) whether `shop_sessions` needs building for real now
+    — yes, and Slice 7's own HANDOFF entry had already pre-announced the
+    split ("gets built separately, as its own table, whenever Slice 9
+    actually needs it"), so "Finish shopping" writing two independent rows
+    (unchanged `location_checkoffs` + new `shop_sessions`) wasn't a fork, it
+    was already decided; (2) what each of the two copy sources ("own history
+    or an existing list") actually copies — `03-SPEC.md § 1`'s own "list
+    snapshot, checked order" schema sketch resolves this directly: the full
+    item set, not just what was checked, always starting unchecked. No
+    Problem Agreement round; straight to Investigator → Planner → Code
+    Writer, matching #8's pattern rather than #7's.
+  - **`shop_sessions`' access shape mirrors `public.lists` exactly** —
+    `owner_id` defaults to `auth.uid()`, `household_id` nullable (null =
+    personal, same as `lists.household_id`), same
+    `owner_id = auth.uid() or household_id = current_household_id()`
+    predicate on both SELECT and INSERT. Direct-to-table write under RLS,
+    not an RPC — same "may I write this row reduces to a plain check
+    expression" reasoning Slice 2 gave for `lists` itself, unlike Slice 8's
+    genuinely atomic quorum write. The one clause added beyond
+    `lists_insert_own`'s own shape is `list_id is null or exists (select 1
+    from lists where id = list_id)`, the same visibility-gate pattern
+    `list_items_insert_visible` already established — stops a client
+    attaching a shop_session to a list_id it can't see.
+  - **This is a genuinely separate table from `location_checkoffs`, not a
+    reinterpretation of it — both get written on "Finish shopping" going
+    forward.** `03-SPEC.md § 0`'s hard invariant (location-global and
+    household-private data must never share an access-control path) means
+    one insert could never serve both consumers. `location_checkoffs` stays
+    exactly as Slice 7 left it (anonymous, feeds route learning);
+    `shop_sessions` is new, household-visible, feeds history/copy. The two
+    writes in `finishShopping()` are sequential and independent, not
+    wrapped in an RPC — a failure landing between them (a checkoff recorded
+    with no matching session row) is accepted, not engineered against, the
+    same class of risk this project already tolerates elsewhere (Slice 4's
+    accepted location-merge race window, Slice 8's accepted three-way vote
+    race).
+  - **`item_names`/`checked_item_names` are stored un-normalized**,
+    deliberately unlike `location_checkoffs`' array: that array is a global
+    cross-household lookup/join key against `location_items.name`; this one
+    is never joined against anything, only read back for display or fed
+    straight into `addItems()` to recreate real list rows a person sees —
+    silently lowercasing "Milk" into "milk" would be a visible regression
+    here in a way it isn't there. `shop_sessions` was added to the
+    `supabase_realtime` publication in the same migration that created it
+    (unlike `lists`/`list_items`'s split across two migrations weeks apart)
+    — no reason to ship a household-shared table without live sync for even
+    one slice, per `03-SPEC.md § 0`'s sync invariant.
+  - **`addItems()` (new, in `lists.ts`) is the one bulk-copy helper both
+    copy flows share, and it still routes every generated key through the
+    file's one private `keyBetween()`** — looped to produce N ascending
+    keys, then written as a single multi-row `.insert([...])` rather than N
+    sequential single inserts, so a mid-copy failure can't leave a
+    partially-copied list the way N separate round trips could.
+    `keyBetween()`'s own "only call into `fractional-indexing` anywhere in
+    the app" doc-comment claim stays literally true — a second bulk-copy
+    call site living outside `lists.ts` would have broken it.
+  - **Two copy entry points, deliberately three separate composers, not one
+    shared component.** `HistoryScreen`'s "Start new list from this" copies
+    a past `shop_session`'s full `item_names` snapshot (not
+    `checked_item_names` — CRD's "aren't creating from scratch each time"
+    framing plus §1's "list snapshot" phrasing both read as "give me
+    everything I shopped for," not "give me what I already got") and
+    unconditionally attaches the session's location (a `shop_sessions` row's
+    `location_id` is never null). `ListDetailScreen`'s own "Start new list
+    from this" copies an existing list's current items and attaches its
+    location only conditionally (a source list may have none). Both prefill
+    the new list's name from the source, reuse `ListsScreen`'s
+    "Share with {household}" checkbox convention, and never touch the
+    source. Explicitly not extracted into one shared composer — the two
+    flows' post-`createList()` sequences differ in exactly the way that
+    would force most of a shared component's behaviour to be prop-drilled
+    back out; see `ListDetailScreen.tsx`'s own copy-composer doc comment,
+    which also cites `mutate()`'s established stance on this class of
+    duplication being this codebase's norm, not an exception.
+  - **`SHOP_SESSION_HISTORY_CAP = 10`** (`shopSessions.ts`) — the generous
+    end of the issue's "5-10" range, enforced by `.limit()` in the loader,
+    not a database constraint, matching `position`'s own "cap is a
+    read-time concern" precedent from Slice 2. **Not live-stress-tested**:
+    a synthetic bulk-insert meant to push one household past 10 sessions and
+    confirm the oldest drops off was blocked by the permission classifier as
+    a live-database write to the shared production project, and was not
+    retried through another tool — the classifier's block was respected
+    rather than routed around. This one behavior rests on code review of a
+    single straightforward `.limit()` clause, not a live test; flagging
+    explicitly per this project's "no silent caps" standard rather than
+    letting it read as fully covered.
+  - **`supabase/tests/rls_shop_sessions.sql`, 13 assertions (0-12), run
+    clean against the live project — independently re-run by the
+    orchestrator with a hand-verified copy of the same assertions, not just
+    trusted from the implementing agent's own report.** Covers: positive
+    control (0), household visibility (1), personal-stays-private-inside-a-
+    household (2), stranger denial (3), the null=null property fresh
+    against this policy (4), INSERT equal-rank (5), INSERT household-id
+    smuggling denial (6), the `list_id`-visibility clause both ways (7-8),
+    `location_id` FK enforcement (9), `list_id`'s `on delete set null`
+    verified by actually hard-deleting the referenced list (10), and no
+    UPDATE/DELETE path at all, not even for a row's own owner (11-12).
+  - **Both acceptance-test bullets live-verified against local dev
+    (`npx expo start --web`, port 8082) with two genuinely distinct
+    anonymous users** (Browser pane + Claude-in-Chrome, confirmed differing
+    `auth.uid()`s before trusting anything, per the standing trap below).
+    User A created a household, a location, and a shared list; checked 2 of
+    3 items and hit "Finish shopping" — confirmed by direct DB query that
+    `item_names` held all 3 (the full snapshot) while `checked_item_names`
+    held only the 2 checked, exactly per the resolved design. User D (a
+    household member, not A, joined via invite code) saw the same history
+    entry the moment they opened `/history` — real end-to-end visibility
+    through the actual REST path, not just the RLS-level SQL proof — and
+    used "Start new list from this" themselves (equal-rank invariant,
+    exercised live, not just asserted by RLS test): the composer prefilled
+    exactly `"Slice 9 QA Supermarket — 11 Aug 2026"`, and the resulting list
+    had all 3 items, all unchecked, fresh `a0`/`a1`/`a2` position keys, and
+    the same location attached — confirmed by direct DB query, alongside
+    the original `shop_sessions` row and source list both still reading
+    exactly as before the copy. Separately verified `ListDetailScreen`'s own
+    copy path (source = an existing list, not a past session) from A's
+    account, this time leaving "Share" unchecked to exercise the
+    personal-copy path — same outcome shape (fresh unchecked items, correct
+    scope, location inherited, source list's own checked/unchecked state
+    confirmed unchanged by direct DB query). All test rows (2 anonymous
+    users, 1 household, 1 location, 3 lists, 1 `shop_sessions` row, 1
+    `location_checkoffs` row) queried and confirmed as this session's own
+    before deletion, then deleted and reverified at zero.
+  - `npx tsc --noEmit` clean. `mobile/app.json` and `mobile/package.json`
+    bumped to `0.0.9`.
+  - **Next up: once PR #21 is merged, Slice 9 completes the numbered slice
+    list in `03-SPEC.md`.** Re-read `03-SPEC.md § 3`/`§ 4` and
+    `CHANGE-LOG.md`'s three pending items (captcha on anonymous sign-in,
+    orphaned households after member removal, item quantities) before
+    assuming there's a Slice 10 waiting — none of those three has been
+    scoped into a slice yet, and this file's own "Loose ends" section below
+    has a few other open threads (native platforms never run, `PrimaryButton`
+    `aria-busy` gap, CLAUDE.md's placeholder Rules section) worth triaging
+    with the user rather than guessing at what's next.
 - **Slice 8 — Location Correction Voting is done and merged.**
   [PR #20](https://github.com/mp3anthony/cartel/pull/20) merged to `main`
   (user gave the explicit go-ahead this session), closing issue #8. Feature
