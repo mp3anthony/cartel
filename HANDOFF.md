@@ -361,13 +361,18 @@
 - Palette is locked (burnt orange `#C2410C`) with measured contrast ratios in
   `mobile/src/theme/tokens.ts` — that file is the source of truth, not the design
   doc.
-- #7 (route-learning heuristic) is still labelled ready-for-human over a
-  missing design reference — genuinely unchecked this session (only #4 was
-  investigated). Worth the same treatment #4 got: check whether
-  `02-DESIGN-REFERENCE.md`'s literal blocking claim is stale before trusting
-  the label either way, same as #4's turned out to be — the design reference
-  being non-blank doesn't by itself mean the *specific* decision the label
-  cites has actually been made.
+- **#7's `ready-for-human` label was checked this session (the #4-style
+  staleness check was still outstanding) and confirmed accurate, unlike #4's
+  turned out to be.** Read `02-DESIGN-REFERENCE.md` in full: its only route-
+  learning mention (the per-item colour chip, § reference 2) is about
+  *displaying* a tagged section, not about *how tags + observed check-off
+  order combine into an order* — the actual algorithm question the issue's
+  label rationale cites. No section resolves it, locked or otherwise. Also
+  confirmed `shop_sessions` (03-SPEC.md § 1's aspirational schema) does not
+  exist yet in any migration — Slice 5 deliberately deferred it here, so
+  Slice 7 is also the slice that has to create it. Next session should open
+  with Problem Agreement on the ordering heuristic itself (Protocol Step 3's
+  escalation trigger), not skip straight to Investigator/Planner.
 - `CHANGE-LOG.md` has three pending items, none built: captcha on anonymous
   sign-in, orphaned households after member removal, and item quantities.
 - `PrimaryButton`'s missing `aria-busy` (see Traps) has an open task chip.
