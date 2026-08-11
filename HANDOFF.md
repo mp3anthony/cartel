@@ -5,6 +5,100 @@
 
 ## Last active
 
+- **Slice 8 — Location Correction Voting is implemented and verified, PR open,
+  not yet merged.** [PR #20](https://github.com/mp3anthony/cartel/pull/20),
+  branch `slice-8-location-correction-voting`, closes issue #8 on merge.
+  Waiting on the user's explicit go-ahead to merge before this becomes done —
+  don't merge it automatically at the start of next session; ask first, the
+  same gate Slice 6/7/the version-footer task all went through.
+  - **Label rationale re-checked, same as #7's staleness check, and this time
+    it held.** `01-CRD.md § 8` explicitly resolves quorum-of-2 as the
+    mechanism and `03-SPEC.md § Slice 8` gives the same scope text as the
+    issue — no genuine open question, so no Problem Agreement round; went
+    straight to Investigator → Planner → Code Writer.
+  - **The central design fork was RPC-vs-direct-table-write, and this is the
+    first table in the schema where the RPC side actually won.** Every prior
+    table (`location_items`, `location_checkoffs`, `locations`) concluded no
+    function was needed because "may I write this row" reduced to a plain RLS
+    check. Slice 8's write is different in kind: applying a correction on
+    quorum is an atomic check-then-write that spans *two* tables
+    (`location_item_votes` and `location_items.section`), which `using`/`with
+    check` has no way to express. `public.vote_location_item_correction()`
+    (`security definer`) is the sole write path for both tables — neither has
+    an INSERT/UPDATE policy or grant reachable by a client at all, a
+    deliberately *stronger* stance than `location_items`' own migration
+    header predicted for itself ("Slice 8 will add an UPDATE policy") — that
+    prediction was wrong once the atomicity requirement was actually worked
+    through; overridden, not followed.
+  - **`location_item_votes.voter_id` is stored but withheld from every SELECT
+    grant, matching `locations.created_by`'s precedent, not
+    `location_items`' complete absence of a creator column.** Real functional
+    reason this table has that `location_items`/`location_checkoffs` never
+    did: telling a proposer apart from an *independent* second confirmer
+    needs some durable per-vote identity across two separate calls. Never
+    reachable by any client query — the one place it's read is inside the
+    function body.
+  - **One table serves both "propose" and "confirm"** — no separate
+    corrections table. A "proposed correction" is the distinct-values grouping
+    of `(location_id, item_name, proposed_section)` that emerges from
+    whichever vote rows exist; the first vote for a not-yet-seen tuple *is*
+    the proposal, a second independent vote *is* the confirmation. Same
+    voter voting the same tuple twice collides with `unique(location_id,
+    item_name, proposed_section, voter_id)` and is rejected (`already_voted`)
+    rather than silently accepted — deliberately the opposite of
+    `tagItemLocation`'s 23505-is-fine leniency, because a duplicate vote from
+    the same user is not equivalent to genuine second-voter progress. Two
+    different proposed corrections for the same item can be pending at once;
+    applying one via quorum deletes *all* pending votes for that item, not
+    just the winning tuple's own two.
+  - **`mobile/src/lib/locationItemVotes.ts` / `useLocationItemVotes.ts`**
+    mirror `locationItems.ts`/`useLocationItems.ts` field-for-field.
+    `ShoppingScreen.tsx`'s tagged-item `Badge` gained a sibling pencil
+    `IconButton` opening a second inline composer
+    (`correctingItemId`, same one-row-at-a-time shape as `composingItemId`);
+    pending corrections render as a plain `Body` line + single-tap
+    `PrimaryButton` "Confirm" — deliberately *not* the `Confirm` in-place-card
+    primitive, because this system has no reject/veto verb (a user who
+    disagrees with a proposal just never taps it) and `Confirm`'s contract
+    requires an `onCancel` that would invent meaning nothing here has. Every
+    viewer sees the same "Confirm" affordance regardless of whether they
+    proposed it — the app never learns who voted, so there's no client-side
+    attempt to hide it from the proposer; their own re-tap is rejected
+    server-side and surfaces through the same `ErrorNote` path every other
+    rejected write already uses.
+  - **`supabase/tests/rls_location_item_votes.sql`, 14 assertions, run clean
+    against the live project — independently re-run by the orchestrator, not
+    just trusted from the implementing agent's own report.** Covers: quorum
+    application + vote-row cleanup (assertions 0-1), `already_voted`
+    rejection (2-3), two independent pending corrections coexisting and one
+    applying wiping both (4-5), `correction_matches_current` /
+    `item_not_tagged` rejection (6-7), no-household-required (8), `voter_id`
+    unreadability (9), no direct-INSERT bypass of the RPC (10), composite FK
+    enforcement + cascade (11-12), both check constraints (13).
+  - **Both acceptance-test bullets live-verified against local dev with two
+    genuinely distinct anonymous users** (Browser pane + Claude-in-Chrome,
+    confirmed differing `auth.uid()`s before trusting anything, per the
+    standing trap below). User A tagged a fresh item "Aisle 3", proposed
+    "Aisle 9" — badge stayed "Aisle 3" (issue's first bullet) — then A's own
+    tap on "Confirm" for their own proposal was rejected with the
+    `already_voted` prose, badge still "Aisle 3" (the explicit
+    single-user-edits-stay-pending negative case, not just implied). User B
+    (different list, no shared household, matched via lowercase "milk"
+    proving the name-normalization join) saw the same pending correction and
+    confirmed it independently — both sessions read "Aisle 9" after reload,
+    confirmed directly against the database (`location_items.section =
+    'Aisle 9'`, zero remaining `location_item_votes` rows for that item). All
+    test rows (2 anon users, 2 lists, 1 location, 1 location_items row)
+    queried and confirmed as this session's own before deletion, then deleted
+    and reverified at zero.
+  - `npx tsc --noEmit` clean. `mobile/app.json` and `mobile/package.json`
+    bumped to `0.0.8`.
+  - **Next up: Slice 9 — Shop History & List Templates, issue #9** (depends
+    on Slice 5, already merged — no blocker), the only remaining
+    `ready-for-agent` slice. It's the slice that finally needs a real,
+    household-attributed `shop_sessions` table — start by re-reading Slice
+    7's entry below on why `location_checkoffs` was deliberately built
+    anonymous/global instead and structurally can't be reused for it.
 - **Slice 7 — Route Learning & Auto-Ordering is done and merged.**
   [PR #19](https://github.com/mp3anthony/cartel/pull/19) merged to `main`
   (user gave the explicit go-ahead this session), closing issue #7. Feature
@@ -105,15 +199,6 @@
   same as before. Merged directly this session (user confirmed the
   go-ahead) rather than left for later, specifically so the live-environment
   verification above could happen rather than being deferred again.
-- **Next up: Slice 8 — Location Correction Voting, issue #8** (depends on
-  Slice 6, already merged — no blocker) or Slice 9 — Shop History & List
-  Templates, issue #9 (depends on Slice 5, already merged). Both are
-  labelled `ready-for-agent`; neither has had Investigator/Planner work done.
-  Slice 9 is the slice that finally needs a real, household-attributed
-  `shop_sessions` table (see this session's Slice 7 entry above for why that
-  was deliberately *not* built there) — start Slice 9 by re-reading that
-  reasoning rather than assuming the new `location_checkoffs` table is reusable
-  for it; it structurally can't be (no household/list attribution by design).
 - Full Investigator→Planner→Code Writer cycle run via subagents this session
   (no Problem Agreement round — issue was ready-for-agent and no genuinely
   open question came up). New `public.location_items` table (migration
