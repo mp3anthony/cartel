@@ -5,11 +5,13 @@
 
 ## Last active
 
-- **Slice 6 (Crowdsourced Location Tagging, issue #6) is built end-to-end and
-  live-verified.** [PR #17](https://github.com/mp3anthony/cartel/pull/17) is
-  open against `main`, not yet merged — that decision is next session's (or
-  later this one's) call, not made here, same posture Slice 4/5 took with
-  their own PRs before merge.
+- **Slice 6 is done and merged.** [PR #17](https://github.com/mp3anthony/cartel/pull/17)
+  merged to `main`, closing issue #6. Feature branch deleted, both locally and
+  on origin.
+- **Next up: Slice 7 — Route Learning & Auto-Ordering, issue #7** (depends on
+  Slice 6, now actually unblocked — merged, not just built). See the Loose
+  Ends entry below on #7's label before trusting it either way.
+- Not yet started; no Investigator/Planner work done for it this session.
 - Full Investigator→Planner→Code Writer cycle run via subagents this session
   (no Problem Agreement round — issue was ready-for-agent and no genuinely
   open question came up). New `public.location_items` table (migration
@@ -327,10 +329,6 @@
   over a live socket; that's the manual two-session check.
 
 **Loose ends**
-- **[PR #17](https://github.com/mp3anthony/cartel/pull/17) (Slice 6) is open, not
-  merged.** Merge/review is next session's call. Slice 7 (Route Learning &
-  Auto-Ordering, issue #6's successor) depends on Slice 6 per `03-SPEC.md` — treat
-  it as still blocked until #17 actually merges, not merely "code exists."
 - Palette is locked (burnt orange `#C2410C`) with measured contrast ratios in
   `mobile/src/theme/tokens.ts` — that file is the source of truth, not the design
   doc.
