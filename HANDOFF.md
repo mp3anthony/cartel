@@ -8,24 +8,36 @@
 - **Slice 6 is done and merged.** [PR #17](https://github.com/mp3anthony/cartel/pull/17)
   merged to `main`, closing issue #6. Feature branch deleted, both locally and
   on origin.
-- **Before Slice 7: a small, out-of-spec version-footer task is queued, agreed
-  directly in chat (not a filed issue) — see `CHANGE-LOG.md`'s 2026-08-11 row.**
-  Bottom of the `ListsScreen` only (confirmed with the user — not global, so
-  Shopping Mode's minimal-decoration design and every other screen stay
-  untouched), showing the app version plus a live/preview tag so a build can
-  be told apart from a preview at a glance. Version starts at `0.0.6`
-  (convention: `0.0.<slices completed>` — Slice 7 hasn't started yet, so this
-  still ships as `0.0.6`, not `0.0.7`). Small enough to skip Problem Agreement
-  and go straight to a PR, matching the `wire-list-rename-remove-ui` precedent.
-  Not started — no Investigator work done yet. Mechanism to verify, not
-  assume: Expo only inlines `EXPO_PUBLIC_*`-prefixed vars into the client
-  bundle (`mobile/src/lib/env.ts`'s doc comment explains why), and Vercel's
-  `VERCEL_ENV` (production/preview/development) is a build-time-only var by
-  default — getting it into the client means forwarding it through
-  `mobile/vercel.json`'s `buildCommand` as `EXPO_PUBLIC_VERCEL_ENV=$VERCEL_ENV`,
-  unverified against a real preview+production deploy pair as of this
-  writing.
-- **Next up after that: Slice 7 — Route Learning & Auto-Ordering, issue #7**
+- **Version-footer task done, [PR #18](https://github.com/mp3anthony/cartel/pull/18)
+  merged to `main`, branch deleted both locally and on origin.** Bottom of
+  `ListsScreen` only, matching the scope confirmed with the user last session
+  — Shopping Mode and every other screen untouched. `mobile/app.json` and
+  `mobile/package.json` bumped to `0.0.6`. `mobile/src/lib/buildInfo.ts` reads
+  the version from `app.json`'s `expo.version` via a plain JSON import — no
+  `expo-constants` dependency needed (`resolveJsonModule` already on via
+  `expo/tsconfig.base`); worth knowing `expo-constants` itself is in the
+  lockfile but not actually resolvable from app code — it's nested under
+  `mobile/node_modules/expo/node_modules/expo-constants`, not hoisted to
+  `mobile/node_modules` top level.
+  **The live/preview mechanism flagged last session as unverified is now
+  confirmed working, live, in all three environments — not assumed.**
+  `mobile/vercel.json`'s `buildCommand` is now
+  `EXPO_PUBLIC_VERCEL_ENV=$VERCEL_ENV npx expo export --platform web`; Vercel
+  sets `VERCEL_ENV` automatically for every build (no project setting needed,
+  unlike Deployment Protection), so the shell forwarding was the only missing
+  piece. Confirmed via `read_page` text content, not just visual inspection:
+  local dev (`npx expo start --web`, no `VERCEL_ENV` set) read
+  `"v0.0.6 · Dev"` — a named fallback rather than printing `undefined`; the
+  real Vercel preview deployment for this PR's branch read
+  `"v0.0.6 · Preview"`; production (`cartel-kappa.vercel.app`, after merge)
+  read `"v0.0.6 · Live"`. One pre-existing hit along the way, not a
+  regression: the preview deployment's first load threw the same one-off
+  `"JWT issued at future"` error this file's Traps section already documents
+  for a fresh origin's first visit — a plain reload cleared it immediately,
+  same as before. Merged directly this session (user confirmed the
+  go-ahead) rather than left for later, specifically so the live-environment
+  verification above could happen rather than being deferred again.
+- **Next up: Slice 7 — Route Learning & Auto-Ordering, issue #7**
   (depends on Slice 6, now actually unblocked — merged, not just built). See
   the Loose Ends entry below on #7's label before trusting it either way.
   Not yet started; no Investigator/Planner work done for it.
