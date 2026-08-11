@@ -3,7 +3,7 @@
     "name": "Cartel",
     "slug": "cartel",
     "scheme": "cartel",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

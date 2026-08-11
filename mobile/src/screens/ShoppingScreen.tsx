@@ -21,12 +21,14 @@ import { useListItems } from '../hooks/useListItems';
 import type { ListsView } from '../hooks/useLists';
 import { useLocationCheckoffs } from '../hooks/useLocationCheckoffs';
 import { useLocationItems } from '../hooks/useLocationItems';
+import { useLocationItemVotes } from '../hooks/useLocationItemVotes';
 import {
   computeRouteOrder,
   orderedCheckedItemNames,
   recordLocationCheckoff,
 } from '../lib/locationCheckoffs';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
+import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
 import { setChecked, type ListItemRow } from '../lib/lists';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
@@ -86,6 +88,28 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * checked, in check-off order, the moment it's pressed — it does not uncheck
  * anything or touch list reuse across weeks, matching this project's habit of not
  * building ahead of the slice (9) that actually needs that.
+ *
+ * Slice 8 adds correction voting on top of an already-tagged item. A tagged
+ * item's `Badge` gains a sibling pencil `IconButton` that opens a second inline
+ * composer (`correctingItemId`, the same one-row-at-a-time shape
+ * `composingItemId` already established) for proposing a new section. Any
+ * pending corrections for that item — one row per distinct proposed value,
+ * computed client-side from `useLocationItemVotes` via
+ * `pendingCorrectionsForItemName` — render beneath the tag row as a plain
+ * `Body` line plus a single-tap `PrimaryButton` labelled "Confirm", not gated
+ * behind the `Confirm` in-place-card primitive: there is no reject/veto verb in
+ * this system (a user who disagrees with a proposed correction simply never
+ * taps it), so borrowing a component whose contract requires an `onCancel`
+ * would invent meaning nothing here actually has. Every viewer sees the same
+ * "Confirm" affordance regardless of whether they proposed the correction
+ * themselves — the app never learns or shows who voted (migration
+ * 20260811000002), so it makes no client-side attempt to hide the button from a
+ * proposer; a proposer's own re-tap is rejected server-side (`already_voted`)
+ * and surfaces through the same `error`/`ErrorNote` path every other rejected
+ * write in this screen already uses. Both the propose-submit and the
+ * confirm-tap reuse the same shared `pending` Set this screen's other two
+ * writes already use, for the same reason Slice 6 gave: each is "this item's
+ * row has a write in flight."
  */
 export function ShoppingScreen({ client, lists, navigation, route }: Props) {
   const tokens = useTheme();
@@ -111,10 +135,17 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
     list?.locationId ?? null,
   );
 
+  const { view: itemVotes, refresh: refreshLocationItemVotes } = useLocationItemVotes(
+    client,
+    list?.locationId ?? null,
+  );
+
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [composingItemId, setComposingItemId] = useState<string | null>(null);
   const [sectionDraft, setSectionDraft] = useState('');
+  const [correctingItemId, setCorrectingItemId] = useState<string | null>(null);
+  const [correctionDraft, setCorrectionDraft] = useState('');
   const [confirmingFinish, setConfirmingFinish] = useState(false);
   const [finishingShopping, setFinishingShopping] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
@@ -191,6 +222,88 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
 
       await refreshLocationItems();
       cancelTagging();
+    } finally {
+      setPending((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  }
+
+  function beginCorrecting(itemId: string) {
+    setError(null);
+    setCorrectingItemId(itemId);
+    setCorrectionDraft('');
+  }
+
+  function cancelCorrecting() {
+    setCorrectingItemId(null);
+    setCorrectionDraft('');
+  }
+
+  async function submitCorrection(item: ListItemRow) {
+    if (!list || list.locationId === null) {
+      return;
+    }
+    if (correctionDraft.trim().length === 0 || pending.has(item.id)) {
+      return;
+    }
+
+    setPending((current) => new Set(current).add(item.id));
+    setError(null);
+
+    try {
+      const outcome = await voteLocationItemCorrection(
+        client,
+        list.locationId,
+        item.name,
+        correctionDraft,
+      );
+
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+
+      await refreshLocationItems();
+      await refreshLocationItemVotes();
+      cancelCorrecting();
+    } finally {
+      setPending((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  }
+
+  async function confirmCorrection(item: ListItemRow, proposedSection: string) {
+    if (!list || list.locationId === null) {
+      return;
+    }
+    if (pending.has(item.id)) {
+      return;
+    }
+
+    setPending((current) => new Set(current).add(item.id));
+    setError(null);
+
+    try {
+      const outcome = await voteLocationItemCorrection(
+        client,
+        list.locationId,
+        item.name,
+        proposedSection,
+      );
+
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+
+      await refreshLocationItems();
+      await refreshLocationItemVotes();
     } finally {
       setPending((current) => {
         const next = new Set(current);
@@ -279,7 +392,8 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
   if (
     view.status === 'loading' ||
     locationItems.status === 'loading' ||
-    checkoffs.status === 'loading'
+    checkoffs.status === 'loading' ||
+    itemVotes.status === 'loading'
   ) {
     return (
       <Screen edges={NAVIGATOR_EDGES}>
@@ -312,6 +426,14 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
     );
   }
 
+  if (itemVotes.status === 'error') {
+    return (
+      <Screen edges={NAVIGATOR_EDGES}>
+        <ErrorNote message={itemVotes.message} />
+      </Screen>
+    );
+  }
+
   if (view.items.length === 0) {
     return (
       <Screen edges={NAVIGATOR_EDGES}>
@@ -338,6 +460,11 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
       {orderedItems.map((item) => {
         const section = sectionForItemName(locationItems.items, item.name);
         const composing = composingItemId === item.id;
+        const correcting = correctingItemId === item.id;
+        const corrections =
+          section !== null
+            ? pendingCorrectionsForItemName(itemVotes.votes, item.name, section)
+            : [];
 
         return (
           <View key={item.id} style={styles.itemGroup}>
@@ -352,7 +479,43 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
 
             <View style={styles.tagRow}>
               {section !== null ? (
-                <Badge label={section} />
+                correcting ? (
+                  <View style={styles.tagComposer}>
+                    <Field
+                      label="New section"
+                      value={correctionDraft}
+                      onChangeText={setCorrectionDraft}
+                      placeholder={`Currently: ${section}`}
+                      autoCapitalize="sentences"
+                      autoFocus
+                      maxLength={60}
+                      editable={!pending.has(item.id)}
+                      onSubmitEditing={() => void submitCorrection(item)}
+                      returnKeyType="done"
+                    />
+                    <PrimaryButton
+                      label="Propose"
+                      onPress={() => void submitCorrection(item)}
+                      busy={pending.has(item.id)}
+                      disabled={correctionDraft.trim().length === 0}
+                    />
+                    <SecondaryButton
+                      label="Cancel"
+                      onPress={cancelCorrecting}
+                      disabled={pending.has(item.id)}
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.tagBadgeRow}>
+                    <Badge label={section} />
+                    <IconButton
+                      glyph="✏"
+                      accessibilityLabel={`Propose a new location for ${item.name}`}
+                      onPress={() => beginCorrecting(item.id)}
+                      disabled={pending.has(item.id)}
+                    />
+                  </View>
+                )
               ) : composing ? (
                 <View style={styles.tagComposer}>
                   <Field
@@ -387,6 +550,22 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
                 />
               )}
             </View>
+
+            {corrections.length > 0 ? (
+              <View style={styles.pendingCorrections}>
+                {corrections.map((correction) => (
+                  <View key={correction.proposedSection} style={styles.pendingCorrectionRow}>
+                    <Body>{`Proposed new location: "${correction.proposedSection}"`}</Body>
+                    <PrimaryButton
+                      label="Confirm"
+                      onPress={() => void confirmCorrection(item, correction.proposedSection)}
+                      busy={pending.has(item.id)}
+                      disabled={pending.has(item.id)}
+                    />
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
         );
       })}
@@ -428,6 +607,20 @@ function createStyles(tokens: Tokens) {
       paddingLeft: tokens.minTouchTargetLarge,
     },
     tagComposer: {
+      gap: tokens.space.sm,
+    },
+    tagBadgeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.sm,
+    },
+    pendingCorrections: {
+      paddingLeft: tokens.minTouchTargetLarge,
+      gap: tokens.space.xs,
+    },
+    pendingCorrectionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: tokens.space.sm,
     },
   });
