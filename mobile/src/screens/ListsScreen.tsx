@@ -16,6 +16,7 @@ import {
   SecondaryButton,
 } from '../components/ui';
 import type { ListsView } from '../hooks/useLists';
+import { appVersion, buildChannel, buildChannelLabel } from '../lib/buildInfo';
 import type { Household } from '../lib/household';
 import { createList } from '../lib/lists';
 import type { RootStackParamList } from '../navigation/types';
@@ -214,6 +215,14 @@ export function ListsScreen({
       ) : view.status === 'loaded' ? (
         <PrimaryButton label="New list" onPress={beginComposing} />
       ) : null}
+
+      {/* Pins to the visual bottom for a short list (flexGrow absorbs the leftover
+          space); trails after the last row instead once the list overflows the
+          screen. Scoped to this screen only — see buildInfo.ts for why. */}
+      <View style={styles.footerSpacer} />
+      <Text style={styles.footer}>
+        {`v${appVersion} · ${buildChannelLabel[buildChannel]}`}
+      </Text>
     </Screen>
   );
 }
@@ -240,6 +249,14 @@ function createStyles(tokens: Tokens) {
       color: tokens.color.accent,
       fontSize: tokens.fontSize.body,
       fontWeight: '600',
+    },
+    footerSpacer: {
+      flexGrow: 1,
+    },
+    footer: {
+      fontSize: tokens.fontSize.caption,
+      color: tokens.color.textSecondary,
+      textAlign: 'center',
     },
   });
 }
