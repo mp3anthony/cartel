@@ -7,6 +7,7 @@ import {
   Badge,
   Body,
   CheckTarget,
+  Confirm,
   EmptyState,
   ErrorNote,
   Field,
@@ -18,7 +19,13 @@ import {
 } from '../components/ui';
 import { useListItems } from '../hooks/useListItems';
 import type { ListsView } from '../hooks/useLists';
+import { useLocationCheckoffs } from '../hooks/useLocationCheckoffs';
 import { useLocationItems } from '../hooks/useLocationItems';
+import {
+  computeRouteOrder,
+  orderedCheckedItemNames,
+  recordLocationCheckoff,
+} from '../lib/locationCheckoffs';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { setChecked, type ListItemRow } from '../lib/lists';
 import type { RootStackParamList } from '../navigation/types';
@@ -57,9 +64,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * back whatever `checked_at` is currently stored. There is no `shop_sessions` row
  * to resume and nothing here to reconstruct.
  *
- * No reordering, grouping, or "Finish shopping" button — out of scope per Slice 5's
- * plan: items render in whatever order `useListItems` returns, unchanged, and there
- * is no session row to finalize.
+ * No grouping of checked items — out of scope per Slice 5's plan, still: checked
+ * items stay in place rather than sinking to the bottom, and there is no session
+ * row to finalize beyond the one Slice 7 adds below.
  *
  * Slice 6 adds crowdsourced section tagging alongside check-off, one control per
  * item beneath its `CheckTarget` row rather than folded into it — `CheckTarget`'s
@@ -69,6 +76,16 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * inline composer for this row only (`composingItemId`) rather than a modal or a
  * second screen, matching the low-friction, walking-through-the-store spirit the
  * rest of this screen already has.
+ *
+ * Slice 7 adds both reordering and a "Finish shopping" button. Items render via
+ * `computeRouteOrder` (`../lib/locationCheckoffs`) rather than in whatever order
+ * `useListItems` returns — a read-time sort only, `position` is never written
+ * (03-SPEC.md § Slice 7's Agreed block). "Finish shopping" is confirm-gated like
+ * this screen's siblings' occasional destructive/one-way actions and records one
+ * `location_checkoffs` row via `recordLocationCheckoff`, snapshotting whatever's
+ * checked, in check-off order, the moment it's pressed — it does not uncheck
+ * anything or touch list reuse across weeks, matching this project's habit of not
+ * building ahead of the slice (9) that actually needs that.
  */
 export function ShoppingScreen({ client, lists, navigation, route }: Props) {
   const tokens = useTheme();
@@ -89,10 +106,18 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
     list?.locationId ?? null,
   );
 
+  const { view: checkoffs, refresh: refreshCheckoffs } = useLocationCheckoffs(
+    client,
+    list?.locationId ?? null,
+  );
+
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [composingItemId, setComposingItemId] = useState<string | null>(null);
   const [sectionDraft, setSectionDraft] = useState('');
+  const [confirmingFinish, setConfirmingFinish] = useState(false);
+  const [finishingShopping, setFinishingShopping] = useState(false);
+  const [justFinished, setJustFinished] = useState(false);
 
   useLayoutEffect(() => {
     // Same reasoning as ListDetailScreen's header: it carries the list's name, and
@@ -106,6 +131,7 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
     if (pending.has(item.id)) {
       return;
     }
+    setJustFinished(false);
 
     setPending((current) => new Set(current).add(item.id));
     setError(null);
@@ -174,6 +200,36 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
     }
   }
 
+  async function finishShopping(items: ListItemRow[]) {
+    if (!list || list.locationId === null) {
+      return;
+    }
+    if (items.filter((item) => item.checkedAt !== null).length === 0) {
+      return;
+    }
+    if (finishingShopping || pending.size > 0) {
+      return;
+    }
+    setFinishingShopping(true);
+    setError(null);
+    try {
+      const outcome = await recordLocationCheckoff(
+        client,
+        list.locationId,
+        orderedCheckedItemNames(items),
+      );
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+      await refreshCheckoffs();
+      setConfirmingFinish(false);
+      setJustFinished(true);
+    } finally {
+      setFinishingShopping(false);
+    }
+  }
+
   if (lists.status === 'loading') {
     return (
       <Screen edges={NAVIGATOR_EDGES}>
@@ -217,9 +273,14 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
   }
 
   // Past this point `list.locationId` is known non-null, so `useLocationItems`
-  // above was called with a real id rather than null — these two gates are safe
-  // to merge with (loading) and mirror (error) the existing view.status ones.
-  if (view.status === 'loading' || locationItems.status === 'loading') {
+  // and `useLocationCheckoffs` above were both called with a real id rather
+  // than null — these gates are safe to merge with (loading) and mirror
+  // (error) the existing view.status ones.
+  if (
+    view.status === 'loading' ||
+    locationItems.status === 'loading' ||
+    checkoffs.status === 'loading'
+  ) {
     return (
       <Screen edges={NAVIGATOR_EDGES}>
         <ActivityIndicator color={tokens.color.accent} size="large" />
@@ -243,6 +304,14 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
     );
   }
 
+  if (checkoffs.status === 'error') {
+    return (
+      <Screen edges={NAVIGATOR_EDGES}>
+        <ErrorNote message={checkoffs.message} />
+      </Screen>
+    );
+  }
+
   if (view.items.length === 0) {
     return (
       <Screen edges={NAVIGATOR_EDGES}>
@@ -257,6 +326,7 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
   }
 
   const items = view.items;
+  const orderedItems = computeRouteOrder(items, locationItems.items, checkoffs.checkoffs);
   const checkedCount = items.filter((item) => item.checkedAt !== null).length;
 
   return (
@@ -265,7 +335,7 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
 
       {error ? <ErrorNote message={error} /> : null}
 
-      {items.map((item) => {
+      {orderedItems.map((item) => {
         const section = sectionForItemName(locationItems.items, item.name);
         const composing = composingItemId === item.id;
 
@@ -320,6 +390,29 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
           </View>
         );
       })}
+
+      {justFinished ? (
+        <Body>Shop recorded — this location's ordering will reflect it next time.</Body>
+      ) : null}
+
+      {confirmingFinish ? (
+        <Confirm
+          message="This records everything currently checked, in the order you checked it, as one completed shop at this location. It won't uncheck anything or change today's list."
+          confirmLabel="Finish shopping"
+          onConfirm={() => void finishShopping(items)}
+          onCancel={() => setConfirmingFinish(false)}
+          busy={finishingShopping}
+        />
+      ) : (
+        <SecondaryButton
+          label="Finish shopping"
+          onPress={() => {
+            setError(null);
+            setConfirmingFinish(true);
+          }}
+          disabled={checkedCount === 0 || pending.size > 0}
+        />
+      )}
     </Screen>
   );
 }
