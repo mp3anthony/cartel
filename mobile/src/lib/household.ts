@@ -36,6 +36,9 @@ const MESSAGES: Record<string, string> = {
   list_not_found: 'That list no longer exists.',
   not_list_owner: 'Only the person who made a list can share it.',
   already_shared: 'That list is already shared with your household.',
+  item_not_tagged: 'This item has to be tagged with a location before it can be corrected.',
+  correction_matches_current: "That's already this item's location — nothing to correct.",
+  already_voted: 'You already proposed or confirmed this correction. It needs a different person to confirm it.',
 };
 
 /**
