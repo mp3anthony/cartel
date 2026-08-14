@@ -403,6 +403,43 @@ export async function setChecked(
  * Getting the off-by-one wrong here does not throw; it produces a move that appears not
  * to have happened, because the new key lands back in the gap the item came from.
  */
+/**
+ * Which of the given lists have at least one unchecked item — the Dashboard's
+ * (#22) working definition of "in progress," since `ListRow` carries no
+ * status field of its own to ask instead. Flagged in the issue as a proxy
+ * rather than real schema; this is the one place that proxy is computed.
+ *
+ * Pulls `list_id` for every unchecked, non-deleted item across the given
+ * lists and dedupes into a `Set` client-side rather than a server-side
+ * `count(*) filter (...)` aggregate — consistent with this app's existing
+ * "small dataset, reduce in JS" calls (`Screen`'s own doc comment on why a
+ * grocery list doesn't need a `FlatList`). A household's full list set is
+ * the same order of magnitude as one list's items.
+ */
+export async function loadInProgressListIds(
+  client: SupabaseClient,
+  listIds: readonly string[],
+): Promise<Outcome<Set<string>>> {
+  if (listIds.length === 0) {
+    return { ok: true, value: new Set() };
+  }
+
+  const { data, error } = await client
+    .from('list_items')
+    .select('list_id')
+    .in('list_id', listIds)
+    .is('deleted_at', null)
+    .is('checked_at', null);
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  const rows = (data ?? []) as unknown as { list_id: string }[];
+
+  return { ok: true, value: new Set(rows.map((row) => row.list_id)) };
+}
+
 export async function moveItem(
   client: SupabaseClient,
   itemId: string,

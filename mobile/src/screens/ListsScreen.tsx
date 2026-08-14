@@ -1,5 +1,5 @@
-import { useLayoutEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -31,12 +31,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Lists'> & {
 };
 
 /**
- * The home screen, for everyone.
- *
- * Not the household screen, and not conditionally: a user who has never created or
- * joined a household still has lists, and Slice 2's acceptance test says so outright.
- * The household is reached from here instead — an offer in the header rather than the
- * wall the app opens with.
+ * The lists index. Its own standalone page as of #22 — it was home for every
+ * user from Slice 2 through Slice 9, but the Dashboard screen took that over,
+ * and every navigation surface that used to reach this screen's siblings
+ * from its header (Locations/History/Household) now goes through the global
+ * `NavMenu` (#24) instead. `household` stays a prop here regardless: the
+ * "share with {household}" checkbox in the composer below still needs it.
  */
 export function ListsScreen({
   client,
@@ -52,52 +52,6 @@ export function ListsScreen({
   const [shared, setShared] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      // The header is the only place a control can sit without competing with the
-      // list for the top of the screen, and it is where the destination — a different
-      // place, not a mode of this one — belongs.
-      headerRight: () => (
-        <View style={styles.headerButtons}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigation.navigate('Locations')}
-            style={({ pressed }) => [
-              styles.headerButton,
-              pressed && styles.headerButtonPressed,
-            ]}
-          >
-            <Text style={styles.headerButtonLabel}>Locations</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigation.navigate('History')}
-            style={({ pressed }) => [
-              styles.headerButton,
-              pressed && styles.headerButtonPressed,
-            ]}
-          >
-            <Text style={styles.headerButtonLabel}>History</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() =>
-              household
-                ? navigation.navigate('Household')
-                : navigation.navigate('HouseholdSetup')
-            }
-            style={({ pressed }) => [
-              styles.headerButton,
-              pressed && styles.headerButtonPressed,
-            ]}
-          >
-            <Text style={styles.headerButtonLabel}>Household</Text>
-          </Pressable>
-        </View>
-      ),
-    });
-  }, [household, navigation, styles]);
 
   function beginComposing() {
     setError(null);
@@ -241,24 +195,6 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     composer: {
       gap: tokens.space.sm,
-    },
-    headerButtons: {
-      flexDirection: 'row',
-      gap: tokens.space.sm,
-    },
-    headerButton: {
-      minHeight: tokens.minTouchTarget,
-      justifyContent: 'center',
-      paddingHorizontal: tokens.space.sm,
-      borderRadius: tokens.radius.md,
-    },
-    headerButtonPressed: {
-      backgroundColor: tokens.color.surfaceSunken,
-    },
-    headerButtonLabel: {
-      color: tokens.color.accent,
-      fontSize: tokens.fontSize.body,
-      fontWeight: '600',
     },
     footerSpacer: {
       flexGrow: 1,
