@@ -136,6 +136,79 @@ export function pendingCorrectionsForItemName(
  * benign races the caller's own refresh already resolves; each means nothing
  * happened toward the correction the caller intended.
  */
+/** One location's count of distinct pending corrections — the Dashboard's
+ * (#23) "Pending corrections" widget. */
+export type PendingCorrectionCount = {
+  locationId: string;
+  count: number;
+};
+
+/**
+ * Counts distinct pending `(item_name, proposed_section)` corrections across
+ * several locations at once — `loadLocationItemVotes` above stays
+ * single-location because every existing caller (`ShoppingScreen`) already
+ * has exactly one location in view; the Dashboard is the first caller that
+ * needs several at once, for whichever locations the current household
+ * actually shops at.
+ *
+ * `location_item_votes` carries no household or user column at all (global,
+ * like `location_items` itself — 03-SPEC.md § 0's location-global/
+ * household-private separation), so "the current household's" pending
+ * corrections has no direct query. The caller is expected to pass the
+ * locations that are actually relevant to it (its lists' attached locations,
+ * its shop history) — this function just counts within whatever set it's
+ * given.
+ *
+ * Deliberately simpler than `pendingCorrectionsForItemName`: it does not
+ * filter out a proposal that already matches an item's *current* section.
+ * That filter needs each item's current `location_items.section`, which
+ * would mean loading every relevant location's full item set just to
+ * produce a dashboard summary count. `pendingCorrectionsForItemName`'s own
+ * doc comment already frames that race as rare and self-healing (the next
+ * vote or read clears it); a dashboard nudge that's very occasionally off
+ * by one during that window is an acceptable trade for not pulling in a
+ * second table's worth of data. The authoritative view stays
+ * `ShoppingScreen`, unaffected by this simplification.
+ */
+export async function loadPendingCorrectionCounts(
+  client: SupabaseClient,
+  locationIds: readonly string[],
+): Promise<Outcome<PendingCorrectionCount[]>> {
+  if (locationIds.length === 0) {
+    return { ok: true, value: [] };
+  }
+
+  const { data, error } = await client
+    .from('location_item_votes')
+    .select('location_id, item_name, proposed_section')
+    .in('location_id', locationIds);
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  const rows = (data ?? []) as unknown as {
+    location_id: string;
+    item_name: string;
+    proposed_section: string;
+  }[];
+
+  const tuplesByLocation = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const tuples = tuplesByLocation.get(row.location_id) ?? new Set<string>();
+    tuples.add(`${row.item_name} ${row.proposed_section}`);
+    tuplesByLocation.set(row.location_id, tuples);
+  }
+
+  return {
+    ok: true,
+    value: Array.from(tuplesByLocation, ([locationId, tuples]) => ({
+      locationId,
+      count: tuples.size,
+    })),
+  };
+}
+
 export async function voteLocationItemCorrection(
   client: SupabaseClient,
   locationId: string,
