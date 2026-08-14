@@ -11,7 +11,8 @@
   updated pass-by-pass as PRs open, not written once at the end — if the
   session ends mid-pass, whatever's below is accurate as of the last edit.
   - **#25 (app icon) — done, [PR #27](https://github.com/mp3anthony/cartel/pull/27)
-    open, not yet merged.** Recovered the exact approved glyph path data
+    merged to `main` (user gave the explicit go-ahead this session).** Recovered
+    the exact approved glyph path data
     (basket, C-monogram arc, wheels, dotted route to a destination dot) from
     the prior session's published artifact, "The Cartel File", via
     `WebFetch` against its `claude.ai/code/artifact/...` URL rather than
@@ -45,8 +46,9 @@
     saving any of it. Flagging the deviation rather than implying the
     formal pipeline ran.
   - **#22 + #24 (dashboard + global nav menu) — done, one pass, one PR
-    ([PR #28](https://github.com/mp3anthony/cartel/pull/28)), open, not yet
-    merged.** `Lists` moved off the home route; a new `Dashboard` screen
+    ([PR #28](https://github.com/mp3anthony/cartel/pull/28)), merged to
+    `main` (user gave the explicit go-ahead this session, same round as
+    #27's).** `Lists` moved off the home route; a new `Dashboard` screen
     (`mobile/src/screens/DashboardScreen.tsx`) is home instead, in the
     issue's priority order (new list → continue shopping → store-frequency
     donut → household snapshot → recent activity). `ListsScreen`'s old
@@ -81,10 +83,45 @@
     one disclosure quietly cover two passes. `app.json`/`package.json`
     bumped to `0.0.10` independently of PR #27's own bump to the same
     number from the same `0.0.9` base — whichever PR merges second will hit
-    a trivial one-line conflict on that field; expected, not a bug to fix
-    now.
-  - **#23 — next up in this session, not started as of this entry.**
-  - **#26 — not started, unchanged from the triage entry below.**
+    a trivial one-line conflict on that field — and it resolved exactly that
+    way: both branches converged on `0.0.10` independently, so the merge
+    needed no manual resolution at all.
+  - **#23 (dashboard nearby-store nudge + pending corrections) — done,
+    [PR #29](https://github.com/mp3anthony/cartel/pull/29), open, not yet
+    merged.** Branched from `main` only after #22/#24 actually landed, per
+    the plan below — this pass builds real widgets into the merged
+    `DashboardScreen.tsx`, not a copy on a stale branch. The issue's own
+    `ready-for-human` permission-prompt question was put to the user
+    directly before any code: resolved as a passive "Check for nearby
+    stores" button, never an automatic check on Dashboard mount/focus —
+    Home is the one screen every session hits first, so it's the one screen
+    an automatic permission prompt would be a surprise on every cold open.
+    Both new widgets reuse #22's own `startOrContinueAtLocation()`
+    unchanged for their tap-through behaviour. The pending-corrections
+    widget's real constraint: `location_item_votes` has no household/user
+    column at all (global table, same as `location_items` —
+    `03-SPEC.md § 0`'s location-global/household-private split), so "this
+    household's" pending corrections is scoped by the caller
+    (`DashboardScreen` passes the union of its own lists' and shop
+    history's location ids) rather than by a query the database could
+    express directly — new `loadPendingCorrectionCounts()` in
+    `locationItemVotes.ts` deliberately does not filter out the one documented
+    rare race `pendingCorrectionsForItemName()` already tolerates, to avoid
+    pulling in a second table's worth of data for a dashboard summary
+    count. **Live-verified with seeded data**, same practice as #22: a
+    location, an in-progress list, and a pending-correction vote row
+    inserted via SQL (test user confirmed to own nothing first), the app's
+    `navigator.geolocation`/`navigator.permissions.query` mocked per this
+    file's own documented web-preview trap, both widgets confirmed working
+    (right distance, right count, both tap-throughs landing on the seeded
+    list) — then all of it deleted and re-verified at zero. `npx tsc
+    --noEmit` clean. `app.json`/`package.json` bumped to `0.0.11`. Same
+    orchestrator-executed-directly deviation as the two passes above,
+    flagged the same way.
+  - **#26 — next up in this session, not started as of this entry. Needs a
+    real design interview (dark palette + where the toggle lives) before
+    any Investigator/Planner/Code Writer work — see the triage entry below
+    for why this can't be sent to an agent unsupervised.**
 
 - **2026-08-14 triage session — app icon, global nav menu, dashboard home
   screen, and in-app theming scoped into five issues. Nothing built yet.**
