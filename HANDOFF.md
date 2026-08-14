@@ -5,11 +5,12 @@
 
 ## Last active
 
-- **2026-08-14 build session (in progress) — working through issues #22-#26
-  in the order set at the end of the triage session below: #25 solo first,
-  then #22+#24 together, then #23, then #26 last.** This entry is being
-  updated pass-by-pass as PRs open, not written once at the end — if the
-  session ends mid-pass, whatever's below is accurate as of the last edit.
+- **2026-08-14 build session, ended by explicit handoff to a new session —
+  #25, #22+#24, and #23 shipped and merged; #26's design is approved but
+  nothing is built yet.** Worked through issues #22-#26 in the order set at
+  the end of the triage session below: #25 solo first, then #22+#24
+  together, then #23, then #26 last. This entry was updated pass-by-pass as
+  PRs opened, not written once at the end.
   - **#25 (app icon) — done, [PR #27](https://github.com/mp3anthony/cartel/pull/27)
     merged to `main` (user gave the explicit go-ahead this session).** Recovered
     the exact approved glyph path data
@@ -118,10 +119,72 @@
     --noEmit` clean. `app.json`/`package.json` bumped to `0.0.11`. Same
     orchestrator-executed-directly deviation as the two passes above,
     flagged the same way.
-  - **#26 — next up in this session, not started as of this entry. Needs a
-    real design interview (dark palette + where the toggle lives) before
-    any Investigator/Planner/Code Writer work — see the triage entry below
-    for why this can't be sent to an agent unsupervised.**
+  - **#26 (in-app Light/Dark/System theme toggle) — design interview held
+    and the palette approved by the user ("Looks beautiful") this session;
+    zero code written. This is exactly the state a fresh session should
+    pick up from — start at Investigator/Planner, not at another design
+    round.** Two real decisions came out of the interview, both confirmed
+    with the user directly, neither re-open questions:
+    - **Toggle location: the Household screen.** The issue's own suggested
+      candidate — already a per-user settings-ish destination reachable
+      from the nav menu, no new screen/route needed. A standalone Settings
+      screen and a Dashboard control were the two alternatives offered and
+      not chosen.
+    - **The dark palette itself**, proposed by the orchestrator and
+      approved as-is, published as
+      [this artifact](https://claude.ai/code/artifact/40d91372-2d63-48e7-8044-3bb28495d809)
+      (token table with measured contrast ratios + a mocked screen shown
+      light vs. dark side by side — not wired into the app anywhere, a
+      pure design exhibit). The exact approved values, so the next session
+      doesn't have to reopen the artifact or re-derive them:
+      ```
+      ground:         #15110D   (locked — same as the app icon's dark ground)
+      surface:        #221B15
+      surfaceSunken:  #0F0C09
+      border:         #3D3226
+      accent:         #C9A227   (locked — same as the app icon's dark glyph)
+      accentPressed:  #E6BC3A   (brightens on press, not darkens — see below)
+      accentWash:     #2E2612
+      accentContrast: #15110D   (NOT white — see below)
+      textPrimary:    #F2E9DC
+      textSecondary:  #B7A996
+      positive:       #6FBE8B
+      negative:       #E28577
+      ```
+      Every value was measured with the real WCAG relative-luminance
+      formula (a Node script in this session's scratchpad, not eyeballed),
+      against the same "white/ground" — here, "surface/ground" — pairing
+      `tokens.ts`'s own light-palette comments already use. All clear
+      4.5:1 AA comfortably; most exceed the light palette's own ratios
+      (`textPrimary` hits 14.13:1/15.62:1 against light's own 15.40:1/
+      14.31:1). Two things worth knowing before implementing, both already
+      reasoned through and NOT open questions:
+      1. **`accentContrast` is `#15110D` (a dark ink), not white.** White
+         text on the gold accent measures only 2.42:1 — fails AA outright.
+         Light mode never had to think about this because its accent
+         (`#C2410C`) is already dark enough for white text; the dark
+         accent is a *light* gold, so the button-label color has to flip
+         to dark. Don't copy light mode's `accentContrast: '#FFFFFF'`
+         unchanged.
+      2. **`accentPressed` is brighter than `accent`, not darker** — the
+         opposite direction from light mode's `accentPressed` (which is
+         deliberately darker, per its own token comment). Deliberate, not
+         an inconsistency: darkening an already-dark-adjacent color loses
+         legibility fast, so this follows Material's own dark-theme
+         convention of lightening for pressed/state-layer feedback instead
+         of darkening.
+    - **What's still genuinely unbuilt, for the next session's
+      Investigator/Planner to scope properly**: `ThemeProvider`
+      (`mobile/src/theme/ThemeProvider.tsx`) supports exactly one theme
+      today and needs real Light/Dark/System selection plus persistence
+      (`useColorScheme()` for System, `AsyncStorage` is already a
+      dependency for this); the toggle UI itself on `HouseholdScreen`;
+      `App.tsx`'s hardcoded `<StatusBar style="dark" />` needs to follow
+      the active theme; and — per the issue's own testing checklist —
+      every existing screen (Lists, List Detail, Shopping, Locations,
+      History, Household, Dashboard, plus the two newer additions from
+      this session, `DonutChart` and `NavMenu`) needs re-verifying against
+      the new dark values, not just the ones written after this lands.
 
 - **2026-08-14 triage session — app icon, global nav menu, dashboard home
   screen, and in-app theming scoped into five issues. Nothing built yet.**
