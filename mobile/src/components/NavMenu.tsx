@@ -6,7 +6,7 @@ import type { NavigationProp } from '@react-navigation/native';
 import { IconButton, Row } from './ui';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
-import type { Tokens } from '../theme/tokens';
+import { scrimColor, type Tokens } from '../theme/tokens';
 
 type Navigation = NavigationProp<RootStackParamList>;
 
@@ -97,7 +97,7 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     scrim: {
       flex: 1,
-      backgroundColor: 'rgba(43, 35, 32, 0.32)',
+      backgroundColor: scrimColor,
     },
     popover: {
       position: 'absolute',

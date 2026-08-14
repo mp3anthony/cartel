@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>%WEB_TITLE%</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+    <!--
+      This file overrides the framework's built-in index.html template (Expo's
+      web build prefers public/index.html over its own when one exists) for
+      exactly two additions below: apple-touch-icon and manifest. Neither has
+      a config-driven equivalent in this Expo/Metro web toolchain the way
+      web.favicon does — that one is still generated and injected
+      automatically as its own closing-head-tag-adjacent link tag, appended by
+      the build itself; do not add a second one here. Everything else in this
+      file is the stock template, unmodified, so the lang/title placeholders
+      and script injection keep working exactly as they did without this
+      override.
+
+      IMPORTANT for whoever edits this comment: the build's injection step
+      does a literal string replace of the head element's closing tag, so
+      this comment must never spell that tag out literally (in any casing or
+      quoting) — doing so once already hijacked the injection point and
+      swallowed the favicon link into this comment instead of the real head.
+
+      Both new tags point at one static icon (icon.png, this app's existing
+      light-colorway app icon), not a light/dark pair — "Add to Home Screen"
+      on iOS and Android has no OS-level dark variant for this icon, the same
+      constraint issue #25 already documented for the favicon, extended here
+      rather than re-argued.
+    -->
+    <link rel="apple-touch-icon" href="/icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  </body>
+</html>

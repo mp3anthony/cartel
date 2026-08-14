@@ -504,6 +504,61 @@ export function Badge({ label }: { label: string }) {
   );
 }
 
+/**
+ * A bordered track of mutually-exclusive options. Not a button — three
+ * PrimaryButtons side by side would violate the app's "one accent, one
+ * primary button per screen" rule (see PrimaryButton's own comment); this is
+ * the standard idiom for a bounded exclusive choice instead. The selected
+ * segment uses accentWash + accent text, deliberately not a solid accent
+ * fill, so it reads as a state marker (like Badge) rather than a second
+ * primary action.
+ */
+export function SegmentedControl<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label?: string;
+  value: T;
+  onChange: (value: T) => void;
+  options: { value: T; label: string }[];
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <View style={styles.segmentedWrap}>
+      {label ? <Text style={styles.fieldLabel}>{label}</Text> : null}
+      <View accessibilityRole="radiogroup" style={styles.segmentedTrack}>
+        {options.map((option) => {
+          const selected = option.value === value;
+          return (
+            <Pressable
+              key={option.value}
+              accessibilityRole="radio"
+              aria-checked={selected}
+              accessibilityState={{ checked: selected }}
+              onPress={() => onChange(option.value)}
+              style={({ pressed }) => [
+                styles.segment,
+                selected && styles.segmentSelected,
+                pressed && !selected && styles.segmentPressed,
+              ]}
+            >
+              <Text
+                style={[styles.segmentLabel, selected && styles.segmentLabelSelected]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     ground: {
@@ -743,6 +798,40 @@ function createStyles(tokens: Tokens) {
       fontSize: tokens.fontSize.caption,
       fontWeight: '600',
       color: tokens.color.textPrimary,
+    },
+    segmentedWrap: {
+      gap: tokens.space.xs,
+    },
+    segmentedTrack: {
+      flexDirection: 'row',
+      backgroundColor: tokens.color.surfaceSunken,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      borderColor: tokens.color.border,
+      padding: 4,
+      gap: 4,
+    },
+    segment: {
+      flex: 1,
+      minHeight: tokens.minTouchTarget,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: tokens.radius.sm,
+      paddingHorizontal: tokens.space.sm,
+    },
+    segmentPressed: {
+      backgroundColor: tokens.color.surface,
+    },
+    segmentSelected: {
+      backgroundColor: tokens.color.accentWash,
+    },
+    segmentLabel: {
+      fontSize: tokens.fontSize.caption,
+      fontWeight: '600',
+      color: tokens.color.textSecondary,
+    },
+    segmentLabelSelected: {
+      color: tokens.color.accent,
     },
   });
 }

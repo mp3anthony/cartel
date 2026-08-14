@@ -10,6 +10,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Body, ErrorNote, Heading, Screen } from './src/components/ui';
+import { HeaderLogo } from './src/components/HeaderLogo';
 import { NavMenu } from './src/components/NavMenu';
 import { useAnonymousSession } from './src/hooks/useAnonymousSession';
 import { useHousehold } from './src/hooks/useHousehold';
@@ -26,7 +27,7 @@ import { ListDetailScreen } from './src/screens/ListDetailScreen';
 import { ListsScreen } from './src/screens/ListsScreen';
 import { LocationsScreen } from './src/screens/LocationsScreen';
 import { ShoppingScreen } from './src/screens/ShoppingScreen';
-import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
+import { ThemeProvider, useTheme, useThemeMode } from './src/theme/ThemeProvider';
 import type { Tokens } from './src/theme/tokens';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -84,10 +85,18 @@ export default function App() {
             remedy={envResult.remedy}
           />
         )}
-        <StatusBar style="dark" />
+        <ThemedStatusBar />
       </SafeAreaProvider>
     </ThemeProvider>
   );
+}
+
+/** style is named for the icon color, inverted from the background: a dark
+ * ground needs light icons ('light'), a light ground needs dark icons
+ * ('dark') — opposite of resolvedScheme's own name. */
+function ThemedStatusBar() {
+  const { resolvedScheme } = useThemeMode();
+  return <StatusBar style={resolvedScheme === 'dark' ? 'light' : 'dark'} />;
 }
 
 /**
@@ -263,12 +272,19 @@ function Bootstrapped({ env }: { env: Env }) {
 /**
  * The header is the one surface the navigator draws itself, so it is also the one
  * place tokens have to be handed over rather than read.
+ *
+ * `headerTitle` renders the wordmark (`HeaderLogo`) in place of each screen's plain
+ * text name — every `Stack.Screen`'s own `title` string still stands, just no longer
+ * drawn here: it's what sets the browser tab title, and what `ListDetailScreen`/
+ * `ShoppingScreen` overwrite via `navigation.setOptions({ title: ... })` once their
+ * list loads. `headerTitleStyle` is gone because it only ever styled the default
+ * text-based title, which nothing here still renders.
  */
 function headerOptions(tokens: Tokens) {
   return {
     headerStyle: { backgroundColor: tokens.color.ground },
     headerTintColor: tokens.color.textPrimary,
-    headerTitleStyle: { fontWeight: '600' as const },
+    headerTitle: () => <HeaderLogo />,
     headerShadowVisible: false,
     contentStyle: { backgroundColor: tokens.color.ground },
   };

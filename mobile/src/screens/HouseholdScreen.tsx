@@ -10,9 +10,10 @@ import {
   PrimaryButton,
   Screen,
   SecondaryButton,
+  SegmentedControl,
 } from '../components/ui';
 import { createInvite, type Invite } from '../lib/household';
-import { useTheme } from '../theme/ThemeProvider';
+import { useTheme, useThemeMode } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
 /**
@@ -37,6 +38,7 @@ export function HouseholdScreen({
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const { mode, setMode } = useThemeMode();
   const [invite, setInvite] = useState<Invite | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +88,17 @@ export function HouseholdScreen({
         />
         <SecondaryButton label="Refresh" onPress={onRefresh} disabled={busy} />
       </View>
+
+      <SegmentedControl
+        label="Appearance"
+        value={mode}
+        onChange={setMode}
+        options={[
+          { value: 'light', label: 'Light' },
+          { value: 'dark', label: 'Dark' },
+          { value: 'system', label: 'System' },
+        ]}
+      />
     </Screen>
   );
 }
