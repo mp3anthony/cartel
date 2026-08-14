@@ -5,6 +5,87 @@
 
 ## Last active
 
+- **2026-08-14 build session (in progress) — working through issues #22-#26
+  in the order set at the end of the triage session below: #25 solo first,
+  then #22+#24 together, then #23, then #26 last.** This entry is being
+  updated pass-by-pass as PRs open, not written once at the end — if the
+  session ends mid-pass, whatever's below is accurate as of the last edit.
+  - **#25 (app icon) — done, [PR #27](https://github.com/mp3anthony/cartel/pull/27)
+    open, not yet merged.** Recovered the exact approved glyph path data
+    (basket, C-monogram arc, wheels, dotted route to a destination dot) from
+    the prior session's published artifact, "The Cartel File", via
+    `WebFetch` against its `claude.ai/code/artifact/...` URL rather than
+    re-deriving the design from scratch. Rasterized the full asset set with
+    `resvg-js` (not `sharp`'s bundled librsvg — its CSS support for a
+    data-URI `@font-face`, the way the artifact itself embedded
+    UnifrakturCook, is unreliable; `resvg-js` takes a font file directly and
+    sidesteps that) + `sharp` for post-processing (alpha stripping,
+    trim/pad on the wordmark lockup). UnifrakturCook fetched straight from
+    Google Fonts' CSS2 API rather than extracted from the artifact's base64
+    blob — same open font, simpler path to a raw TTF. Full reasoning for
+    every per-asset decision (safe-zone percentages, why the adaptive-icon
+    foreground/monochrome use a tighter ~50% scale than the flat iOS icon's
+    ~72%, why `android-icon-background.png` became a `backgroundColor`
+    value instead, the splash-screen light/dark call that wasn't explicit
+    in the issue text) is in the PR body and the commit message — not
+    repeated here. `npx tsc --noEmit` clean, `npx expo config` resolves
+    clean, a real `npx expo export --platform web` (the actual command
+    Vercel's build runs) produces a correct `favicon.ico` and `<link
+    rel="icon">`. **Not verified**: the iOS light/dark icon switch and
+    Android's monochrome/themed-icon rendering — this project has never run
+    on a native device or simulator (standing note further down this file),
+    so those two `#25` testing-checklist items stay unchecked pending a
+    real device. This pass was executed directly by the orchestrator
+    (asset generation, app.json wiring, verification) rather than handed
+    through the formal Investigator → Planner → Code Writer subagent
+    pipeline — the design-recovery step (fetching and reading the prior
+    session's artifact) and the asset-generation step turned out to be the
+    same continuous piece of work, and splitting it across subagent
+    handoffs would have meant re-deriving the same context rather than
+    saving any of it. Flagging the deviation rather than implying the
+    formal pipeline ran.
+  - **#22 + #24 (dashboard + global nav menu) — done, one pass, one PR
+    ([PR #28](https://github.com/mp3anthony/cartel/pull/28)), open, not yet
+    merged.** `Lists` moved off the home route; a new `Dashboard` screen
+    (`mobile/src/screens/DashboardScreen.tsx`) is home instead, in the
+    issue's priority order (new list → continue shopping → store-frequency
+    donut → household snapshot → recent activity). `ListsScreen`'s old
+    3-button header row is gone, replaced by one hamburger wired *globally*
+    in `App.tsx`'s `screenOptions` (`mobile/src/components/NavMenu.tsx`) — a
+    `Modal`-based popover, not an absolutely-positioned view, since the
+    header is a separate native-stack layer a screen-relative popover can't
+    reliably draw over. Two new library functions carry real reasoning worth
+    knowing before touching them again: `lists.ts`'s `loadInProgressListIds`
+    (client-side reduction over `list_items`, not a server aggregate — "in
+    progress" is still the same has-at-least-one-unchecked-item proxy the
+    triage entry below already flagged as never fully re-confirmed) and
+    `shopSessions.ts`'s `loadShopSessionLocationCounts` (genuinely uncapped,
+    doesn't reuse `SHOP_SESSION_HISTORY_CAP`). The store chart
+    (`mobile/src/components/DonutChart.tsx`, new `react-native-svg`
+    dependency) is single-hue by construction — `tokens.ts` locks the app to
+    one accent, so segments are tint-mixed strengths of that same accent
+    rather than a conventional multi-colour pie, capped at the top 5 stores
+    plus an "Other" wedge. **Live-verified with real seeded data**, not just
+    empty states: inserted two locations, an in-progress list, and two
+    `shop_sessions` rows via direct SQL for the local dev session's own
+    anonymous test user (confirmed zero pre-existing rows for that user
+    first, same practice as every prior slice), reloaded the app, and
+    confirmed the chart's 50/50 split, the "Continue shopping" list, tapping
+    the store *with* an in-progress list (went straight to it), and tapping
+    the store *without* one (created `"QA Dashboard Test Store B — 14 Aug
+    2026"`, attached the location) — then deleted all of it and re-verified
+    zero rows remained. `npx tsc --noEmit` clean. **This pass was also
+    executed directly by the orchestrator rather than through the formal
+    Investigator → Planner → Code Writer pipeline**, same deviation and same
+    reasoning as #25's entry above — flagging it again rather than letting
+    one disclosure quietly cover two passes. `app.json`/`package.json`
+    bumped to `0.0.10` independently of PR #27's own bump to the same
+    number from the same `0.0.9` base — whichever PR merges second will hit
+    a trivial one-line conflict on that field; expected, not a bug to fix
+    now.
+  - **#23 — next up in this session, not started as of this entry.**
+  - **#26 — not started, unchanged from the triage entry below.**
+
 - **2026-08-14 triage session — app icon, global nav menu, dashboard home
   screen, and in-app theming scoped into five issues. Nothing built yet.**
   None of these are in `03-SPEC.md`'s numbered slice list (which still ends
