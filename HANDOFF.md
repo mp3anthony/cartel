@@ -5,6 +5,121 @@
 
 ## Last active
 
+- **2026-08-14 triage session — app icon, global nav menu, dashboard home
+  screen, and in-app theming scoped into five issues. Nothing built yet.**
+  None of these are in `03-SPEC.md`'s numbered slice list (which still ends
+  at Slice 9) — all five are logged in `CHANGE-LOG.md` as out-of-spec, per
+  Protocol Step 1, with links to the issues below. **Next session should
+  start here, not by re-reading `03-SPEC.md` for a Slice 10 that doesn't
+  exist.**
+  - **App icon** ([#25](https://github.com/mp3anthony/cartel/issues/25),
+    `ready-for-agent`) — `mobile/assets/icon.png` and its siblings were
+    still the unmodified Expo template placeholders; there was no real app
+    icon going into this session. Direction was worked out interactively
+    over several passes — asked the user to pick a source/scope/style
+    first via `AskUserQuestion` rather than guessing, then iterated two
+    SVG concept directions live as a published artifact,
+    [The Cartel File](https://claude.ai/code/artifact/3e49c565-69b7-433c-be28-9dcc4edf821b),
+    rather than spending an image-gen call before the user had reacted to
+    anything. Landed on: a shopping-cart glyph (basket outline, two solid
+    wheels, a dotted route trailing off the front — the literal "cart that
+    can tell your way," a deliberate nod to Slice 7's route-learning
+    feature) with a bold monogram **C** stroked inside the basket, paired
+    with a "Cartel" wordmark set in UnifrakturCook (a real Google Font,
+    fetched and base64'd into the artifact as a `@font-face` data URI
+    rather than linked — the Artifact CSP blocks external font hosts) for
+    the splash screen / marketing lockup only. **The icon itself is
+    glyph-only, no wordmark** — flagged early and never revisited: app
+    icons render at 40-48px on a home screen, where a spelled-out "CARTEL"
+    would not survive, the same reasoning real icon design already follows
+    (Instagram's camera, not the word "Instagram"). Ships as a light/dark
+    pair — `#C2410C`/`#F5ECDC` light (the app's own already-locked accent),
+    `#15110D`/`#C9A227` dark — but **only iOS can actually switch between
+    them**, confirmed against this project's real Expo version (`~57`,
+    within `ios.icon.light`/`.dark` support). Android has no OS-level dark
+    variant for the primary launcher icon at all; the issue routes
+    Android's dark ambition into the adaptive icon's `monochromeImage`
+    layer instead (Android 13+ Material You theming — a genuinely
+    different mechanism, not a two-color dark icon). Web favicon is one
+    static file, light colorway, no per-theme swap available through
+    Expo's static export. All three constraints are written into the
+    issue itself so whoever picks it up doesn't have to re-derive them.
+  - **Global navigation menu** ([#24](https://github.com/mp3anthony/cartel/issues/24),
+    `ready-for-agent`, depends on #22) — replaces `ListsScreen`'s current
+    3-button header row (Locations/History/Household — the only
+    navigation surface in the whole app today) with a hamburger icon in
+    the header on **every** screen, opening a dropdown popover
+    (explicitly not a slide-out drawer — asked and confirmed) listing
+    Home/Lists/Locations/History/Household. Depends on #22 because "Home"
+    only means something once Dashboard exists as a route distinct from
+    Lists — building this first would mean guessing at an item list
+    that's about to change underneath it.
+  - **Dashboard home screen**, split into two issues after the user asked
+    to brainstorm "what else could go on it" and then said yes to
+    everything suggested:
+    - **Core** ([#22](https://github.com/mp3anthony/cartel/issues/22),
+      `ready-for-agent`) — `Lists` stops being the landing screen and
+      becomes its own standalone page; a new `Dashboard` screen takes over
+      as home with, in priority order: new-list action, continue-shopping
+      (in-progress lists across every store), a store-frequency circular
+      chart, household snapshot, and a recent-activity card teasing into
+      the full History screen (History is explicitly **not** folded into
+      the dashboard or replaced — keeps its own page and all of Slice 9's
+      copy/reuse flow; the dashboard card is a summary, asked and
+      confirmed rather than assumed). Two things worth knowing before
+      touching this: (1) the store chart needs a **new uncapped aggregate
+      query** — `shopSessions.ts`'s existing `loadShopSessions()` is
+      capped at `SHOP_SESSION_HISTORY_CAP = 10` for "pick one to copy,"
+      and reusing it for lifetime percentages would silently produce
+      recency-skewed numbers; (2) "continue shopping" and the chart's
+      tap-to-resume shortcut both lean on a proxy that isn't real schema —
+      **`ListRow` has no status field at all**, so "in-progress" is
+      defined as "has at least one unchecked item," proposed by the
+      orchestrator and never explicitly re-confirmed by the user once the
+      conversation moved on to the icon — flagging that soft spot rather
+      than letting it read as settled.
+    - **Stretch** ([#23](https://github.com/mp3anthony/cartel/issues/23),
+      `ready-for-human`, depends on #22) — nearby-store nudge and a
+      pending-corrections-to-confirm widget, split out as a fast-follow
+      rather than launch scope specifically because the nearby-nudge means
+      running a location check on dashboard load, a bigger lift and its
+      own permission-prompt-on-open UX question than the one-off check
+      `LocationsScreen` already does. The orchestrator recommended this
+      split; the user didn't explicitly weigh back in before the
+      conversation moved to the logo, so it was applied as the stated
+      default rather than re-asked — worth a real confirm next session.
+  - **In-app Light/Dark/System theme toggle**
+    ([#26](https://github.com/mp3anthony/cartel/issues/26),
+    `ready-for-human`) — genuinely separate from the app icon's light/dark
+    pair above, and the user needed that distinction spelled out
+    explicitly: the OS is the *only* thing that ever controls which icon
+    variant shows on either platform, so "let users pick light/dark
+    somewhere in the app" cannot mean the icon — it can only mean the
+    app's own UI palette, a real, much bigger feature. Asked the user
+    directly how to size it (fold into dashboard, make it a dashboard
+    prerequisite, or its own issue) rather than assuming; **own issue**
+    was the explicit answer, 2026-08-14. Today there is exactly one
+    palette (`mobile/src/theme/tokens.ts`, called out further down this
+    file as locked and contrast-measured) and zero theme-switching
+    machinery — `ThemeProvider` supports one theme only, `App.tsx`
+    hardcodes `<StatusBar style="dark" />`. This one needs a real
+    dark-palette design pass before Investigator/Planner touches it, the
+    same way the icon needed an interactive design pass before any code —
+    don't send this straight to an agent expecting it to invent a dark
+    palette unsupervised.
+  - **Suggested execution order**, since the user asked for a next-session
+    kickoff prompt that groups what can be grouped: **#25 (icon) solo
+    first** — fully self-contained, no dependency on anything else, fast.
+    **#22 + #24 together** in one pass — both rewrite the same navigation
+    surface (`App.tsx`'s `Stack.Navigator`/`linking` config, the header),
+    so doing them as two separate PRs back to back would mean touching
+    that config twice for no reason, and #24's item list is downstream of
+    #22 existing anyway. **#23 after #22 lands**, on its own, given the
+    `ready-for-human` location-permission-on-load question. **#26 last, as
+    its own pass**, starting with a design interview (dark palette + where
+    the toggle lives) before any Investigator/Planner/Code Writer work —
+    not folded into the same pass as the dashboard/menu work it will
+    eventually have to retrofit against.
 - **Slice 9 — Shop History & List Templates is done and merged.**
   [PR #21](https://github.com/mp3anthony/cartel/pull/21) merged to `main`
   (user gave the explicit go-ahead this session), closing issue #9. Feature
