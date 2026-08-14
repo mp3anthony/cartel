@@ -1,14 +1,16 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import {
   NavigationContainer,
   type LinkingOptions,
+  type NavigationProp,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Body, ErrorNote, Heading, Screen } from './src/components/ui';
+import { NavMenu } from './src/components/NavMenu';
 import { useAnonymousSession } from './src/hooks/useAnonymousSession';
 import { useHousehold } from './src/hooks/useHousehold';
 import { useLists } from './src/hooks/useLists';
@@ -16,6 +18,7 @@ import { envResult, type Env } from './src/lib/env';
 import { getSupabaseClient } from './src/lib/supabase';
 import type { RootStackParamList } from './src/navigation/types';
 import { ConfigErrorScreen } from './src/screens/ConfigErrorScreen';
+import { DashboardScreen } from './src/screens/DashboardScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { HouseholdScreen } from './src/screens/HouseholdScreen';
 import { HouseholdSetupScreen } from './src/screens/HouseholdSetupScreen';
@@ -34,15 +37,17 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * leaving the app. The web origin is implicit, so only the native scheme (declared
  * in `app.json`) needs listing here.
  *
- * `Lists` takes the empty path because it is the home screen for every user, with or
- * without a household.
+ * `Dashboard` takes the empty path as of #22 — it replaced `Lists` as the home
+ * screen for every user, with or without a household. `Lists` keeps a real path of
+ * its own (`/lists`) rather than losing one now that it isn't home: it's still a
+ * screen someone can be deep-linked to or hit Back into.
  *
- * `initialRouteName` is what puts `Lists` underneath a deep-linked screen rather than
- * replacing it. Without it, opening `/list/<id>` cold builds a stack one screen deep:
- * the header draws no back button and browser Back leaves the app — the exact failure
- * the navigator was adopted to fix, reintroduced through the door deep links use. The
- * navigator's own `initialRouteName` does not cover this; a state rehydrated from a
- * URL is used as given.
+ * `initialRouteName` is what puts `Dashboard` underneath a deep-linked screen rather
+ * than replacing it. Without it, opening `/list/<id>` cold builds a stack one screen
+ * deep: the header draws no back button and browser Back leaves the app — the exact
+ * failure the navigator was adopted to fix, reintroduced through the door deep links
+ * use. The navigator's own `initialRouteName` does not cover this; a state
+ * rehydrated from a URL is used as given.
  *
  * `Locations` carries no path template for `attachToListId` — that param is only
  * ever set via in-app `navigation.navigate(...)` from ListDetailScreen, never a URL,
@@ -51,9 +56,10 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ['cartel://'],
   config: {
-    initialRouteName: 'Lists',
+    initialRouteName: 'Dashboard',
     screens: {
-      Lists: '',
+      Dashboard: '',
+      Lists: 'lists',
       ListDetail: 'list/:listId',
       HouseholdSetup: 'household/setup',
       Household: 'household',
@@ -94,10 +100,13 @@ export default function App() {
  * of returning them: from Slice 2 on, back and the browser URL have to mean
  * something, and that is the whole reason the navigator was adopted.
  *
- * `Lists` is home for every user. Slice 1 made the household screens the whole app
- * for anyone without a household, and Slice 2 cannot keep that: a user who has never
- * created or joined one still builds lists, so the household became a place you go
- * rather than the door you come in through.
+ * `Dashboard` is home for every user, with or without a household — `Lists` held
+ * this role from Slice 2 through Slice 9, but #22 gave it its own standalone screen
+ * and moved the entry point to a real Dashboard. Slice 1 made the household screens
+ * the whole app for anyone without a household, and Slice 2 could not keep that: a
+ * user who has never created or joined one still builds lists, so the household
+ * became a place you go rather than the door you come in through — that is still
+ * true here, just one hop further from the door than it used to be.
  *
  * Which of the two household screens is registered still depends on the data. It is
  * one or the other, never both — registering both and navigating between them would
@@ -116,7 +125,23 @@ function Bootstrapped({ env }: { env: Env }) {
   const { view, refresh } = useHousehold(client, ready);
   const lists = useLists(client, ready);
   const tokens = useTheme();
-  const screenOptions = useMemo(() => headerOptions(tokens), [tokens]);
+
+  // Computed safely ahead of the early returns below (view.state only exists once
+  // view.status === 'loaded') so NavMenu — wired globally here, not per-screen —
+  // always knows whether "Household" or "Join or create a household" is correct,
+  // on every screen, including the ones rendered before a household ever loads.
+  const hasHousehold = view.status === 'loaded' && view.state.status === 'member';
+
+  // A function, not a plain object, as of #24: the hamburger menu it installs via
+  // headerRight needs each screen's own `navigation` to call .navigate() on, which
+  // only this function form of screenOptions is handed.
+  const screenOptions = useCallback(
+    ({ navigation }: { navigation: NavigationProp<RootStackParamList> }) => ({
+      ...headerOptions(tokens),
+      headerRight: () => <NavMenu navigation={navigation} hasHousehold={hasHousehold} />,
+    }),
+    [tokens, hasHousehold],
+  );
 
   if (session.status === 'error') {
     return (
@@ -145,8 +170,21 @@ function Bootstrapped({ env }: { env: Env }) {
 
   return (
     <NavigationContainer linking={linking} fallback={<Loading />}>
-      <Stack.Navigator initialRouteName="Lists" screenOptions={screenOptions}>
-        <Stack.Screen name="Lists" options={{ title: 'Cartel' }}>
+      <Stack.Navigator initialRouteName="Dashboard" screenOptions={screenOptions}>
+        <Stack.Screen name="Dashboard" options={{ title: 'Cartel' }}>
+          {(props) => (
+            <DashboardScreen
+              {...props}
+              client={client}
+              listsView={lists.view}
+              onListsChanged={lists.refresh}
+              household={state.status === 'member' ? state.household : null}
+              memberCount={state.status === 'member' ? state.memberCount : 0}
+            />
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Lists" options={{ title: 'Lists' }}>
           {(props) => (
             <ListsScreen
               {...props}

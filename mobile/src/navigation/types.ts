@@ -14,6 +14,12 @@
  * a caller navigate to the household screen without a household.
  */
 export type RootStackParamList = {
+  /**
+   * Home, as of #22. `Lists` moved out to its own route — see its own entry
+   * below — and this is what the navigator's `initialRouteName` and the
+   * linking config's empty path (`''`) both point at now.
+   */
+  Dashboard: undefined;
   Lists: undefined;
   ListDetail: { listId: string };
   HouseholdSetup: undefined;

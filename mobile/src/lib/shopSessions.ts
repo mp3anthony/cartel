@@ -92,6 +92,44 @@ export async function loadShopSessions(
  * Neither array is normalized here — see the migration's header for why
  * these must keep their original casing, unlike `location_checkoffs`.
  */
+/** One location's share of a household's/user's full shop history. */
+export type LocationShopCount = {
+  locationId: string;
+  count: number;
+};
+
+/**
+ * Every completed shop's `location_id`, uncounted and uncapped — the
+ * Dashboard's (#22) store-frequency chart. Deliberately not
+ * `loadShopSessions()`: that loader's own doc comment already calls out
+ * `SHOP_SESSION_HISTORY_CAP` as existing for "pick one to copy," and reusing
+ * it here would silently turn a lifetime percentage into a last-10 one.
+ * Selects one column and counts client-side for the same "small dataset,
+ * reduce in JS" reason `loadInProgressListIds()` does (`lists.ts`) — a
+ * household's full shop history is not a table `count(*) group by` needs to
+ * be pushed into the database for.
+ */
+export async function loadShopSessionLocationCounts(
+  client: SupabaseClient,
+): Promise<Outcome<LocationShopCount[]>> {
+  const { data, error } = await client.from('shop_sessions').select('location_id');
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  const rows = (data ?? []) as unknown as { location_id: string }[];
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    counts.set(row.location_id, (counts.get(row.location_id) ?? 0) + 1);
+  }
+
+  return {
+    ok: true,
+    value: Array.from(counts, ([locationId, count]) => ({ locationId, count })),
+  };
+}
+
 export async function recordShopSession(
   client: SupabaseClient,
   params: {
