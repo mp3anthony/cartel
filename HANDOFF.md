@@ -5,6 +5,113 @@
 
 ## Last active
 
+- **2026-08-15 build session — #26 (in-app Light/Dark/System theme toggle)
+  shipped and merged, [PR #30](https://github.com/mp3anthony/cartel/pull/30)
+  (user gave the explicit go-ahead this session — "merge the PR and I'll
+  check it in the morning"). Closes the last item from the prior session's
+  triage batch (#22-#26); nothing from that batch is outstanding anymore.**
+  Ran the full formal pipeline this time (Investigator → Planner → Code
+  Writer subagents, not orchestrator-direct like #22/#23/#25) — the design
+  interview was already closed per the prior session's HANDOFF entry, so
+  this session started straight at Investigator rather than reopening any
+  design question. Full reasoning for every fork (the `Palette`/`Tokens`
+  type split, why `elevation.card.shadowColor` couldn't just follow
+  `textPrimary` in dark mode, why the toggle is a new `SegmentedControl`
+  primitive and not three `PrimaryButton`s, the `cartel.themeMode`
+  AsyncStorage key, the `NavMenu` scrim's one pre-existing hardcoded color)
+  is in the PR body and `tokens.ts`/`ThemeProvider.tsx`'s own doc comments —
+  not repeated here.
+  - **Two things were folded into this PR mid-session at the user's direct
+    request, after the mechanism (`resolvedScheme`) already existed to
+    support them** — both logged in `CHANGE-LOG.md` as their own
+    out-of-spec rows (status `done`, same PR) rather than silently riding
+    along inside #26's own line, per Protocol Step 1:
+    1. **`HeaderLogo`** (new, `mobile/src/components/HeaderLogo.tsx`) — every
+       screen's header now shows the "Cartel" wordmark (reusing #25's
+       `splash-icon.png`/`splash-icon-dark.png`, not a third asset pair)
+       instead of the plain text screen name, swapped by `resolvedScheme`.
+       Each screen's own name still sets the browser tab title via
+       `options.title` (`headerTitle` only overrides what's drawn in the
+       header) — confirmed `ListDetailScreen`/`ShoppingScreen`'s
+       `navigation.setOptions({ title })` calls needed no change.
+    2. **`mobile/public/{index.html,manifest.json,icon.png}`** — the user
+       reported "Add to Home Screen" on their phone showing a plain "C"
+       instead of the app icon. Root cause, confirmed by reading the
+       installed `@expo/cli` source directly rather than guessing: this
+       project's Expo/Metro web toolchain (SDK 57) has **no config-driven
+       `apple-touch-icon` or web-manifest generation at all** — the old
+       `expo-pwa`/`@expo/webpack-config`-era feature doesn't exist in the
+       Metro web bundler this project uses, and favicon is the *only* image
+       with special-cased handling (`web.favicon` → generated `favicon.ico`
+       + an auto-injected `<link rel="icon">`). Fixed via Expo's supported
+       `public/` folder override mechanism: `public/index.html` replaces the
+       built-in template (confirmed via a real `npx expo export
+       --platform web`, not just trusted) with two added `<link>` tags,
+       `public/manifest.json` is a minimal valid Web App Manifest, and
+       `public/icon.png` reuses the existing light-colorway app icon —
+       deliberately one static file, not a light/dark pair, since neither
+       iOS's nor Android's home-screen bookmarking has an OS-level
+       dark-variant mechanism for this (same constraint #25 already
+       documented for the favicon). **Caught a real bug in the first draft
+       before it shipped**: the build injects the favicon `<link>` via a
+       literal string-replace of the closing `</head>` tag, and my own
+       explanatory comment in `public/index.html` initially spelled that
+       tag out literally as an example — which hijacked the replace target
+       and swallowed the favicon link into the comment instead of the real
+       `<head>`. Only visible by actually running the export and reading
+       the output byte-for-byte; the dev-server preview alone wouldn't have
+       shown it. Fixed by rewriting the comment to never spell the tag out
+       literally, with an explicit warning left in place for whoever edits
+       that comment next.
+  - **Live-verified with real seeded data**, not just empty states or code
+    review: created one anonymous test household + one personal list + one
+    item via the actual UI (browser pane), then for every theme-dependent
+    checklist line —
+    - **Palette actually changes everywhere, not just Household**: toggled
+      Light/Dark from the `SegmentedControl`, screenshotted and/or read
+      computed `background-color` on Dashboard, Lists, Locations,
+      ListDetail, Shopping (blocked/no-location state), History, and the
+      `NavMenu` popover+scrim, confirmed exact hex matches against both
+      palettes on every one.
+    - **System follows the OS scheme live, no restart**: this took real
+      trial and error — the Browser pane's `resize_window` `colorScheme`
+      param uses CDP media emulation, which does **not** reliably fire the
+      `matchMedia` `change` event on an already-open page (confirmed by
+      directly instrumenting a `MediaQueryList` listener: 0 fires across
+      several attempts where only `colorScheme` changed with no
+      accompanying dimension change). It genuinely doesn't work when only
+      `colorScheme` changes with identical width/height — pairing it with
+      an actual dimension change made it fire reliably, reproduced in both
+      directions. Once past that tooling quirk, this is **directly
+      confirmed working**, not inferred from source reading alone: the
+      palette flipped live with zero navigation between the two states.
+      Worth remembering next time live `prefers-color-scheme` emulation
+      needs testing in this Browser pane — always pair a `colorScheme`
+      change with a real (even 1px) dimension change, or it may silently
+      no-op.
+    - **Persists across restart**: set Dark, confirmed
+      `localStorage['cartel.themeMode'] === 'dark'`, reloaded (this
+      project's standing equivalent of "restart" on its web-only
+      verification surface), confirmed the app still rendered dark and the
+      stored value survived — same AsyncStorage-on-web mechanism
+      `src/lib/supabase.ts`'s session persistence already relies on.
+    - **Status bar line**: not verifiable on this project's web-only
+      surface (no native status bar in a browser, and native has never been
+      run in this project — a pre-existing, standing limitation carried
+      forward from every prior slice, not new here). Code-review only.
+  - All test rows (1 anonymous user, 1 household, 1 list, 1 item) queried
+    and confirmed as this session's own (`is_anonymous = true`, sole
+    household member) before deletion, then deleted and reverified at zero
+    — same practice as every prior slice.
+  - `npx tsc --noEmit` clean throughout. `mobile/app.json` and
+    `mobile/package.json` bumped to `0.0.12`.
+  - **Nothing left outstanding from the prior session's #22-#26 triage
+    batch.** `CHANGE-LOG.md`'s three long-standing pending items (captcha on
+    anonymous sign-in, orphaned households, item quantities) are still
+    unscoped and still the most likely next-session starting point if
+    nothing else comes up — see that file directly rather than this one for
+    their current status.
+
 - **2026-08-14 build session, ended by explicit handoff to a new session —
   #25, #22+#24, and #23 shipped and merged; #26's design is approved but
   nothing is built yet.** Worked through issues #22-#26 in the order set at
