@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -16,7 +16,6 @@ import {
   SecondaryButton,
 } from '../components/ui';
 import type { ListsView } from '../hooks/useLists';
-import { appVersion, buildChannel, buildChannelLabel } from '../lib/buildInfo';
 import type { Household } from '../lib/household';
 import { createList } from '../lib/lists';
 import type { RootStackParamList } from '../navigation/types';
@@ -179,14 +178,6 @@ export function ListsScreen({
       ) : view.status === 'loaded' ? (
         <PrimaryButton label="New list" onPress={beginComposing} />
       ) : null}
-
-      {/* Pins to the visual bottom for a short list (flexGrow absorbs the leftover
-          space); trails after the last row instead once the list overflows the
-          screen. Scoped to this screen only — see buildInfo.ts for why. */}
-      <View style={styles.footerSpacer} />
-      <Text style={styles.footer}>
-        {`v${appVersion} · ${buildChannelLabel[buildChannel]}`}
-      </Text>
     </Screen>
   );
 }
@@ -195,14 +186,6 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     composer: {
       gap: tokens.space.sm,
-    },
-    footerSpacer: {
-      flexGrow: 1,
-    },
-    footer: {
-      fontSize: tokens.fontSize.caption,
-      color: tokens.color.textSecondary,
-      textAlign: 'center',
     },
   });
 }

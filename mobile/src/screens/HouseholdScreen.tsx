@@ -12,6 +12,7 @@ import {
   SecondaryButton,
   SegmentedControl,
 } from '../components/ui';
+import { appVersion, buildChannel, buildChannelLabel } from '../lib/buildInfo';
 import { createInvite, type Invite } from '../lib/household';
 import { useTheme, useThemeMode } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -23,9 +24,12 @@ import type { Tokens } from '../theme/tokens';
  * There is no "remove member" or "make admin" control, and that is not an omission:
  * every member is equal rank by spec, so there is no rank for a control to change.
  *
- * The household's name is missing here on purpose: the navigator header carries it,
- * because that header is also what carries back. Naming it twice on one screen was
- * what the header replaced.
+ * The household's name is missing here on purpose: it's still this screen's tab
+ * title (`Stack.Screen`'s own `title` in App.tsx), just no longer drawn in the
+ * header itself — the header shows the `HeaderLogo` wordmark instead of screen
+ * names, and its back chevron is suppressed in favor of the hamburger `NavMenu`
+ * (#41). Naming the household again here would only repeat what the tab title
+ * already carries, not fill a gap.
  */
 export function HouseholdScreen({
   client,
@@ -99,6 +103,13 @@ export function HouseholdScreen({
           { value: 'system', label: 'System' },
         ]}
       />
+
+      {/* Just the last element in a normal flow — this screen doesn't scroll/
+          top-align like ListsScreen did, so there's no flexGrow bottom-pin trick to
+          replicate here. Scoped to this screen only — see buildInfo.ts for why. */}
+      <Text style={styles.footer}>
+        {`v${appVersion} · ${buildChannelLabel[buildChannel]}`}
+      </Text>
     </Screen>
   );
 }
@@ -136,6 +147,11 @@ function createStyles(tokens: Tokens) {
     expiry: {
       fontSize: tokens.fontSize.caption,
       color: tokens.color.textSecondary,
+    },
+    footer: {
+      fontSize: tokens.fontSize.caption,
+      color: tokens.color.textSecondary,
+      textAlign: 'center',
     },
   });
 }

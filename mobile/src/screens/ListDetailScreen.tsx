@@ -413,6 +413,8 @@ export function ListDetailScreen({
         editable={!busy}
         onSubmitEditing={() => add(items)}
         returnKeyType="done"
+        submitBehavior="submit"
+        blurOnSubmit={false}
       />
       <PrimaryButton
         label="Add"
