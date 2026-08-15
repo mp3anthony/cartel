@@ -5,6 +5,162 @@
 
 ## Last active
 
+- **2026-08-15 triage/build session — Batch A (#43, #40, #41, #37) shipped
+  and merged, [PR #44](https://github.com/mp3anthony/cartel/pull/44). User
+  stopped the session after Batch A on purpose ("Lets just do batch A for
+  now") — Batches B through G below are fully scoped and triaged but
+  **zero code written for any of them**. Start the next session by picking
+  any batch below directly; the triage legwork (codebase surface, real
+  dependencies, risk flags) is already done and shouldn't be re-derived.**
+  - **Full formal pipeline ran for the first time with five distinct
+    subagent roles** (Triage → Planner → Code Writer → Code Reviewer →
+    Verifier), per the user's explicit request this session, rather than
+    the orchestrator triaging directly (2026-08-14 style) or running an
+    abbreviated Investigator→Planner→Code Writer chain (2026-08-15 #26
+    style). One deviation, flagged in the PR body and here: **the Verifier
+    step was NOT run as a separate subagent** — confirmed live that
+    subagents spawned via the `Agent` tool have no actual display/
+    compositing access to the Browser pane (`preview_start`/`navigate`
+    succeed and `get_page_text` returns real content, but `read_page`/
+    `resize_window`/screenshot report a `0x0` viewport, and the orchestrator's
+    own `computer{action:"screenshot"}` call from the *main* session also
+    failed once with "the Browser pane is not displayed" before working
+    again — the pane's compositing appears to need to be actively displayed
+    in the user's UI, which a background subagent can never trigger). The
+    orchestrator did the live verification directly instead, using the real
+    Browser pane tools. **This is a standing constraint for every future
+    batch's Verifier stage, not a one-off** — plan for the orchestrator to
+    do live-browser verification itself, not a delegated Verifier subagent,
+    unless this changes.
+  - **Live verification caught two real bugs Code Review's static read
+    missed — both fixed before merge, both are general lessons for any
+    future `App.tsx`/RN-web work, not just this batch:**
+    1. `submitBehavior="submit"` (the RN prop for "don't blur on submit")
+       is silently dropped by this project's react-native-web 0.21.2 —
+       it's absent from that version's `TextInput` forwarded-props
+       allow-list. The web build only ever consults `blurOnSubmit`. Any
+       future fix in this vein needs `blurOnSubmit={false}`, not (or not
+       only) `submitBehavior`.
+    2. `headerBackVisible: false` on `Stack.Navigator`'s `screenOptions`
+       — the standard native-stack way to hide the back chevron — **does
+       nothing on the web build**. Confirmed by reading
+       `@react-navigation/elements`'s `Header.js`: on web this project
+       falls back to that package's plain JS `Header` component (not
+       native-stack's native `ScreenStackHeaderConfig`), whose `headerLeft`
+       defaults to rendering a `HeaderBackButton` whenever
+       `navigation.canGoBack()` is true — `headerBackVisible` is never
+       read on that path at all. The real, working fix (now shipped) is
+       `headerLeft: () => null` in the same `headerOptions()` object in
+       `App.tsx` — this also fully resolves #41 for every future screen
+       with no further work needed. **General lesson**: any native-stack
+       option whose name doesn't appear in
+       `@react-navigation/elements/lib/module/Header/Header.js` is
+       suspect on this project's web build — check that file, not just
+       the TypeScript types, before trusting a native-stack option works
+       here.
+  - **Batch A testing, live-verified with real seeded data**: created one
+    anonymous test household ("QA Batch A Test Household") + one personal
+    list ("QA Focus Test List") via the real UI. Confirmed #43 by typing
+    and submitting 3 items consecutively via a JS-dispatched real `Enter`
+    `KeyboardEvent` (the Browser pane's own `computer{action:"key",
+    text:"Return"}` did NOT reliably reach react-native-web's `keydown`
+    handler in this environment — a new instance of this project's
+    already-documented click/type-unreliability trap, worth remembering:
+    dispatch a raw `KeyboardEvent('keydown', {key:'Enter', keyCode:13,
+    which:13, bubbles:true})` via `javascript_tool` instead of trusting
+    `computer{action:"key"}` for Enter-to-submit flows in this pane).
+    Confirmed #40 via the input's literal `placeholder` attribute.
+    Confirmed #41 via `document.querySelector('a[href="/"]')` returning
+    `null` (zero back-link elements in the DOM) after the fix, vs. a real
+    visible 30×30 chevron before it. Confirmed #37 via `v0.0.13 · Dev`
+    rendering on the real (in-household) `HouseholdScreen`, not the
+    no-household `HouseholdSetupScreen` (two separate components — the
+    footer only lives on the former; don't confuse them when testing #37
+    again). All test rows (1 anonymous user, 1 household, 1 list) queried
+    and confirmed as this session's own before deletion, then deleted and
+    reverified at zero. `npx tsc --noEmit` clean throughout.
+    `mobile/app.json`/`mobile/package.json` bumped to `0.0.13`.
+
+  ### Batches B–G — triaged, scoped, ready to build, nothing implemented
+
+  Full context: a dedicated Triage subagent read all 12 issue bodies via
+  `gh issue view` plus the actual codebase and proposed this batching;
+  the user confirmed batching, order, and (for Batch C) the schema
+  approach via `AskUserQuestion` before Batch A started. Suggested order
+  is **B → C → D → E → F → G**, sequential (not parallel — avoids
+  worktree/branch complexity; C should land before D/E/F since all three
+  touch `ShoppingScreen.tsx`). Each batch: create a branch off `main` →
+  Planner subagent → Code Writer subagent → Code Reviewer subagent
+  (separate session from Code Writer) → orchestrator does live-browser
+  verification itself (see constraint above, don't spawn a Verifier
+  subagent expecting it to reach the Browser pane) → open PR → merge
+  (user has already given standing go-ahead to merge each batch once
+  verified clean, no need to re-ask per batch).
+
+  - **Batch B — "Dashboard trims" (#36 + #38), 1 PR.** Both touch
+    `DashboardScreen.tsx`, non-overlapping sections — batching is a
+    convenience, not a real dependency. #36: remove the `Heading>Household
+    </Heading>` card block (~lines 386-403) — already reachable via the
+    nav menu, per #26's HeaderLogo/NavMenu work. #38: `nearbyState`/
+    `checkNearby()` (~lines 270-343) needs a manual "Refresh" affordance
+    instead of forcing a full remount to re-check nearby stores.
+  - **Batch C — "Finish shopping lifecycle" (#33 + #35), 1 PR — the
+    biggest/riskiest batch, Planner has the user's explicit go-ahead to
+    design the schema approach without a separate approval round.**
+    #33 (finished lists should leave the active Lists view) and #35 (same
+    shop can be recorded to history more than once) need the *same*
+    underlying signal — Triage's recommendation, grounded in the code:
+    a nullable `archived_at`-style column (matching this codebase's
+    existing `checked_at`/`deleted_at` idiom, never a status enum), set
+    the moment `finishShopping()` succeeds, both filters `ListsScreen`'s
+    active view (#33) and guards against a second `shop_sessions` write
+    for an already-archived list (#35). **Real gap Planner must resolve,
+    not skip**: `DashboardScreen.tsx`'s "Continue shopping" widget and
+    `startOrContinueAtLocation()` both use `loadInProgressListIds()`
+    (`lists.ts`), whose own doc comment defines "in progress" as "has at
+    least one unchecked item" — a proxy, not real schema. Since
+    `finishShopping()` only requires `checkedCount > 0` (not that
+    everything is checked), a list finished with leftover unchecked items
+    would still read as "in progress" under today's proxy and could
+    resurface on the Dashboard even after archiving lands — Planner needs
+    to either fix this proxy too or explicitly, visibly scope it out
+    rather than silently leave it. Touches `ListsScreen.tsx`,
+    `DashboardScreen.tsx`, `lists.ts`, `shopSessions.ts`, likely a new
+    migration.
+  - **Batch D — "Finish-shopping toast" (#34), 1 PR, standalone.**
+    Presentational only — replace the plain `<Body>` "shop recorded" line
+    in `ShoppingScreen.tsx`'s `justFinished` render with something hard to
+    miss (a toast/banner; may need a new primitive in `ui.tsx`). No schema
+    dependency on Batch C — sequenced after it purely to avoid two agents
+    editing the same finish-shopping region of `ShoppingScreen.tsx`
+    back-to-back.
+  - **Batch E — "Aisle-tag affordance" (#32), 1 PR, standalone.** Make the
+    bare `+` (`IconButton glyph="+"`, ~line 572 of `ShoppingScreen.tsx`,
+    `tagRow`/`beginTagging`) self-explanatory — **not** removal, see the
+    QA-session entry above for why. Different region of the same file as
+    C/D — sequence after them, don't parallelize.
+  - **Batch F — "Check-off latency" (#39), 1 PR, standalone — investigate
+    before assuming the fix.** `toggle()` in `ShoppingScreen.tsx` has no
+    optimistic UI by *deliberate* prior design (the screen's own header
+    doc comment says so explicitly — "the UI only ever shows a checked
+    state the database has already accepted"); fixing #39 properly means
+    consciously overriding that decision, not patching around it.
+    `useListItems.ts`'s Realtime subscription re-firing `refresh()` on the
+    writer's own echo is a second contributing factor. Neither alone
+    obviously explains a full ~12s stall per the issue's own text —
+    Triage's recommendation: have Investigator actually check real
+    round-trip time (network tab / Supabase logs) before committing to
+    "add optimistic UI" as the whole fix; there may be a third factor
+    (free-tier cold project, RLS cost, `ap-southeast-2` latency, or a
+    connection to #42's session issues).
+  - **Batch G — "JWT blank-screen recovery" (#42), 1 PR, standalone,
+    parallelizable with anything.** The issue's own text admits it "isn't
+    reliably reproducible" — scope is defensive recovery + logging
+    (error boundary, retry, a real error state instead of a blank page) in
+    `App.tsx`'s `Bootstrapped`/session gate + `supabase.ts`, **not** a
+    root-cause fix. Say so explicitly if picking this up — don't imply the
+    root cause was found.
+
 - **2026-08-15 QA session — first real end-to-end shop completed post-#26
   merge; 12 issues filed ([#32](https://github.com/mp3anthony/cartel/issues/32)-[#43](https://github.com/mp3anthony/cartel/issues/43)),
   zero code changes this session.** User ran the app through a full real
