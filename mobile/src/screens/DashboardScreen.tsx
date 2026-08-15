@@ -335,6 +335,11 @@ export function DashboardScreen({
             />
           ))
         )}
+        {nearbyState.status === 'denied' ||
+        nearbyState.status === 'error' ||
+        nearbyState.status === 'found' ? (
+          <SecondaryButton label="Refresh" onPress={() => void checkNearby()} />
+        ) : null}
       </View>
 
       {inProgressLists.length > 0 ? (
