@@ -279,6 +279,12 @@ function Bootstrapped({ env }: { env: Env }) {
  * `ShoppingScreen` overwrite via `navigation.setOptions({ title: ... })` once their
  * list loads. `headerTitleStyle` is gone because it only ever styled the default
  * text-based title, which nothing here still renders.
+ *
+ * `headerBackVisible: false` hides the native-stack back chevron on every screen —
+ * redundant next to the wordmark once the hamburger `NavMenu` covers the same
+ * "go somewhere else" job, and confusing sitting right beside a logo that isn't
+ * itself a button. This only hides the drawn button; it does not disable back
+ * navigation — the OS/browser back gesture and button still work exactly as before.
  */
 function headerOptions(tokens: Tokens) {
   return {
@@ -286,6 +292,7 @@ function headerOptions(tokens: Tokens) {
     headerTintColor: tokens.color.textPrimary,
     headerTitle: () => <HeaderLogo />,
     headerShadowVisible: false,
+    headerBackVisible: false,
     contentStyle: { backgroundColor: tokens.color.ground },
   };
 }

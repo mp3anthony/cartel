@@ -12,6 +12,7 @@ import {
   SecondaryButton,
   SegmentedControl,
 } from '../components/ui';
+import { appVersion, buildChannel, buildChannelLabel } from '../lib/buildInfo';
 import { createInvite, type Invite } from '../lib/household';
 import { useTheme, useThemeMode } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -99,6 +100,13 @@ export function HouseholdScreen({
           { value: 'system', label: 'System' },
         ]}
       />
+
+      {/* Just the last element in a normal flow — this screen doesn't scroll/
+          top-align like ListsScreen did, so there's no flexGrow bottom-pin trick to
+          replicate here. Scoped to this screen only — see buildInfo.ts for why. */}
+      <Text style={styles.footer}>
+        {`v${appVersion} · ${buildChannelLabel[buildChannel]}`}
+      </Text>
     </Screen>
   );
 }
@@ -136,6 +144,11 @@ function createStyles(tokens: Tokens) {
     expiry: {
       fontSize: tokens.fontSize.caption,
       color: tokens.color.textSecondary,
+    },
+    footer: {
+      fontSize: tokens.fontSize.caption,
+      color: tokens.color.textSecondary,
+      textAlign: 'center',
     },
   });
 }

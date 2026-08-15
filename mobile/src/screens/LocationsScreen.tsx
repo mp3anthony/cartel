@@ -238,7 +238,7 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
         label="Search locations"
         value={search}
         onChangeText={setSearch}
-        placeholder="Papanui PakNSave"
+        placeholder="e.g. Papanui PakNSave"
         autoCapitalize="none"
       />
 
