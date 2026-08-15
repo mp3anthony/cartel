@@ -5,6 +5,35 @@
 
 ## Last active
 
+- **2026-08-15 build session — Batch B (#36, #38) shipped and merged,
+  [PR #45](https://github.com/mp3anthony/cartel/pull/45). Both issues
+  auto-closed on merge. Batches C-G (below, still fully scoped from the
+  prior triage) are next in the suggested order — start with Batch C.**
+  Same pipeline as Batch A: Planner → Code Writer → Code Reviewer
+  (separate subagent session from Code Writer, per the user's explicit
+  reminder this session to never let a subagent review its own code) →
+  orchestrator did live-browser verification directly (subagents still
+  can't reach the Browser pane's compositing — same standing constraint
+  as Batch A, held again this session, not re-tested). #36 (remove
+  Household card) and #38 (Refresh affordance for Nearby stores) both
+  touch only `DashboardScreen.tsx`, non-overlapping sections, so one PR
+  as planned. #36 also required a two-prop call-site edit in `App.tsx`
+  (`household`/`memberCount` dropped from the `<DashboardScreen>` call —
+  confirmed no other screen's props touched). #38 needed zero logic
+  change to `checkNearby()` itself — it already reset to `checking` as
+  its first statement, so a plain "Refresh" `SecondaryButton` gated on
+  `nearbyState.status` being `denied`/`error`/`found` (not `idle`/
+  `checking`) was sufficient. Live-verified in the real Browser pane
+  against local dev (`mobile-web`, port 8082): loaded Dashboard on a
+  fresh anonymous no-household session and confirmed zero Household card
+  renders; clicked "Check for nearby stores" → landed on the browser's
+  standard geolocation-denied state → "Refresh" button appeared as
+  expected; clicked "Refresh" → check re-ran, landed on `denied` again,
+  button still present — confirms re-triggering works without leaving the
+  screen. `npx tsc --noEmit` clean throughout (independently re-run by
+  both the Code Writer and the Code Reviewer). `mobile/app.json`/
+  `mobile/package.json` bumped to `0.0.14`.
+
 - **2026-08-15 triage/build session — Batch A (#43, #40, #41, #37) shipped
   and merged, [PR #44](https://github.com/mp3anthony/cartel/pull/44). User
   stopped the session after Batch A on purpose ("Lets just do batch A for
