@@ -280,11 +280,18 @@ function Bootstrapped({ env }: { env: Env }) {
  * list loads. `headerTitleStyle` is gone because it only ever styled the default
  * text-based title, which nothing here still renders.
  *
- * `headerBackVisible: false` hides the native-stack back chevron on every screen —
- * redundant next to the wordmark once the hamburger `NavMenu` covers the same
- * "go somewhere else" job, and confusing sitting right beside a logo that isn't
- * itself a button. This only hides the drawn button; it does not disable back
- * navigation — the OS/browser back gesture and button still work exactly as before.
+ * `headerBackVisible: false` hides the native-stack back chevron — redundant next to
+ * the wordmark once the hamburger `NavMenu` covers the same "go somewhere else" job,
+ * and confusing sitting right beside a logo that isn't itself a button. It does not
+ * disable back navigation — the OS/browser back gesture and button still work
+ * exactly as before. It also does nothing at all on this project's actual review
+ * surface: `headerBackVisible` is only read by native-stack's *native* header path
+ * (`react-native-screens`, unavailable on web), not by the JS `Header` component
+ * `@react-navigation/elements` falls back to on web, which instead defaults
+ * `headerLeft` to a `HeaderBackButton` whenever `navigation.canGoBack()` is true,
+ * ignoring `headerBackVisible` entirely. `headerLeft: () => null` is the option the
+ * web fallback actually checks, so both are set — one per platform's real code path,
+ * neither one alone covers both.
  */
 function headerOptions(tokens: Tokens) {
   return {
@@ -293,6 +300,7 @@ function headerOptions(tokens: Tokens) {
     headerTitle: () => <HeaderLogo />,
     headerShadowVisible: false,
     headerBackVisible: false,
+    headerLeft: () => null,
     contentStyle: { backgroundColor: tokens.color.ground },
   };
 }
