@@ -187,8 +187,6 @@ function Bootstrapped({ env }: { env: Env }) {
               client={client}
               listsView={lists.view}
               onListsChanged={lists.refresh}
-              household={state.status === 'member' ? state.household : null}
-              memberCount={state.status === 'member' ? state.memberCount : 0}
             />
           )}
         </Stack.Screen>

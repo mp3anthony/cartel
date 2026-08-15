@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -21,7 +21,6 @@ import type { ListsView } from '../hooks/useLists';
 import { useLocations } from '../hooks/useLocations';
 import { useShopSessions } from '../hooks/useShopSessions';
 import { requestLocation } from '../lib/geolocation';
-import type { Household } from '../lib/household';
 import { attachLocation, createList, loadInProgressListIds } from '../lib/lists';
 import {
   loadPendingCorrectionCounts,
@@ -58,25 +57,23 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'> & {
   client: SupabaseClient;
   listsView: ListsView;
   onListsChanged: () => Promise<void>;
-  household: Household | null;
-  memberCount: number;
 };
 
 /**
  * Home, as of #22, with #23's two stretch widgets folded in afterward: a
  * nearby-store nudge and a pending-corrections summary. Render order: new
  * list, nearby stores, continue shopping, store frequency, pending
- * corrections, household snapshot, recent activity — #22's five widgets in
- * their original priority order, with #23's two slotted in near the
- * shopping-action widgets they're closest in kind to (neither issue
- * mandates exact placement for the stretch pair).
+ * corrections, recent activity — #22's widgets in their original priority
+ * order, with #23's two slotted in near the shopping-action widgets they're
+ * closest in kind to (neither issue mandates exact placement for the
+ * stretch pair).
  *
- * Every section but "New list", "Nearby stores" and "Household snapshot"
- * renders nothing (not an empty card) when it has nothing to show — a
- * dashboard that always reserves space for every widget regardless of data
- * reads as broken on a fresh account, and #22's acceptance test says as
- * much for the chart specifically ("a sane empty state, not an empty
- * chart"). "Nearby stores" is the deliberate exception: it's an on-demand
+ * Every section but "New list" and "Nearby stores" renders nothing (not an
+ * empty card) when it has nothing to show — a dashboard that always
+ * reserves space for every widget regardless of data reads as broken on a
+ * fresh account, and #22's acceptance test says as much for the chart
+ * specifically ("a sane empty state, not an empty chart"). "Nearby stores"
+ * is the deliberate exception: it's an on-demand
  * action (the #23 Problem Agreement resolved the permission-prompt question
  * as "a passive button, never an automatic check on load"), so the button
  * itself has to stay visible for there to be anything to tap — what's
@@ -90,8 +87,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'> & {
  */
 export function DashboardScreen({
   client,
-  household,
-  memberCount,
   navigation,
   listsView,
   onListsChanged,
@@ -383,25 +378,6 @@ export function DashboardScreen({
         </View>
       ) : null}
 
-      <View style={styles.section}>
-        <Heading>Household</Heading>
-        {household ? (
-          <Card>
-            <Text style={styles.householdName}>{household.name}</Text>
-            <Body>{`${memberCount} ${memberCount === 1 ? 'member' : 'members'}`}</Body>
-            <SecondaryButton label="Open household" onPress={() => navigation.navigate('Household')} />
-          </Card>
-        ) : (
-          <Card>
-            <Body>You're not in a household yet. Join or create one to share lists.</Body>
-            <SecondaryButton
-              label="Join or create a household"
-              onPress={() => navigation.navigate('HouseholdSetup')}
-            />
-          </Card>
-        )}
-      </View>
-
       {recentSessions.length > 0 ? (
         <View style={styles.section}>
           <Heading>Recent activity</Heading>
@@ -439,11 +415,6 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     section: {
       gap: tokens.space.sm,
-    },
-    householdName: {
-      fontSize: tokens.fontSize.title,
-      fontWeight: '600',
-      color: tokens.color.textPrimary,
     },
   });
 }
