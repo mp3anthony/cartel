@@ -5,6 +5,40 @@
 
 ## Last active
 
+- **2026-08-15 QA session — first real end-to-end shop completed post-#26
+  merge; 12 issues filed ([#32](https://github.com/mp3anthony/cartel/issues/32)-[#43](https://github.com/mp3anthony/cartel/issues/43)),
+  zero code changes this session.** User ran the app through a full real
+  shopping trip and reported issues conversationally; used the `qa` skill
+  (background Explore agent for codebase context, `AskUserQuestion` for the
+  genuine design forks) rather than jumping straight to fixes. One finding
+  worth knowing before touching any of these: **the "+" the user wanted
+  removed from Shopping Mode turned out to be the same feature as their
+  separate "no way to tag an aisle" complaint** — it's the (unlabeled)
+  aisle/section-tagging trigger, not a divider; resolved as "keep the
+  feature, make it self-explanatory" (#32), not removal. Route learning
+  itself needs no fix — confirmed by reading `computeRouteOrder` that
+  check-off order alone is the primary ordering signal; aisle tags are only
+  a fallback for items never personally checked off at that location
+  before.
+  - **#33/#34/#35 are a deliberate 3-way breakdown of one "Finish shopping"
+    complaint** (list doesn't leave the active view / confirmation message
+    is too easy to miss / the same shop can be recorded to history more
+    than once) — independently fixable, no blocking relationship between
+    them, but #35 flags that archiving (#33) may partially-but-not-fully
+    cover the duplicate-recording case, so it should still be verified and
+    guarded on its own rather than assumed fixed as a side effect.
+  - **All 12 issues are labeled `ready-for-agent`** — every real design fork
+    (list lifecycle on finish, dashboard household card, which screen the
+    "+" was on, nearby-store refresh UX) was resolved with the user via
+    `AskUserQuestion` this session, so none of them need a Problem Agreement
+    round before Investigator/Planner work starts.
+  - **Next session should start with a dedicated triage pass across
+    #32-#43** — the user explicitly asked for triage to run as its own
+    subagent (separate from Planner/Code Writer/Code Reviewer), proposing
+    batching/execution order before any implementation starts, rather than
+    the orchestrator triaging directly the way the 2026-08-14 session did
+    for #22-#26.
+
 - **2026-08-15 build session — #26 (in-app Light/Dark/System theme toggle)
   shipped and merged, [PR #30](https://github.com/mp3anthony/cartel/pull/30)
   (user gave the explicit go-ahead this session — "merge the PR and I'll
