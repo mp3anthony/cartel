@@ -8,6 +8,7 @@ export type ListRow = {
   name: string;
   householdId: string | null;
   locationId: string | null;
+  archivedAt: string | null;
   createdAt: string;
 };
 
@@ -28,6 +29,7 @@ type ListRecord = {
   name: string;
   household_id: string | null;
   location_id: string | null;
+  archived_at: string | null;
   created_at: string;
 };
 
@@ -72,9 +74,15 @@ export async function loadLists(client: SupabaseClient): Promise<Outcome<ListRow
   // authorises each event against the SELECT policy evaluated on the *new* row, so a
   // policy saying `deleted_at is null` would suppress the very UPDATE that performs the
   // deletion. Filtering it here is the whole of the mechanism.
+  //
+  // `archived_at` gets no such filter — this function still returns archived lists.
+  // Whether an archived list belongs in a given screen's view is that screen's own
+  // question (`ListsScreen` filters its active view, `HistoryScreen` still wants to
+  // reach one) — the same reasoning as `locationId` being returned unfiltered even
+  // though not every screen cares whether a list has one.
   const { data, error } = await client
     .from('lists')
-    .select('id, name, household_id, location_id, created_at')
+    .select('id, name, household_id, location_id, archived_at, created_at')
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
@@ -91,6 +99,7 @@ export async function loadLists(client: SupabaseClient): Promise<Outcome<ListRow
       name: row.name,
       householdId: row.household_id,
       locationId: row.location_id,
+      archivedAt: row.archived_at,
       createdAt: row.created_at,
     })),
   };
@@ -199,6 +208,68 @@ export async function attachLocation(
     .from('lists')
     .update({ location_id: locationId })
     .eq('id', listId);
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  return { ok: true, value: undefined };
+}
+
+/**
+ * Archives a list — called the moment `finishShopping()` succeeds. `value: true`
+ * means this call claimed it (`archived_at` was null and is now set by this call);
+ * `value: false` means it was already archived by an earlier call (this device's own
+ * retry, a second device, or a race) and nothing was written.
+ *
+ * The `.is('archived_at', null)` clause is not a convenience filter — it is the whole
+ * mechanism. Supabase executes the UPDATE and its `WHERE` clause as one statement, so
+ * "is it still unarchived" and "archive it" happen atomically at the database level;
+ * two concurrent `finishShopping()` calls for the same list can never both see
+ * `value: true`. `.select('id')` reads back which rows the UPDATE actually touched —
+ * empty means this call lost the race (or the list was already archived), not an
+ * error.
+ *
+ * `.eq('id', listId)` names the row; it does not authorise the write. The existing
+ * `lists_update_visible` policy already covers this column (see migration
+ * 20260817000000's header) — any household member may finish shopping and archive
+ * the list, not only its owner, matching 03-SPEC.md's "all members equal rank".
+ */
+export async function archiveList(
+  client: SupabaseClient,
+  listId: string,
+): Promise<Outcome<boolean>> {
+  const { data, error } = await client
+    .from('lists')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', listId)
+    .is('archived_at', null)
+    .select('id');
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  return { ok: true, value: (data ?? []).length > 0 };
+}
+
+/**
+ * Reverses `archiveList()` — used only as a compensating action when a write that
+ * was supposed to follow a successful archive claim (recording the checkoff/shop-
+ * session history) fails partway through, so the list becomes retryable again
+ * instead of silently and permanently losing that shop's history. Without this,
+ * a transient failure after a successful claim would leave the list archived
+ * forever with no history ever written, and every retry would read the claim as
+ * "already recorded" and skip straight to the success state.
+ *
+ * `.eq('id', listId)` names the row; it does not authorise the write. Same
+ * `lists_update_visible` coverage as `archiveList()` above.
+ */
+export async function unarchiveList(
+  client: SupabaseClient,
+  listId: string,
+): Promise<Outcome<void>> {
+  const { error } = await client.from('lists').update({ archived_at: null }).eq('id', listId);
 
   if (error) {
     return { ok: false, message: humanise(error) };
@@ -415,6 +486,11 @@ export async function setChecked(
  * "small dataset, reduce in JS" calls (`Screen`'s own doc comment on why a
  * grocery list doesn't need a `FlatList`). A household's full list set is
  * the same order of magnitude as one list's items.
+ *
+ * Callers are expected to exclude already-archived lists from `listIds`
+ * before calling this — "in progress" is meaningless for a list that has
+ * already been finished, and this function has no `archivedAt` of its own
+ * to check against (it only ever sees `list_items`, not `lists`).
  */
 export async function loadInProgressListIds(
   client: SupabaseClient,

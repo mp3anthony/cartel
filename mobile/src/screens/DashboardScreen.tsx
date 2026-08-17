@@ -109,8 +109,16 @@ export function DashboardScreen({
   // says so outright.
   const [nearbyState, setNearbyState] = useState<NearbyState>({ status: 'idle' });
 
+  // Archived lists (Batch C, #33) are excluded here, not just in ListsScreen's
+  // own view — loadInProgressListIds's own doc comment now says as much:
+  // "in progress" is meaningless for a list finishShopping() has already
+  // archived, and without this filter an already-archived list with leftover
+  // unchecked items would still resurface in "Continue shopping" forever.
   const listIds = useMemo(
-    () => (listsView.status === 'loaded' ? listsView.lists.map((l) => l.id) : []),
+    () =>
+      listsView.status === 'loaded'
+        ? listsView.lists.filter((l) => l.archivedAt === null).map((l) => l.id)
+        : [],
     [listsView],
   );
 
