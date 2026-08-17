@@ -5,6 +5,111 @@
 
 ## Last active
 
+- **2026-08-17 build session — Batch D (#34) shipped and merged,
+  [PR #47](https://github.com/mp3anthony/cartel/pull/47). Issue auto-closed
+  on merge. Batches E-G (below, still fully scoped from the 2026-08-15
+  triage session) are next, suggested order E → F → G unchanged.** Same
+  pipeline as Batches A-C: Planner → Code Writer → Code Reviewer (separate
+  subagent session from Code Writer) → one fix-and-reverify round on the
+  reviewer's findings → orchestrator did live-browser verification directly
+  → orchestrator merge (standing go-ahead, no per-batch re-ask needed).
+  Presentational-only batch, no schema changes — the plain-text "shop
+  recorded" confirmation in `ShoppingScreen.tsx`'s `justFinished` render is
+  now a new `Banner` primitive in `ui.tsx`: bordered, elevated, icon-carrying,
+  in-flow (not an overlay/toast library — matches `Confirm`'s existing
+  precedent that react-native-web has no `Alert`, so anything not rendered
+  in the document never appears on this project's one verified surface).
+  - **No auto-dismiss timer, deliberately.** `justFinished` already persists
+    until the screen unmounts by construction (`toggle()` early-returns once
+    the list is archived, so nothing resets it mid-mount) — an
+    auto-hiding banner would have *reduced* visibility versus the old
+    persistent text, working against the issue's own ask ("hard to miss...
+    before putting your phone away"). Manual dismiss (×) is local-only
+    `Banner` state, never wired back into `ShoppingScreen` — confirmed this
+    doesn't interact with the "Finish shopping" button's own disabled
+    gating (`list.archivedAt !== null`, independent of `justFinished`).
+  - **The "already recorded" (archived-but-not-just-finished) branch is
+    deliberately untouched** — still plain `Body` text, out of scope per
+    the issue (which is specifically about the moment right after
+    finishing a shop, not a returning visit to an already-archived list).
+  - **Code review (separate session) caught three real, if minor, issues,
+    all fixed before merge**: a `Banner` doc comment citing reasoning
+    supposedly explained in "ShoppingScreen's justFinished doc comment" —
+    which doesn't exist, a dead pointer — fixed by inlining the actual
+    reasoning; `accessibilityLabel="Dismiss"` lacked context, breaking this
+    codebase's own established pattern of naming what a control acts on
+    (every other dismiss/action control does, e.g. `NavMenu`'s "Close
+    menu") — fixed to `"Dismiss confirmation"`; and `banner`'s
+    `alignItems: 'center'` was inconsistent with `ErrorNote`'s own
+    `errorRow` precedent (`'flex-start'`, so a wrapped multi-line message
+    top-aligns against the icon/button) — fixed to match. **One real
+    process hiccup worth remembering**: the fix-round agent was
+    accidentally spawned with `isolation: 'worktree'` (should never have
+    been set — nobody asked for one), and that worktree was auto-removed
+    mid-session while the agent was still using it, hard-blocking its
+    `Bash`/`Edit`/`Write` tools entirely. The agent correctly refused to
+    self-recover via `EnterWorktree`/`ExitWorktree` (out of its own
+    authorized scope) and reported the failure clearly instead of
+    pretending to have finished — the orchestrator applied the three
+    (already well-specified, drafted-but-undelivered) fixes directly
+    instead, and the original separate Reviewer session re-verified the
+    real result against disk, not against any claim. **Lesson for next
+    time**: never attach `isolation: 'worktree'` to an `Agent` call whose
+    job is to `SendMessage` into an *existing* subagent's already-loaded
+    session — that existing session isn't scoped to a fresh worktree the
+    way a brand-new agent would be, so the isolation wrapper adds risk
+    (a worktree that can vanish out from under a resumed session) for zero
+    benefit. Reserve `isolation: 'worktree'` for genuinely new, first-run
+    agents that need an isolated copy to mutate files in parallel.
+  - **Live-verified in the real Browser pane** against local dev
+    (`mobile-web`, port 8082) with real seeded-then-cleaned-up data, not
+    just code review: checked off an item, tapped "Finish shopping",
+    confirmed → `Banner` rendered with `role="alert"`, a check glyph, bold
+    text, and a working dismiss (`aria-label="Dismiss confirmation"`,
+    confirming the review fix actually landed on the rendered page, not
+    just in source). Computed styles confirmed dark-theme `surface`/
+    `positive` tokens, 2px border, `radius.lg`, `elevation.card` shadow,
+    and `alignItems: flex-start` all applied correctly on the live DOM.
+    Dismissing the banner removed only the banner — button/rest of screen
+    unaffected. Re-checked at 375px mobile width — banner and dismiss
+    control both rendered without clipping. One pre-existing, unrelated
+    nested-button console warning in `ListDetailScreen`'s `Row` was present
+    both before and after this change — not introduced by this PR, not
+    investigated further (out of this batch's scope).
+  - **`computer{action:"screenshot"}` failed all session ("the Browser pane
+    is not displayed, so the page is not compositing frames")** — but
+    unlike the prior (Batch C) session's *total* failure, `read_page`/
+    `javascript_tool`'s `getBoundingClientRect()` and computed-style reads
+    worked fine throughout, returning real non-zero rects and real values
+    every time. Verification proceeded via DOM/computed-style checks
+    instead of a visual screenshot — a different, narrower failure mode
+    than Batch C's (that session's `getBoundingClientRect()` also returned
+    all-zero rects, meaning nothing in the pane was reachable at all).
+    Worth tracking if this recurs a third time: screenshot-specifically
+    failing while DOM-level reads keep working may point at something more
+    specific than the general "pane not displayed" state Batch C's entry
+    described.
+  - **One live-verification gap, flagged rather than silently skipped**:
+    did not re-verify live that a full remount of the *specific* archived
+    list still renders the plain `Body` "already recorded" text instead of
+    `Banner` — there's no URL-based deep link back into an archived list
+    once `ListsScreen`'s active view filters it out (Batch C's own
+    behavior, confirmed still working during this session's testing), and
+    building a throwaway path to reach it felt disproportionate to a
+    presentational-only batch. That render branch is byte-identical to
+    Batch C's own structure otherwise; both the Code Writer and Reviewer
+    independently traced why `justFinished` resets to `false` on remount
+    before this was accepted as adequately covered by code-level reasoning
+    instead.
+  - All test rows (2 lists, 2 `shop_sessions`, 2 `location_checkoffs`, one
+    location — New World South City, pre-existing, NOT created by this
+    session, correctly left untouched) queried and confirmed as this
+    session's own before deletion, then deleted and reverified at zero.
+  - `npx tsc --noEmit` clean throughout (independently re-run by the Code
+    Writer, the Code Reviewer twice, and the orchestrator after applying
+    the fixes directly). `mobile/app.json`/`mobile/package.json` bumped to
+    `0.0.16`.
+
 - **2026-08-17 build session — Batch C (#33, #35) shipped and merged,
   [PR #46](https://github.com/mp3anthony/cartel/pull/46). Both issues
   auto-closed on merge. Session stopped here on purpose per the user's own
