@@ -5,6 +5,105 @@
 
 ## Last active
 
+- **2026-08-17 build session — Batch C (#33, #35) shipped and merged,
+  [PR #46](https://github.com/mp3anthony/cartel/pull/46). Both issues
+  auto-closed on merge. Session stopped here on purpose per the user's own
+  framing ("start batch C, merge it once done and stop there") — Batches
+  D-G (below, still fully scoped from the 2026-08-15 triage session) are
+  next, suggested order D → E → F → G unchanged.** Same pipeline as
+  Batches A/B: Planner → Code Writer → Code Reviewer (separate subagent
+  session from Code Writer) → one fix-and-reverify round on the reviewer's
+  findings → orchestrator merge. **One real deviation from every prior
+  batch, flagged in the PR body and here, not silently skipped: no
+  live-browser verification happened this session.** The Browser pane was
+  not displayed on the user's side for the whole session — `computer
+  {action:"screenshot"}` timed out repeatedly ("the Browser pane is not
+  displayed, so the page is not compositing frames"), and `getBoundingClientRect()`
+  on real DOM elements returned all-zero rects, meaning even the
+  `javascript_tool` DOM-dispatch fallback that worked in every prior
+  session couldn't actually interact with anything (clicks/pointer events
+  landed on zero-size elements and did nothing) — this is a **different,
+  new failure mode** from the previously-documented "subagents can't reach
+  compositing" constraint: this time the *orchestrator's own* Browser pane
+  tools couldn't composite either, for the whole session, not just once
+  transiently the way #25's entry noted. Surfaced to the user directly via
+  `AskUserQuestion` rather than silently merging unverified or silently
+  blocking — user explicitly chose to skip live verification and merge on
+  `npx tsc --noEmit` (clean) + the new RLS test (6 assertions, ran clean
+  against the live project) + two full code-review rounds instead. If this
+  same pane-not-displayed failure recurs next session, it's worth asking
+  the user directly whether something changed in their setup, rather than
+  assuming it's the same transient blip #25's entry described.
+  - **Design**: one nullable `lists.archived_at timestamptz` column
+    (matching the `checked_at`/`deleted_at` idiom, not a status enum — per
+    the user's standing schema-approach go-ahead for this batch, no
+    separate approval round). Set the moment `finishShopping()` succeeds.
+    Filters `ListsScreen`'s active view (#33); `archiveList()`
+    (`lists.ts`) uses a conditional UPDATE (`.is('archived_at', null)`) as
+    an atomic claim so concurrent `finishShopping()` calls for the same
+    list can only ever have one winner (#35) — this is the real mechanism,
+    not just the pre-existing UI-level double-tap guard.
+    Deliberately kept out of `lists_select_visible` (would suppress the
+    Realtime UPDATE event that performs the archiving — this project's
+    documented Realtime-authorization trap, first flagged for
+    `deleted_at`) and out of `loadLists()`'s own filtering (both
+    `ShoppingScreen`'s own post-archive confirmation and
+    `DashboardScreen`'s proxy fix below need to see `archivedAt` on every
+    row, not have archived rows silently absent).
+  - **Also fixed, flagged in triage and not silently left**:
+    `DashboardScreen.tsx`'s "Continue shopping" widget relied on
+    `loadInProgressListIds()`'s "has at least one unchecked item" proxy —
+    a list finished with leftover unchecked items would have kept
+    resurfacing there even after archiving landed. Fixed by excluding
+    archived lists before computing "in progress" ids
+    (`DashboardScreen.tsx`'s `listIds` memo). The proxy itself still has
+    other pre-existing rough edges beyond this one, explicitly left alone.
+  - **Code review (separate session) caught three real issues, all fixed
+    before merge — the most significant being a genuine data-loss
+    regression the Planner's own write-order trade-off introduced**:
+    archive-first (needed for the #35 atomicity guarantee) meant that if
+    `location_checkoffs`/`shop_sessions` failed to write *after* the
+    archive claim succeeded (e.g. a transient network blip — this
+    project's Supabase free tier has documented latency issues elsewhere
+    in this file), the list ended up permanently archived with **no**
+    history ever written, and any retry would silently show "Shop
+    recorded" anyway (`archiveOutcome.value === false` reads as "already
+    done", not "actually lost"). Fixed with a new compensating
+    `unarchiveList()` call on that failure path, restoring the list to
+    retryable rather than silently and permanently losing that shop's
+    history — the fix was sent back to the *same* Code Writer session
+    (context already loaded) but re-verified by the *original* separate
+    Reviewer session, not a fresh one, keeping the never-self-review rule
+    intact for the part that matters (nobody reviewed their own code) without
+    burning a third full-context session. The other two findings (item
+    checkboxes stayed interactive on an archived list in both
+    `ShoppingScreen` and `ListDetailScreen`; the "Finish shopping" confirm
+    dialog could get stuck open if a remote device archived the list while
+    it was open) were both fixed cleanly, confirmed by the re-review.
+  - **Two narrower edge cases survived the fix-and-reverify round,
+    surfaced explicitly by the reviewer and knowingly accepted rather than
+    engineered around further** — consistent with this project's existing
+    risk tolerance for rare multi-write races (same class as the accepted
+    `shop_sessions`/`location_checkoffs` write-gap risk and the location-
+    correction quorum vote's race window, both already documented
+    elsewhere in this file): (1) if the compensating `unarchiveList()`
+    call itself *also* fails — two consecutive network failures, not one
+    — the list can still end up permanently archived with no history; (2)
+    a second device that loses the archive-claim race can show a stale
+    "Shop recorded" message briefly if the winning device's write later
+    fails and gets compensated. Neither is fixed; both are known and
+    written down here rather than silently reintroduced as an unknown
+    later.
+  - `supabase/tests/rls_lists_archived_at.sql` (new, 6 assertions
+    including a regression test that the conditional-update guard is
+    atomic at the SQL level, independent of application code) — ran clean
+    against the live project. No new RLS policy needed
+    (`lists_update_visible` already had no per-column awareness); the
+    migration only added the column plus a column-level UPDATE grant.
+  - `npx tsc --noEmit` clean throughout (independently re-run by both the
+    Code Writer and the Code Reviewer). `mobile/app.json`/
+    `mobile/package.json` bumped to `0.0.15`.
+
 - **2026-08-15 build session — Batch B (#36, #38) shipped and merged,
   [PR #45](https://github.com/mp3anthony/cartel/pull/45). Both issues
   auto-closed on merge. Batches C-G (below, still fully scoped from the
