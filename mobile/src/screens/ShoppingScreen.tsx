@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
   Badge,
+  Banner,
   Body,
   CheckTarget,
   Confirm,
@@ -674,12 +675,10 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
         );
       })}
 
-      {justFinished || list.archivedAt !== null ? (
-        <Body>
-          {justFinished
-            ? "Shop recorded — this location's ordering will reflect it next time."
-            : 'This shop has already been recorded.'}
-        </Body>
+      {justFinished ? (
+        <Banner message="Shop recorded — this location's ordering will reflect it next time." />
+      ) : list.archivedAt !== null ? (
+        <Body>This shop has already been recorded.</Body>
       ) : null}
 
       {confirmingFinish ? (
