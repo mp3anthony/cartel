@@ -474,13 +474,22 @@ export function ListDetailScreen({
             leading={
               <CheckTarget
                 checked={item.checkedAt !== null}
-                onToggle={() =>
+                onToggle={() => {
+                  // A finished shop (Batch C, #33) is read-only from here on —
+                  // this screen can still be reached for an archived list (a
+                  // deep link, or ShoppingScreen staying mounted underneath it
+                  // in the native-stack navigator per useListItems' own doc
+                  // comment), and its check state shouldn't drift after
+                  // finishShopping() already recorded it.
+                  if (list.archivedAt !== null) {
+                    return;
+                  }
                   void mutate(() =>
                     setChecked(client, item.id, item.checkedAt === null),
-                  )
-                }
+                  );
+                }}
                 accessibilityLabel={item.name}
-                disabled={busy}
+                disabled={busy || list.archivedAt !== null}
               />
             }
             trailing={

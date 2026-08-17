@@ -29,7 +29,7 @@ import {
 } from '../lib/locationCheckoffs';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
-import { setChecked, type ListItemRow } from '../lib/lists';
+import { archiveList, setChecked, unarchiveList, type ListItemRow } from '../lib/lists';
 import { recordShopSession } from '../lib/shopSessions';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
@@ -38,6 +38,7 @@ import type { Tokens } from '../theme/tokens';
 type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
   client: SupabaseClient;
   lists: ListsView;
+  onListsChanged: () => Promise<void>;
 };
 
 /**
@@ -125,8 +126,40 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * with no matching session row), the same class of risk this project already
  * tolerates elsewhere — see Slice 4's accepted location-merge race window —
  * rather than a case worth an atomic function for.
+ *
+ * Batch C (#33 + #35) makes `finishShopping()` claim `list.archivedAt` via
+ * `archiveList()` (`../lib/lists`) as its very first write, before either of
+ * the two writes above. That claim is the actual duplicate-recording guard:
+ * `archiveList()`'s conditional UPDATE is atomic at the database level, so of
+ * two concurrent `finishShopping()` calls for the same list, only one can
+ * ever see `value: true` back. That caller alone proceeds to
+ * `recordLocationCheckoff`/`recordShopSession`; a caller that sees
+ * `value: false` (already archived — a race, a second device, or this
+ * device's own retry) skips straight to the finished-state UI instead of
+ * writing either row again. Archiving also feeds #33: `ListsScreen` and
+ * `DashboardScreen` both filter `archivedAt === null` into their active
+ * views, so a finished list drops out of "Lists" and "Continue shopping" the
+ * moment this write lands — hence the added `onListsChanged` prop, called
+ * after a real (not already-archived) finish, giving the Dashboard/Lists
+ * views this screen doesn't itself own a chance to refresh, rather than
+ * leaving them showing a now-archived list until their own next unrelated
+ * reload.
+ *
+ * If either `recordLocationCheckoff` or `recordShopSession` fails *after* a
+ * successful `value: true` claim, `finishShopping()` calls `unarchiveList()`
+ * (`../lib/lists`) as a best-effort compensating write before surfacing the
+ * error — without it, that failure would leave the list permanently archived
+ * with no history ever written, and every retry would read the stale claim as
+ * "already recorded" and silently skip the writes that never actually
+ * happened. A failure in the compensating unarchive itself is swallowed
+ * rather than shown, so it can never mask the real error that triggered it.
+ *
+ * Item check/uncheck (`toggle()`) is gated on `list.archivedAt` the same way
+ * the "Finish shopping" button already is — an archived list's item state is
+ * read-only from that point on, consistent with the "already recorded"
+ * messaging a returning visit to the same screen shows.
  */
-export function ShoppingScreen({ client, lists, navigation, route }: Props) {
+export function ShoppingScreen({ client, lists, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const { listId } = route.params;
@@ -174,6 +207,9 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
   }, [list, navigation]);
 
   async function toggle(item: ListItemRow) {
+    if (!list || list.archivedAt !== null) {
+      return;
+    }
     if (pending.has(item.id)) {
       return;
     }
@@ -332,6 +368,16 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
     if (!list || list.locationId === null) {
       return;
     }
+    if (list.archivedAt !== null) {
+      // Can happen if the list was archived remotely (another device) while
+      // this device's confirm dialog was already open — the "Finish shopping"
+      // button itself is disabled once archivedAt is set, so this only ever
+      // catches a dialog that opened before that. Close it rather than leaving
+      // it stuck open with no feedback; the "already recorded" messaging
+      // (reads list.archivedAt directly) explains the rest.
+      setConfirmingFinish(false);
+      return;
+    }
     if (items.filter((item) => item.checkedAt !== null).length === 0) {
       return;
     }
@@ -341,10 +387,36 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
     setFinishingShopping(true);
     setError(null);
     try {
+      // The atomic claim. Only the caller that flips `archived_at` from null to
+      // non-null (`value: true`) is the one that actually gets to write the
+      // checkoff/session rows below — see this screen's own header comment for
+      // why this has to come first, and why it's this call, not either of the
+      // two below, that's the real duplicate-recording guard (#35).
+      const archiveOutcome = await archiveList(client, list.id);
+      if (!archiveOutcome.ok) {
+        setError(archiveOutcome.message);
+        return;
+      }
+
+      if (!archiveOutcome.value) {
+        // Already archived by an earlier call — this device's own retry, a
+        // second device, or a genuine race. The shop was already recorded;
+        // don't write either row again, just land on the same finished state.
+        setConfirmingFinish(false);
+        setJustFinished(true);
+        return;
+      }
+
       const checkedNames = orderedCheckedItemNames(items);
 
       const checkoffOutcome = await recordLocationCheckoff(client, list.locationId, checkedNames);
       if (!checkoffOutcome.ok) {
+        // The archive claim above already succeeded, so without this the list
+        // would be stuck permanently archived with no history ever written —
+        // undo the claim so the list stays retryable. Best-effort: a failure
+        // here doesn't get its own error message, so it can't mask the real
+        // one below.
+        await unarchiveList(client, list.id);
         setError(checkoffOutcome.message);
         return;
       }
@@ -357,11 +429,17 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
         checkedItemNames: checkedNames,
       });
       if (!sessionOutcome.ok) {
+        // Same compensating unarchive as above — the checkoff write already
+        // landed by this point, but the archive claim still needs to be
+        // undone so a retry doesn't skip straight to "already recorded"
+        // without a shop_sessions row ever existing.
+        await unarchiveList(client, list.id);
         setError(sessionOutcome.message);
         return;
       }
 
       await refreshCheckoffs();
+      await onListsChanged();
       setConfirmingFinish(false);
       setJustFinished(true);
     } finally {
@@ -499,7 +577,7 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
               label={item.name}
               checked={item.checkedAt !== null}
               onToggle={() => void toggle(item)}
-              disabled={pending.has(item.id)}
+              disabled={pending.has(item.id) || list.archivedAt !== null}
               accessibilityLabel={item.name}
             />
 
@@ -596,8 +674,12 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
         );
       })}
 
-      {justFinished ? (
-        <Body>Shop recorded — this location's ordering will reflect it next time.</Body>
+      {justFinished || list.archivedAt !== null ? (
+        <Body>
+          {justFinished
+            ? "Shop recorded — this location's ordering will reflect it next time."
+            : 'This shop has already been recorded.'}
+        </Body>
       ) : null}
 
       {confirmingFinish ? (
@@ -615,7 +697,7 @@ export function ShoppingScreen({ client, lists, navigation, route }: Props) {
             setError(null);
             setConfirmingFinish(true);
           }}
-          disabled={checkedCount === 0 || pending.size > 0}
+          disabled={checkedCount === 0 || pending.size > 0 || list.archivedAt !== null}
         />
       )}
     </Screen>

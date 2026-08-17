@@ -99,7 +99,10 @@ export function ListsScreen({
     navigation.navigate('ListDetail', { listId: outcome.value });
   }
 
-  const lists = view.status === 'loaded' ? view.lists : [];
+  // Archived lists (Batch C, #33) are done — they're `finishShopping()`'s own
+  // record of a completed shop, not an active list to keep resurfacing here.
+  const lists =
+    view.status === 'loaded' ? view.lists.filter((list) => list.archivedAt === null) : [];
 
   return (
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll>

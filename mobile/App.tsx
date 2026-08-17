@@ -232,7 +232,12 @@ function Bootstrapped({ env }: { env: Env }) {
             replaces it with the list's name once the index resolves. */}
         <Stack.Screen name="Shopping" options={{ title: 'Shopping' }}>
           {(props) => (
-            <ShoppingScreen {...props} client={client} lists={lists.view} />
+            <ShoppingScreen
+              {...props}
+              client={client}
+              lists={lists.view}
+              onListsChanged={lists.refresh}
+            />
           )}
         </Stack.Screen>
 
