@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -489,6 +489,54 @@ export function Confirm({
 }
 
 /**
+ * A high-visibility, in-flow confirmation — deliberately not an overlay, for the
+ * same reason Confirm above isn't one: react-native-web has no Alert, so anything
+ * that isn't rendered as part of the document never appears on the one verified
+ * surface. "Hard to miss" here comes from weight (icon, bold text, border,
+ * elevation), not from floating above the content.
+ *
+ * Positive-only for now (no `kind` prop) — the only caller today is a success
+ * confirmation, and adding negative/neutral kinds without a real second caller
+ * would be speculative. Color is never the only signal, matching ErrorNote's own
+ * rule: the check glyph carries the meaning, `positive` just accents it, and it's
+ * never used as a text-bearing fill (tokens.ts has no measured positiveWash to
+ * fill with).
+ *
+ * Dismiss is local-only and never wired back to caller state: tapping the "x"
+ * hides this instance for the rest of its mount but does not touch anything the
+ * caller passed in. No auto-dismiss timer — the one caller today (ShoppingScreen's
+ * `justFinished`) only ever flips true after the list is archived, and `toggle()`
+ * early-returns once a list is archived, so nothing in that screen resets
+ * `justFinished` back to false within a single mount. It persists until the
+ * screen unmounts by construction, not by a timer, so this component doesn't
+ * need one either.
+ */
+export function Banner({ message }: { message: string }) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const [dismissed, setDismissed] = useState(false);
+
+  if (dismissed) {
+    return null;
+  }
+
+  return (
+    <View accessibilityRole="alert" style={styles.banner}>
+      <Text style={styles.bannerGlyph}>✓</Text>
+      <Text style={styles.bannerText}>{message}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss confirmation"
+        onPress={() => setDismissed(true)}
+        style={({ pressed }) => [styles.touchTarget, pressed && styles.touchTargetPressed]}
+      >
+        <Text style={styles.iconGlyph}>×</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/**
  * A small scope marker. The wash is decoration and the text is the information —
  * `accentWash` is too pale to carry meaning on its own, which is what its own token
  * comment says, so the label is ordinary primary text that happens to sit on it.
@@ -786,6 +834,30 @@ function createStyles(tokens: Tokens) {
     },
     confirmActions: {
       gap: tokens.space.sm,
+    },
+    banner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: tokens.space.sm,
+      backgroundColor: tokens.color.surface,
+      borderRadius: tokens.radius.lg,
+      borderWidth: 2,
+      borderColor: tokens.color.positive,
+      padding: tokens.space.lg,
+      ...tokens.elevation.card,
+    },
+    bannerGlyph: {
+      color: tokens.color.positive,
+      fontSize: tokens.fontSize.title,
+      fontWeight: '700',
+      lineHeight: tokens.fontSize.title,
+    },
+    bannerText: {
+      flex: 1,
+      color: tokens.color.textPrimary,
+      fontSize: tokens.fontSize.body,
+      fontWeight: '600',
+      lineHeight: tokens.fontSize.body * 1.5,
     },
     badge: {
       alignSelf: 'flex-start',
