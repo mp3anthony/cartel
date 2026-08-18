@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { loadHouseholdState, type HouseholdState } from '../lib/household';
+import { logDiagnostic } from '../lib/logging';
 
 export type HouseholdView =
   | { status: 'loading' }
@@ -13,6 +14,10 @@ export function useHousehold(client: SupabaseClient, enabled: boolean) {
 
   const refresh = useCallback(async () => {
     const outcome = await loadHouseholdState(client);
+
+    if (!outcome.ok) {
+      logDiagnostic('household', outcome.message);
+    }
 
     setView(
       outcome.ok

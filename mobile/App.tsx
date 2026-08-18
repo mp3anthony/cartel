@@ -9,7 +9,8 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { Body, ErrorNote, Heading, Screen } from './src/components/ui';
+import { Body, ErrorNote, Heading, PrimaryButton, Screen } from './src/components/ui';
+import { AppErrorBoundary } from './src/components/ErrorBoundary';
 import { HeaderLogo } from './src/components/HeaderLogo';
 import { NavMenu } from './src/components/NavMenu';
 import { useAnonymousSession } from './src/hooks/useAnonymousSession';
@@ -78,7 +79,9 @@ export default function App() {
           it — including the branches that never reach the navigator. */}
       <SafeAreaProvider>
         {envResult.ok ? (
-          <Bootstrapped env={envResult.env} />
+          <AppErrorBoundary>
+            <Bootstrapped env={envResult.env} />
+          </AppErrorBoundary>
         ) : (
           <ConfigErrorScreen
             problem={envResult.problem}
@@ -158,6 +161,7 @@ function Bootstrapped({ env }: { env: Env }) {
         <Heading>Cartel can’t start</Heading>
         <Body>The app could not establish a session.</Body>
         <ErrorNote message={session.message} />
+        <PrimaryButton label="Try again" onPress={session.retry} />
       </Screen>
     );
   }
@@ -171,6 +175,7 @@ function Bootstrapped({ env }: { env: Env }) {
       <Screen>
         <Heading>Something went wrong</Heading>
         <ErrorNote message={view.message} />
+        <PrimaryButton label="Try again" onPress={refresh} />
       </Screen>
     );
   }

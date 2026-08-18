@@ -1,10 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
+
+import { logDiagnostic } from '../lib/logging';
+
+type InternalState =
+  | { status: 'loading' }
+  | { status: 'ready'; userId: string }
+  | { status: 'error'; message: string };
 
 export type SessionState =
   | { status: 'loading' }
   | { status: 'ready'; userId: string }
-  | { status: 'error'; message: string };
+  | { status: 'error'; message: string; retry: () => void };
 
 /**
  * Establishes the anonymous session the whole app runs on.
@@ -15,17 +22,26 @@ export type SessionState =
  *
  * Restoring matters more than creating: a restored session is what makes the user
  * the same person as last time, and therefore still in their household.
+ *
+ * `retry` (#42) re-runs the same establish effect via an internal token rather than
+ * reloading the page — a manual click, no backoff, no retry limit. It exists because
+ * the 'error' branch used to dead-end: nothing in the app could ever leave it short
+ * of an external reload.
  */
 export function useAnonymousSession(client: SupabaseClient): SessionState {
-  const [state, setState] = useState<SessionState>({ status: 'loading' });
+  const [state, setState] = useState<InternalState>({ status: 'loading' });
+  const [retryToken, setRetryToken] = useState(0);
+  const retry = useCallback(() => setRetryToken((n) => n + 1), []);
 
   useEffect(() => {
     let active = true;
+    setState({ status: 'loading' }); // resets the UI out of 'error' while retrying
 
     async function establish() {
       const { data, error } = await client.auth.getSession();
 
       if (error) {
+        logDiagnostic('session', error, { stage: 'getSession' });
         if (active) {
           setState({ status: 'error', message: error.message });
         }
@@ -46,6 +62,7 @@ export function useAnonymousSession(client: SupabaseClient): SessionState {
       }
 
       if (signIn.error) {
+        logDiagnostic('session', signIn.error, { stage: 'signInAnonymously' });
         setState({
           status: 'error',
           // Anonymous sign-in is a project-level toggle, and this is the error you
@@ -57,6 +74,7 @@ export function useAnonymousSession(client: SupabaseClient): SessionState {
       }
 
       if (!signIn.data.session) {
+        logDiagnostic('session', 'No session was returned.', { stage: 'signInAnonymously' });
         setState({ status: 'error', message: 'No session was returned.' });
         return;
       }
@@ -69,7 +87,7 @@ export function useAnonymousSession(client: SupabaseClient): SessionState {
     return () => {
       active = false;
     };
-  }, [client]);
+  }, [client, retryToken]);
 
-  return state;
+  return state.status === 'error' ? { ...state, retry } : state;
 }
