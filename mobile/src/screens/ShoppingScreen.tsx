@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -159,6 +159,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * the "Finish shopping" button already is — an archived list's item state is
  * read-only from that point on, consistent with the "already recorded"
  * messaging a returning visit to the same screen shows.
+ *
+ * Batch E (#32) makes the untagged affordance self-explanatory: the bare `+`
+ * `IconButton` is replaced with a small labeled `Pressable` ("+ Tag aisle")
+ * in the accent color, so it reads as an action rather than stray
+ * punctuation. Presentational only — `beginTagging`, `composingItemId`, and
+ * the inline composer it opens are unchanged.
  */
 export function ShoppingScreen({ client, lists, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -648,11 +654,15 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
                   />
                 </View>
               ) : (
-                <IconButton
-                  glyph="+"
+                <Pressable
+                  accessibilityRole="button"
                   accessibilityLabel={`Tag a section for ${item.name}`}
                   onPress={() => beginTagging(item.id)}
-                />
+                  style={({ pressed }) => [styles.tagPrompt, pressed && styles.tagPromptPressed]}
+                >
+                  <Text style={styles.tagPromptGlyph}>+</Text>
+                  <Text style={styles.tagPromptLabel}>Tag aisle</Text>
+                </Pressable>
               )}
             </View>
 
@@ -715,6 +725,30 @@ function createStyles(tokens: Tokens) {
     },
     tagComposer: {
       gap: tokens.space.sm,
+    },
+    tagPrompt: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.xs,
+      minHeight: tokens.minTouchTarget,
+      paddingHorizontal: tokens.space.sm,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      borderColor: tokens.color.border,
+    },
+    tagPromptPressed: {
+      backgroundColor: tokens.color.surfaceSunken,
+    },
+    tagPromptGlyph: {
+      color: tokens.color.accent,
+      fontSize: tokens.fontSize.body,
+      fontWeight: '700',
+      lineHeight: tokens.fontSize.body,
+    },
+    tagPromptLabel: {
+      color: tokens.color.accent,
+      fontSize: tokens.fontSize.caption,
+      fontWeight: '600',
     },
     tagBadgeRow: {
       flexDirection: 'row',
