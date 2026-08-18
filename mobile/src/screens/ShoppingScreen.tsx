@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -59,15 +59,17 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * the Set already tracks.
  *
  * "Closed and resumed without losing check-off state" needs no new mechanism here.
- * `toggle()` awaits `setChecked()` before calling `refresh()`, so the UI only ever
- * shows a checked state the database has already accepted — never optimistic. This
- * screen holds no check-off state of its own beyond that one pending `Set`, which
- * matters only while a row's own write is in flight and is worthless the moment
- * that write lands or the screen unmounts. Re-entering Shopping for the same
- * `listId` — button, deep-link URL, or cold restart landing here — mounts a fresh
- * `useListItems`, which runs a plain `SELECT ... where list_id = listId` and reads
- * back whatever `checked_at` is currently stored. There is no `shop_sessions` row
- * to resume and nothing here to reconstruct.
+ * Until Batch F (#39), `toggle()` awaited `setChecked()` before calling `refresh()`,
+ * so the UI only ever showed a checked state the database had already accepted —
+ * never optimistic. That's no longer true: `toggle()` now sets an `optimisticChecked`
+ * overlay entry immediately and no longer awaits its own `refresh()` at all (see the
+ * Batch F paragraph below for why). "Closed and resumed" is still trivially true for
+ * the same underlying reason as before, though: neither `optimisticChecked` nor
+ * `pending` survive unmount, so re-entering Shopping for the same `listId` — button,
+ * deep-link URL, or cold restart landing here — mounts a fresh `useListItems`, which
+ * runs a plain `SELECT ... where list_id = listId` and reads back whatever
+ * `checked_at` is currently stored, with no overlay left over to contradict it. There
+ * is no `shop_sessions` row to resume and nothing here to reconstruct.
  *
  * No grouping of checked items — out of scope per Slice 5's plan, still: checked
  * items stay in place rather than sinking to the bottom, and there is no session
@@ -165,6 +167,52 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * in the accent color, so it reads as an action rather than stray
  * punctuation. Presentational only — `beginTagging`, `composingItemId`, and
  * the inline composer it opens are unchanged.
+ *
+ * Batch F (#39) addresses check-off latency two ways. First, `toggle()`
+ * writes an optimistic entry into `optimisticChecked` (a `Map<string, boolean>`
+ * of item id to the checked state the user just asked for) at the moment it's
+ * pressed, rather than waiting for the round trip — both the checked-count
+ * header and each row's `checked` prop read through a small `isChecked()`
+ * helper that consults this overlay before falling back to `item.checkedAt`.
+ * A failed write deletes its own overlay entry and surfaces the error exactly
+ * as before; a successful write leaves the overlay entry in place rather than
+ * clearing it immediately, because clearing it here would just show the old
+ * `item.checkedAt` again until a fresh `view` arrives. Second, `toggle()` no
+ * longer awaits its own `refresh()` after a successful write at all — that
+ * was the redundant second reload #39 named, on top of the round trip
+ * `setChecked()` itself already needed. `useListItems.ts`'s existing Realtime
+ * subscription already calls `refresh()` on every write to this list's items,
+ * including the writer's own echo, so the reload still happens — just once,
+ * not twice. A separate `useEffect` reconciles the overlay against that
+ * arrival: whenever `view` changes (i.e. a refresh completes, from any
+ * source) it drops every overlay entry whose item is no longer in `pending`,
+ * unconditionally — not by comparing the overlay's guess against what came
+ * back, so a write that raced with someone else's concurrent edit still
+ * settles on whatever the server actually has, not on this device's own
+ * optimistic guess. This is a deliberate, scoped override of the "never
+ * optimistic" decision recorded above, not a workaround: it only widens what
+ * this one screen renders while a write is in flight, using the exact same
+ * `pending` Set as the guard against a second tap racing the first.
+ *
+ * `finishShopping()` reacts to `toggle()` dropping its own `refresh()` by no
+ * longer trusting the `items` it was called with (the render-time array,
+ * which may now be stale — `toggle()`'s Realtime-echo refresh may not have
+ * landed yet by the time "Finish shopping" is pressed, or may never land at
+ * all if this device's channel is degraded). Immediately after the archive
+ * claim succeeds, it calls `refresh()` itself once, uses that guaranteed-
+ * fresh array for both `recordLocationCheckoff` and `recordShopSession`, and
+ * — if that refresh itself fails — treats it the same as either of those two
+ * calls failing: a compensating `unarchiveList()` so the list stays
+ * retryable rather than permanently archived with a stale or missing record.
+ * This is a genuine fix, not one more instance of the accepted-race class
+ * HANDOFF.md documents for Slice 4's location-merge window, Slice 8's vote
+ * race, or Slice 9/Batch C's own accepted write-gap risk — those are all
+ * cases where a second write can independently and correctly land after the
+ * first, so tolerating the gap costs nothing but a rare inconsistency; a
+ * `finishShopping()` fed stale `items` would instead single-handedly write a
+ * permanent, wrong record of what was checked, from data it already had a
+ * cheap way to freshen at the one moment (finish-time) that record is
+ * created.
  */
 export function ShoppingScreen({ client, lists, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -196,6 +244,59 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   );
 
   const [pending, setPending] = useState<Set<string>>(new Set());
+  const [optimisticChecked, setOptimisticChecked] = useState<Map<string, boolean>>(new Map());
+
+  // `pending` read inside the reconciliation effect below without being one of its
+  // dependencies — see that effect's own comment for why triggering on `pending`
+  // changes rather than just reading it was a real bug (fixed post-review): a
+  // ref keeps the effect's one trigger (`view`) separate from the up-to-date value
+  // it needs to check against.
+  const pendingRef = useRef(pending);
+  useEffect(() => {
+    pendingRef.current = pending;
+  }, [pending]);
+
+  useEffect(() => {
+    // Reconciles the optimistic overlay against every completed refresh, from any
+    // source (this device's own writer echo, another device's write, or a manual
+    // refresh) — not just the one this device itself triggered. An overlay entry is
+    // dropped once its item is no longer pending, unconditionally: this settles on
+    // whatever the server actually has rather than comparing against the overlay's
+    // own guess, so a write that raced with someone else's concurrent edit still
+    // lands on the real value instead of silently keeping this device's stale
+    // optimism. An entry whose item is still pending survives the reconciliation —
+    // its own write hasn't resolved yet, so there's nothing fresher to reconcile
+    // against.
+    //
+    // Deliberately keyed on `[view]` alone, not `[view, pending]` — `toggle()`'s own
+    // `finally` clears an item's `pending` entry as soon as `setChecked()`'s round
+    // trip resolves, which is well before the separate, slower Realtime-echo refresh
+    // that actually updates `view` lands. Depending on `pending` here (an earlier
+    // draft did, caught in review) re-ran this effect at that clear, read `view`
+    // while it was still the pre-write snapshot, and deleted the just-set overlay
+    // entry before the real confirmation existed — visible as a checked→unchecked→
+    // checked flicker, or a checkbox stuck unchecked if the echo never arrives at
+    // all. Reading `pending` through the ref above instead of the dependency array
+    // means this only ever reconciles at the moment `view` itself actually changes.
+    if (view.status !== 'loaded' || optimisticChecked.size === 0) {
+      return;
+    }
+    setOptimisticChecked((current) => {
+      if (current.size === 0) {
+        return current;
+      }
+      let changed = false;
+      const next = new Map(current);
+      for (const id of current.keys()) {
+        if (!pendingRef.current.has(id)) {
+          next.delete(id);
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [view]);
+
   const [error, setError] = useState<string | null>(null);
   const [composingItemId, setComposingItemId] = useState<string | null>(null);
   const [sectionDraft, setSectionDraft] = useState('');
@@ -204,6 +305,15 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   const [confirmingFinish, setConfirmingFinish] = useState(false);
   const [finishingShopping, setFinishingShopping] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
+
+  // Effective checked state for a row: the optimistic overlay above wins while a
+  // value is present, otherwise falls back to whatever the database last reported.
+  // Used everywhere a row's checked state matters — the row's own `checked` prop,
+  // the header's `checkedCount`, and nowhere else (`computeRouteOrder` stays reading
+  // `checkoffs`/`locationItems`, unrelated to this per-item toggle state).
+  function isChecked(item: ListItemRow): boolean {
+    return optimisticChecked.has(item.id) ? optimisticChecked.get(item.id)! : item.checkedAt !== null;
+  }
 
   useLayoutEffect(() => {
     // Same reasoning as ListDetailScreen's header: it carries the list's name, and
@@ -222,18 +332,33 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     }
     setJustFinished(false);
 
+    const nextChecked = !isChecked(item);
+
     setPending((current) => new Set(current).add(item.id));
+    setOptimisticChecked((current) => {
+      const next = new Map(current);
+      next.set(item.id, nextChecked);
+      return next;
+    });
     setError(null);
 
     try {
-      const outcome = await setChecked(client, item.id, item.checkedAt === null);
+      const outcome = await setChecked(client, item.id, nextChecked);
 
       if (!outcome.ok) {
+        setOptimisticChecked((current) => {
+          const next = new Map(current);
+          next.delete(item.id);
+          return next;
+        });
         setError(outcome.message);
         return;
       }
 
-      await refresh();
+      // No explicit refresh() here — this was the second, redundant reload #39
+      // named. useListItems.ts's Realtime subscription already calls refresh() on
+      // this row's own echo; the optimistic entry above stands in until that
+      // lands (see the reconciliation effect above).
     } finally {
       setPending((current) => {
         const next = new Set(current);
@@ -414,7 +539,21 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
         return;
       }
 
-      const checkedNames = orderedCheckedItemNames(items);
+      // toggle() no longer forces its own refresh() after a successful check-off
+      // (that was the redundant reload #39 named) — it relies on the Realtime
+      // echo instead, which may not have landed yet, or at all if this device's
+      // channel is degraded. Force one guaranteed-fresh read here, at the single
+      // point this screen writes a permanent record of what was checked, rather
+      // than trusting the `items` this function was called with.
+      const freshOutcome = await refresh();
+      if (!freshOutcome.ok) {
+        await unarchiveList(client, list.id);
+        setError(freshOutcome.message);
+        return;
+      }
+      const freshItems = freshOutcome.value;
+
+      const checkedNames = orderedCheckedItemNames(freshItems);
 
       const checkoffOutcome = await recordLocationCheckoff(client, list.locationId, checkedNames);
       if (!checkoffOutcome.ok) {
@@ -432,7 +571,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
         locationId: list.locationId,
         householdId: list.householdId,
         listId: list.id,
-        itemNames: items.map((item) => item.name),
+        itemNames: freshItems.map((item) => item.name),
         checkedItemNames: checkedNames,
       });
       if (!sessionOutcome.ok) {
@@ -560,7 +699,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
 
   const items = view.items;
   const orderedItems = computeRouteOrder(items, locationItems.items, checkoffs.checkoffs);
-  const checkedCount = items.filter((item) => item.checkedAt !== null).length;
+  const checkedCount = items.filter((item) => isChecked(item)).length;
 
   return (
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
@@ -582,7 +721,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
             <CheckTarget
               size="large"
               label={item.name}
-              checked={item.checkedAt !== null}
+              checked={isChecked(item)}
               onToggle={() => void toggle(item)}
               disabled={pending.has(item.id) || list.archivedAt !== null}
               accessibilityLabel={item.name}

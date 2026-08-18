@@ -41,7 +41,7 @@ export function useListItems(client: SupabaseClient, listId: string) {
     const outcome = await loadItems(client, listId);
 
     if (!active.current) {
-      return;
+      return outcome;
     }
 
     setView(
@@ -49,6 +49,8 @@ export function useListItems(client: SupabaseClient, listId: string) {
         ? { status: 'loaded', items: outcome.value }
         : { status: 'error', message: outcome.message },
     );
+
+    return outcome;
   }, [client, listId]);
 
   useEffect(() => {
