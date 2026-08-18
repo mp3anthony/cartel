@@ -5,6 +5,107 @@
 
 ## Last active
 
+- **2026-08-18 build session — Batch F (#39) shipped and merged,
+  [PR #49](https://github.com/mp3anthony/cartel/pull/49). Issue auto-closed
+  on merge. Batch G (below, still fully scoped from the 2026-08-15 triage
+  session) is the only one left — pick it up directly next session, no
+  further triage needed.** Same pipeline as Batches A-E, but with a real
+  investigation step first per this batch's own HANDOFF note not to assume
+  the fix: measured actual check-off round trips live against local dev
+  (`mobile-web`, port 8082) before any Planner work — two real taps came
+  back in ~210ms and ~207ms, click-to-DOM-update, nowhere near the
+  reported 12 seconds. This confirms (as the prior triage session's own
+  note already suspected) that neither missing-optimistic-UI nor the
+  redundant reload fully explains a literal 12s stall in isolation — the
+  real-world stall is most plausibly explained by conditions this local
+  environment can't reproduce (the user's actual network, Supabase
+  free-tier cold start). The fix doesn't chase an exact 12s repro; it
+  makes perceived latency near-zero regardless of the underlying
+  round-trip time, which is what the issue actually asked for.
+  - **Optimistic check-off UI**, `ShoppingScreen.tsx` only (not
+    `ListDetailScreen.tsx`'s own per-item circle — out of scope, issue
+    title/repro is specifically Shopping Mode). A new `optimisticChecked:
+    Map<string, boolean>` overlay flips a row's checkmark on the same tick
+    as the tap, read through a new `isChecked(item)` helper used
+    everywhere a row's effective checked state matters (`CheckTarget`'s
+    `checked` prop, the header's `N of M checked` count) — `computeRouteOrder`
+    deliberately still reads raw `checkoffs`/`locationItems`, unrelated to
+    this per-session toggle state. `toggle()` no longer calls its own
+    `refresh()` on success — that was the second, redundant reload the
+    issue's own text named — relying instead on the pre-existing Realtime
+    echo in `useListItems.ts` to eventually confirm the write.
+  - **`finishShopping()`'s freshness fix, a genuine correctness fix, not
+    one more accepted-race precedent.** Removing `toggle()`'s own
+    `refresh()` meant `finishShopping()` could no longer trust the
+    render-time `items` it was called with to be fresh enough for the
+    *permanent* `location_checkoffs`/`shop_sessions` record it writes — a
+    user checking an item and immediately hitting "Finish shopping" before
+    the Realtime echo lands (or ever, if that device's channel is
+    degraded) could have silently dropped that item from history forever.
+    Fixed by having `useListItems`'s `refresh()` return the `Outcome` it
+    already computed internally (previously discarded — additive change,
+    `ListDetailScreen.tsx`'s own existing `await refresh();` call is
+    unaffected), and `finishShopping()` now calls it once itself right
+    after the archive claim succeeds, using that guaranteed-fresh array —
+    not the stale `items` parameter — for both `orderedCheckedItemNames`
+    and `recordShopSession`. A failed forced-refresh reuses the same
+    compensating-`unarchiveList()` pattern the function's other two
+    failure branches already use. Deliberately reasoned as *not* the same
+    class as Slice 4's location-merge race, Slice 8's vote race, or Slice
+    9/Batch C's own accepted write-gap risk — those are all self-healing
+    or bounded; a silently incomplete permanent history record isn't.
+  - **Code review (separate session) caught one real, severe bug before
+    merge**: the reconciliation `useEffect` that clears an overlay entry
+    once real data confirms it was originally keyed on `[view, pending]`,
+    so it re-ran on every `pending` change too — `toggle()`'s own `finally`
+    clears `pending` as soon as `setChecked()`'s round trip resolves, well
+    before the slower Realtime-echo refresh that actually updates `view`
+    lands, so the reconciliation effect fired early, read the still-stale
+    `view`, and deleted the just-set overlay entry before any real
+    confirmation existed — a visible checked→unchecked→checked flicker, or
+    a checkbox stuck unchecked indefinitely if the echo never arrived at
+    all. This would have defeated the entire point of the fix. **Applied
+    directly by the orchestrator** (small, well-specified, single-file
+    change — read `pending` through a `useRef` synced by its own effect
+    instead of depending the reconciliation effect on `pending` itself, so
+    it only fires when `view` changes) rather than routed back through the
+    Code Writer session, then **re-verified by the same separate Reviewer
+    session** against the actual disk state, not the description of the
+    fix — confirmed clean, no new findings, no stale-ref race (React
+    commits effects in declaration order, so the ref-sync effect — declared
+    first — always runs before the reconciliation effect reads it, whether
+    they fire in the same commit or different ones).
+  - **Live-verified in the real Browser pane** against local dev with real
+    seeded-then-cleaned-up data: created a list, attached a pre-existing
+    test location ("New World South City" — untouched, not created by this
+    session), entered Shopping Mode. Repeated check/uncheck on the same
+    item traced via `aria-checked` polling (30ms/10ms intervals over
+    4-5s windows) confirmed instant flip with zero reversion — no flicker,
+    confirming the review fix actually landed on the rendered page, not
+    just in source. Header count stayed in sync with the optimistic state
+    throughout. The specific `finishShopping` race was exercised directly,
+    not just reasoned about: checked an item and, with literally zero added
+    delay, immediately tapped "Finish shopping" and confirmed — then
+    queried `shop_sessions.checked_item_names` directly and confirmed the
+    just-tapped item was correctly included, the exact case the freshness
+    fix targets. All test rows (1 anonymous user, 1 list, 3 `list_items`,
+    1 `shop_sessions` row, 1 `location_checkoffs` row) queried and confirmed
+    as this session's own before deletion, then deleted and reverified at
+    zero; the pre-existing test location itself was left untouched.
+  - One pre-existing, unrelated console noise seen during testing, not
+    investigated further: a stray `Failed to load resource: 409` and the
+    long-standing nested-`<button>` hydration warnings this file's Traps
+    section already documents for `ListDetailScreen`'s `Row` — both
+    appeared to be stale/buffered from an earlier, unrelated interaction
+    in the same tab session (a stale-localStorage FK-violation retry before
+    this session's real testing began) rather than something this batch's
+    diff introduced; not chased further since nothing in the actual
+    check-off/finish-shopping flow showed any error-state UI.
+  - `npx tsc --noEmit` clean throughout (Code Writer, Code Reviewer twice
+    — original pass and re-verify — and the orchestrator after applying
+    the review fix directly). `mobile/app.json`/`mobile/package.json`
+    bumped to `0.0.18`.
+
 - **2026-08-18 build session — Batch E (#32) shipped and merged,
   [PR #48](https://github.com/mp3anthony/cartel/pull/48). Issue auto-closed
   on merge. Batches F-G (below, still fully scoped from the 2026-08-15
