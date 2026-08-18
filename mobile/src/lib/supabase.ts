@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 import { type Env } from './env';
+import { logDiagnostic } from './logging';
 
 /**
  * The app's Supabase client.
@@ -30,6 +31,16 @@ export function getSupabaseClient(env: Env): SupabaseClient {
         autoRefreshToken: true,
         detectSessionInUrl: false,
       },
+    });
+
+    // #42's "catch it in the act" monitoring — logs every auth state transition
+    // (including token-refresh failures) so a future occurrence of the reported JWT
+    // error has a trail to grep for, without adding a telemetry dependency.
+    client.auth.onAuthStateChange((event, session) => {
+      logDiagnostic('auth-state', event, {
+        hasSession: session !== null,
+        userId: session?.user.id ?? null,
+      });
     });
   }
 
