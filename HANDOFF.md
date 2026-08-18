@@ -5,6 +5,77 @@
 
 ## Last active
 
+- **2026-08-18 build session — Batch G (#42) shipped and merged,
+  [PR #50](https://github.com/mp3anthony/cartel/pull/50). Issue auto-closed
+  on merge. This was the last item in the 2026-08-15 triage backlog —
+  Batches A through G are all now shipped. Nothing is queued; next session
+  should start with the user, not by picking up a pre-scoped batch.**
+  Same pipeline as Batches A-F: Planner → Code Writer → Code Reviewer
+  (separate subagent session, zero findings on first pass) → orchestrator
+  live-browser verification. Defensive-recovery only, per this batch's own
+  prior triage note — the actual root cause of the intermittent JWT error
+  was never diagnosed or reproduced, only its blank-page symptom.
+  - **The real mechanism behind the reported blank page was almost
+    certainly an uncaught exception with nothing to catch it** — both
+    *known* error branches in `App.tsx`'s `Bootstrapped`
+    (`useAnonymousSession`'s and `useHousehold`'s `status === 'error'`)
+    already rendered real error screens before this batch; there was no
+    React error boundary anywhere in the app, so any *unhandled* throw
+    elsewhere in the tree (e.g. surfacing from Supabase internals on a
+    genuinely bad JWT) would have unmounted straight to a blank page with
+    nothing shown. Fixed with a new `AppErrorBoundary` (class component —
+    `componentDidCatch`/`getDerivedStateFromError` have no hook
+    equivalent, not left as an open question), wrapping only the
+    `Bootstrapped` branch in `App.tsx` (not `ConfigErrorScreen`, a
+    separate config-time problem that never touches Supabase).
+  - **Both pre-existing error branches gained a manual "Try again" retry**,
+    where previously the only way out was an external browser reload.
+    Session retry re-runs `useAnonymousSession`'s effect via a new internal
+    retry-token (`retry()`, exposed on the hook's `error` variant) rather
+    than reloading the page; household retry reuses the hook's own
+    pre-existing `refresh()` — no new mechanism needed there. Deliberately
+    no automatic/silent retry, no backoff, no retry limit anywhere — every
+    retry added is a single manual click, per the batch's own explicit
+    non-goals.
+  - **New shared `logDiagnostic(scope, subject, extra)`**
+    (`mobile/src/lib/logging.ts`) — plain `console.error` with a
+    `[cartel:<scope>]` prefix and a JSON body including an `isJwtShaped`
+    flag, since this codebase has no telemetry/logging service and adding
+    one was explicitly out of scope. Called from the error boundary's
+    `componentDidCatch`, both `useAnonymousSession` error paths,
+    `useHousehold`'s error path, and a new `client.auth.onAuthStateChange`
+    listener in `supabase.ts` (registered once, inside the singleton-client
+    creation block) logging every auth transition — this last one is the
+    actual "catch it in the act" monitoring the issue asked for, since
+    nothing previously logged auth state transitions at all. No change to
+    `autoRefreshToken`/`persistSession`/`detectSessionInUrl`.
+  - **Live-verified in the real Browser pane** against local dev
+    (`mobile-web`, port 8082), all three recovery paths exercised for real
+    via temporary, fully-reverted test-only source edits (confirmed
+    `git diff` clean before opening the PR, `npx tsc --noEmit` clean
+    throughout): injected a real throw in `Bootstrapped` guarded by a
+    `?crashtest=1` query param → confirmed the "Cartel hit a snag" screen
+    rendered instead of a blank page, the full component stack logged via
+    `[cartel:error-boundary]`, clicking Reload triggered a genuine
+    full-page reload (confirmed via a second, later-timestamped
+    `componentDidCatch` log entry for the same crash), and removing the
+    crash condition let the app recover cleanly to a normal Dashboard.
+    Separately forced `useAnonymousSession` and `useHousehold` into their
+    error branches (query-param-guarded temporary edits, each reverted
+    before the next test) and confirmed "Try again" advanced an
+    attempt-counter each click (0→1, then a separate 1→2 test) with no
+    full page reload for either — proving the retry-token/`refresh()`
+    mechanisms actually re-run client-side rather than just compiling.
+    Confirmed `[cartel:auth-state]` lines (`INITIAL_SESSION`, `SIGNED_IN`)
+    appear on a normal fresh load. The Browser pane's `computer` click
+    tool timed out once mid-session on the Reload button (consistent with
+    this file's already-documented click-reliability trap) — worked around
+    with the same `javascript_tool` direct-`.click()` fallback the trap
+    entry already recommends, no new issue.
+  - `npx tsc --noEmit` clean throughout (Code Writer, Code Reviewer, and
+    the orchestrator after every temporary test edit was reverted).
+    `mobile/app.json`/`mobile/package.json` bumped to `0.0.19`.
+
 - **2026-08-18 build session — Batch F (#39) shipped and merged,
   [PR #49](https://github.com/mp3anthony/cartel/pull/49). Issue auto-closed
   on merge. Batch G (below, still fully scoped from the 2026-08-15 triage
