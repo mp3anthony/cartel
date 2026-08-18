@@ -5,6 +5,79 @@
 
 ## Last active
 
+- **2026-08-18 build session — Batch E (#32) shipped and merged,
+  [PR #48](https://github.com/mp3anthony/cartel/pull/48). Issue auto-closed
+  on merge. Batches F-G (below, still fully scoped from the 2026-08-15
+  triage session) are next, suggested order F → G unchanged.** Same
+  pipeline as Batches A-D: Planner → Code Writer → Code Reviewer (separate
+  subagent session from Code Writer) → orchestrator did live-browser
+  verification directly → orchestrator merge (standing go-ahead, no
+  per-batch re-ask needed). One fix-and-reverify round was not needed this
+  time — the Code Reviewer's independent pass found zero issues on the
+  first round.
+  - Presentational-only batch, no schema changes. Replaced the bare,
+    unlabeled `+` `IconButton` shown under each untagged shopping-list item
+    with a small local `Pressable` ("+ Tag aisle") styled in the app's one
+    accent color, so it reads as an action rather than stray punctuation.
+    `beginTagging()`, `composingItemId`, and the inline composer it opens
+    are unchanged — this was purely about the affordance being
+    recognizable at a glance, not the underlying route-learning/tagging
+    mechanism (which already works from check-off order; section tags are
+    only a fallback).
+  - **Deliberately local composition, not a shared-primitive change** —
+    `IconButton` (`ui.tsx`) was NOT extended with a label prop (it has a
+    fixed single-glyph 44×44 contract shared by 4 other call sites —
+    diluting that for one caller was rejected), `Badge` was NOT made
+    pressable (it's a pure-display "scope marker" used by 5 other call
+    sites — conflating "display a fact" with "create a fact" was
+    rejected), and no new shared primitive was added (YAGNI — one call
+    site today). All reasoning is in the plan and repeated in the PR body
+    — if a second real caller for a labeled-icon-button shape shows up
+    later, extracting a shared primitive then is grounded in two real
+    usages instead of a guess.
+  - **One known, deliberately-untouched gap, carried forward not
+    introduced**: the new affordance still has no `pending`/`disabled`
+    guard (`pending.has(item.id)`), same as the bare `+` `IconButton` it
+    replaced — unlike the ✏ correction-pencil icon and the composer's
+    Save/Cancel buttons in the same file, which do check it. Confirmed via
+    the diff that this predates the batch; flagged as a possible separate
+    follow-up rather than fixed inline (out of scope for a
+    presentational-only fix).
+  - **Live-verified in the real Browser pane** against local dev
+    (`mobile-web`, port 8082) with real seeded-then-cleaned-up data: created
+    a personal list, a fresh test location (geolocation mocked per this
+    file's own documented `navigator.permissions.query` +
+    `getCurrentPosition` trap — and re-discovered that a failed location
+    creation attempt leaves `LocationsScreen`'s permission-denial sticky
+    until the screen remounts, exactly as this file's Loose-ends section
+    already documented; worked around by navigating back to
+    `ListDetailScreen` and re-opening "Attach a location" rather than
+    retrying in place), attached it, entered Shopping Mode, and confirmed
+    via computed styles on the real DOM: the new control renders "+Tag
+    aisle" as two text nodes, `border-radius: 999px` (pill), 1px border in
+    the dark-theme `border` token color, 44px min height, and both text
+    nodes in the dark-theme `accent` color (`#C9A227`) at the correct
+    `fontSize`/`fontWeight` (16/700 for "+", 13/600 for "Tag aisle") — all
+    token-driven, none hardcoded. Also drove the full interaction through:
+    clicked the new affordance, the same `Field`+Save/Cancel composer
+    opened as before, typed "Aisle 3", saved, and confirmed the row
+    correctly flipped to the tagged state (`Badge` "Aisle 3" + pencil
+    `IconButton`) — the underlying tagging mechanism is unaffected by the
+    presentational change, confirmed live not just by code reading. All
+    test rows (1 anonymous user, 1 list, 1 location, 1 `location_items`
+    row) queried and confirmed as this session's own before deletion, then
+    deleted and reverified at zero — deletion also incidentally confirmed
+    cascade/Realtime removal worked (the list disappeared from the live
+    UI immediately after the SQL delete, with no manual refresh).
+    `computer{action:"screenshot"}` was not attempted this session (not
+    needed — DOM/computed-style verification was sufficient and consistent
+    with the last two sessions' documented pattern of screenshot
+    unreliability in this pane); did not retest whether that constraint
+    has changed.
+  - `npx tsc --noEmit` clean throughout (independently re-run by the Code
+    Writer and the Code Reviewer). `mobile/app.json`/`mobile/package.json`
+    bumped to `0.0.17`.
+
 - **2026-08-17 build session — Batch D (#34) shipped and merged,
   [PR #47](https://github.com/mp3anthony/cartel/pull/47). Issue auto-closed
   on merge. Batches E-G (below, still fully scoped from the 2026-08-15
