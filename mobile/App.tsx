@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from 'react';
-import { ActivityIndicator } from 'react-native';
+import { useCallback, useEffect, useMemo } from 'react';
+import { ActivityIndicator, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import {
   NavigationContainer,
@@ -89,6 +89,7 @@ export default function App() {
           />
         )}
         <ThemedStatusBar />
+        <ThemedPwaChrome />
       </SafeAreaProvider>
     </ThemeProvider>
   );
@@ -100,6 +101,58 @@ export default function App() {
 function ThemedStatusBar() {
   const { resolvedScheme } = useThemeMode();
   return <StatusBar style={resolvedScheme === 'dark' ? 'light' : 'dark'} />;
+}
+
+/**
+ * Syncs the browser/installed-PWA chrome — the iOS status bar strip this
+ * exists for (#31), also Android/desktop Chrome's address-bar tint — to the
+ * live theme. Web only: `expo-status-bar` (`ThemedStatusBar`, above) is a
+ * confirmed complete no-op on web (its `.web.ts` implementation is four
+ * empty functions), so outside this component nothing here touches web
+ * chrome at all.
+ *
+ * Two things get written, both best-effort and overlapping on purpose,
+ * since the two mechanisms other apps document for this disagree with each
+ * other on which one iOS actually honours for an *installed* PWA (see the
+ * PR/issue for sources — genuinely conflicting, not just unresearched):
+ *   1. Every `<meta name="theme-color">` tag's `content` (`public/index.html`
+ *      ships two, split by `prefers-color-scheme`, as the pre-hydration/
+ *      no-JS fallback) — writing the same resolved value to *both* forces an
+ *      explicit in-app Light/Dark override to win regardless of which one
+ *      the browser would otherwise treat as "matching" the OS scheme.
+ *   2. `<body>`/`<html>`'s own inline background-color, since iOS 26 is
+ *      reported to read the top element's painted background rather than
+ *      theme-color for this.
+ * Colors are the same `ground` hex `public/index.html` and
+ * `public/manifest.json` already carry as static fallbacks — keep all three
+ * in sync with `tokens.ts` by hand if the palette ever changes, the same
+ * manual-sync convention `tokens.ts`'s own doc comment already relies on.
+ *
+ * What this can NOT do anything about, per real research (not just this
+ * component's own doc comment) and flagged in the issue rather than silently
+ * left: iOS's status-bar *icon* colour (`apple-mobile-web-app-status-bar-style`)
+ * is a static value baked into `index.html`, with no documented
+ * `prefers-color-scheme`-equivalent and no confirmed live-update path for an
+ * already-installed home-screen icon — so it can only ever pick one static
+ * icon colour, which is legible in one theme and not the other. Left
+ * unset (iOS default) rather than guessed at here; that's a real design
+ * trade-off for the human to make, not an engineering gap to silently patch
+ * around.
+ */
+function ThemedPwaChrome() {
+  const tokens = useTheme();
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') {
+      return;
+    }
+    const ground = tokens.color.ground;
+    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+      meta.setAttribute('content', ground);
+    });
+    document.body.style.backgroundColor = ground;
+    document.documentElement.style.backgroundColor = ground;
+  }, [tokens]);
+  return null;
 }
 
 /**

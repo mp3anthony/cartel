@@ -26,14 +26,14 @@
     <!--
       This file overrides the framework's built-in index.html template (Expo's
       web build prefers public/index.html over its own when one exists) for
-      exactly two additions below: apple-touch-icon and manifest. Neither has
-      a config-driven equivalent in this Expo/Metro web toolchain the way
-      web.favicon does — that one is still generated and injected
-      automatically as its own closing-head-tag-adjacent link tag, appended by
-      the build itself; do not add a second one here. Everything else in this
-      file is the stock template, unmodified, so the lang/title placeholders
-      and script injection keep working exactly as they did without this
-      override.
+      the additions below: apple-touch-icon, manifest, theme-color, and a
+      background-color style. None has a config-driven equivalent in this
+      Expo/Metro web toolchain the way web.favicon does — that one is still
+      generated and injected automatically as its own closing-head-tag-
+      adjacent link tag, appended by the build itself; do not add a second
+      one here. Everything else in this file is the stock template,
+      unmodified, so the lang/title placeholders and script injection keep
+      working exactly as they did without this override.
 
       IMPORTANT for whoever edits this comment: the build's injection step
       does a literal string replace of the head element's closing tag, so
@@ -41,14 +41,36 @@
       quoting) — doing so once already hijacked the injection point and
       swallowed the favicon link into this comment instead of the real head.
 
-      Both new tags point at one static icon (icon.png, this app's existing
+      The icon link points at one static icon (icon.png, this app's existing
       light-colorway app icon), not a light/dark pair — "Add to Home Screen"
       on iOS and Android has no OS-level dark variant for this icon, the same
       constraint issue #25 already documented for the favicon, extended here
       rather than re-argued.
+
+      The two theme-color tags below and the body background-color rule are
+      issue #31's fix for the iOS PWA status bar staying white regardless of
+      theme: a static prefers-color-scheme fallback for first paint / no-JS,
+      and this app's own App.tsx (`ThemedPwaChrome`) overwrites both of these
+      live once React mounts, to track an explicit in-app Light/Dark override
+      that disagrees with the OS scheme. Values are `tokens.ts`'s light/dark
+      `ground` hex, kept in sync by hand — same manual-sync convention that
+      file's own doc comment already relies on, since this file has no way to
+      import from it.
     -->
     <link rel="apple-touch-icon" href="/icon.png" />
     <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#FAF6F1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#15110D" media="(prefers-color-scheme: dark)" />
+    <style>
+      body {
+        background-color: #FAF6F1;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #15110D;
+        }
+      }
+    </style>
   </head>
 
   <body>
