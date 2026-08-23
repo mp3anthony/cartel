@@ -5,6 +5,111 @@
 
 ## Last active
 
+- **2026-08-23 build session — #51 (chain brand colours on the store donut
+  chart) shipped and merged, [PR #53](https://github.com/mp3anthony/cartel/pull/53).
+  Issue auto-closed on merge. [#52](https://github.com/mp3anthony/cartel/issues/52)
+  (Google Places search-assist, below) is still `ready-for-human` and
+  genuinely blocked on the user — nothing else is queued, so next session
+  should start with the user, not by picking up a pre-scoped issue.** Same
+  pipeline as every prior batch: Planner → Code Writer → Code Reviewer
+  (separate subagent session, zero blocking/should-fix findings) →
+  orchestrator live-browser verification → merge (user gave the explicit
+  go-ahead this session).
+  - **Scope decision, stated up front and held throughout**: `chain` is set
+    at location-creation time only — `LocationsScreen.tsx` has no
+    edit-a-location flow for *any* field today (only create/select/merge),
+    so building one just for this issue was judged disproportionate. No
+    UPDATE grant/policy was added to `public.locations`; the table's
+    pre-existing "no edit flow in scope" invariant (from Slice 4) now
+    explicitly covers `chain` too. The issue's own testing checklist item
+    about "editing a location" is the one item this PR doesn't satisfy —
+    flagged plainly in the PR body rather than silently implied as done.
+  - New nullable `chain text` column (check-constraint enum:
+    `new_world`/`paknsave`/`four_square`/`woolworths`/`freshchoice`/`other`)
+    — text+check, not a Postgres enum type, matching this table's own
+    existing style. `'other'` is a real explicit selectable value, not just
+    reachable via `null` — both render identically (today's
+    tint-mixed-accent look), but a user who deliberately picks "Other"
+    persists that as a conscious choice.
+  - **New `mobile/src/theme/chainColors.ts`** — the chain→hex lookup, kept
+    in its own sibling file rather than inline in `tokens.ts` specifically
+    so `tokens.ts`'s own "one accent only" doc comment stays literally true.
+    Colours are theme-invariant (same hex light/dark) — confirmed live, not
+    just asserted.
+  - **`DonutChart.tsx`**: a segment with a recognised chain renders in that
+    chain's real brand colour; `null`/`'other'` falls through to the
+    pre-existing `mixWithSurface()` tint-mixed-accent look, byte-identical
+    to before #51. The collapsed "Other stores" tail bucket never uses a
+    chain colour, regardless of what the collapsed locations' own chains
+    are — a mix of multiple locations' history can't sensibly show one
+    brand colour.
+  - **`LocationsScreen.tsx`** gained a new local `ChainPicker` (not added to
+    `ui.tsx` — single-use, chain-domain-specific) in the create-location
+    composer: a vertical `Row`-based list, deliberately **not**
+    `SegmentedControl` (the existing 3-option Light/Dark/System primitive)
+    — 6 options including long labels ("Four Square", "FreshChoice") and
+    the apostrophe in "PAK'nSAVE" don't fit that primitive's unwrapped
+    single-row track built for 3 short options. PAK'nSAVE's yellow swatch
+    (`#FFD600`) gets a border since it has near-zero contrast against light-
+    theme `surface`/`ground` otherwise.
+  - `supabase/tests/rls_locations_chain.sql` (new, 5 assertions: SELECT
+    grant actually includes `chain`, a valid value round-trips, the check
+    constraint rejects a realistic-looking bad value (`'countdown'` —
+    Woolworths NZ's pre-rebrand name, not an arbitrary string), `'other'` is
+    a real explicit value distinct from `null`, no UPDATE grant/policy
+    exists at all) — ran clean against the live project (ref
+    `chacavfoewyiwrfgvxtj`), independently re-run by both the Code Reviewer
+    and the orchestrator, not just trusted from the Code Writer's own
+    report.
+  - **Live-verified in the real Browser pane** against local dev
+    (`mobile-web`, port 8082) with real seeded-then-cleaned-up data — not
+    just code review. Created 3 real test locations via the actual UI
+    composer (New World, PAK'nSAVE, and one left at the default "Other"),
+    confirmed via direct DB query that `chain` persisted correctly for each
+    (`new_world`/`paknsave`/`null`). Seeded 3 `shop_sessions` rows (one per
+    test location) via SQL to populate the donut chart, then confirmed via
+    the actual rendered SVG `stroke` attributes — not a screenshot, since
+    `computer{action:"screenshot"}` failed with the same "Browser pane is
+    not displayed" error this file has documented before — that all 3
+    segments were visually distinct: New World `#E11A2C` and PAK'nSAVE
+    `#FFD600` exact brand hexes, the unset location's segment computed
+    exactly via `mixWithSurface()`'s own formula (`#866c20` in dark theme,
+    `#da8d6d` in light — hand-verified both by computing the blend by hand).
+    Re-verified in light theme via `resize_window`'s `colorScheme` param
+    paired with a real dimension change plus a page reload (the pairing
+    this file has previously documented as necessary for
+    `prefers-color-scheme` emulation to actually take effect in this pane —
+    held again this session) — confirmed brand hexes stayed identical
+    across themes (theme-invariant, as designed) while the fallback tint
+    correctly recomputed per theme. Chain-picker swatch colours themselves
+    were also confirmed via computed `background-color` reads against the
+    expected `rgb()` conversions of each brand hex, at the correct 14×14px
+    size, before any location was created. Pre-existing locations with
+    `chain = null` (real ones already in the dev database — "New World
+    South City", "Pak'nsave Papanui", "Woolworths Papanui") loaded and
+    rendered throughout with no crash. All test rows (1 anonymous user, 3
+    locations, 3 `shop_sessions` rows) queried and confirmed as this
+    session's own before deletion, then deleted and reverified at zero.
+  - **One environment note, not a code issue**: `computer{action:"left_click"}`
+    timed out once on the nav-menu button early in this session's testing —
+    consistent with this file's already-documented click-reliability trap
+    for this Browser pane — worked around with the same `javascript_tool`
+    direct-`.click()` fallback already recommended elsewhere in this file.
+    No new issue filed; nothing about this session suggests the underlying
+    cause has changed.
+  - `npx tsc --noEmit` clean throughout (Code Writer, Code Reviewer, and the
+    orchestrator independently). `mobile/app.json`/`mobile/package.json`
+    bumped to `0.0.20`.
+  - **A local-only commit from the start of this session
+    (`74d9ba0`, the prior research session's own handoff) had never been
+    pushed to `origin/main`** — discovered when `git pull` after this PR's
+    merge produced a real merge commit instead of a fast-forward. Pushed
+    immediately after merging so `origin/main` and local `main` are back in
+    sync (`551f6c8`). Worth a passing note only — no data was at risk, but
+    if a future session's `git push` after a merge doesn't fast-forward
+    cleanly, check for exactly this (an unpushed local commit predating the
+    session) before assuming something is wrong.
+
 - **2026-08-23 research session — NZ supermarket branding + Google Places
   investigated, zero code written. Next session should start by building
   [#51](https://github.com/mp3anthony/cartel/issues/51) directly
