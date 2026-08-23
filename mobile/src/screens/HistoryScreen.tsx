@@ -7,6 +7,7 @@ import {
   Body,
   Card,
   CheckTarget,
+  Confirm,
   EmptyState,
   ErrorNote,
   Field,
@@ -20,7 +21,11 @@ import { useLocations } from '../hooks/useLocations';
 import { useShopSessions } from '../hooks/useShopSessions';
 import type { Household } from '../lib/household';
 import { addItems, attachLocation, createList } from '../lib/lists';
-import type { ShopSessionRow } from '../lib/shopSessions';
+import {
+  deleteAllShopSessions,
+  deleteShopSession,
+  type ShopSessionRow,
+} from '../lib/shopSessions';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -53,16 +58,29 @@ type Props = NativeStackScreenProps<RootStackParamList, 'History'> & {
  * `ListDetailScreen`'s new copy composer below its own action cluster) —
  * deliberately not a shared component with either of those, see
  * `ListDetailScreen.tsx`'s own copy-composer comment for why.
+ *
+ * Two real, permanent-delete actions (issue #57): removing one card
+ * (`confirmingDeleteId`, the same in-place-Confirm shape `ListDetailScreen`'s
+ * own "Remove list" uses) and "Clear all history", which wipes every entry
+ * currently visible to this user under RLS — not just this screen's own
+ * capped page (`deleteAllShopSessions`'s own doc comment covers why it isn't
+ * scoped to `SHOP_SESSION_HISTORY_CAP`). Neither is soft-delete/undo; both
+ * ask first, per the issue's own explicit instruction. A card's copy
+ * composer, its own delete confirm, and the screen-level clear-all confirm
+ * are mutually exclusive — opening one resets the others, so at most one
+ * confirmation is ever on screen at a time.
  */
 export function HistoryScreen({ client, household, navigation, onListsChanged }: Props) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const { view } = useShopSessions(client);
+  const { view, refresh } = useShopSessions(client);
   const { view: locationsView } = useLocations(client);
 
   const [copyingSessionId, setCopyingSessionId] = useState<string | null>(null);
   const [copyName, setCopyName] = useState('');
   const [copyShared, setCopyShared] = useState(false);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [confirmingClearAll, setConfirmingClearAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,6 +96,8 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
 
   function beginCopy(session: ShopSessionRow) {
     setError(null);
+    setConfirmingDeleteId(null);
+    setConfirmingClearAll(false);
     setCopyingSessionId(session.id);
     setCopyName(`${locationNameFor(session)} — ${formatCompletedAt(session.completedAt)}`);
     setCopyShared(false);
@@ -92,6 +112,72 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
   function cancelCopy() {
     setError(null);
     resetComposer();
+  }
+
+  function beginDeleteSession(session: ShopSessionRow) {
+    setError(null);
+    resetComposer();
+    setConfirmingClearAll(false);
+    setConfirmingDeleteId(session.id);
+  }
+
+  function cancelDeleteSession() {
+    setError(null);
+    setConfirmingDeleteId(null);
+  }
+
+  async function deleteSessionNow(session: ShopSessionRow) {
+    if (busy) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+
+    const outcome = await deleteShopSession(client, session.id);
+
+    if (!outcome.ok) {
+      setBusy(false);
+      setError(outcome.message);
+      return;
+    }
+
+    await refresh();
+    setConfirmingDeleteId(null);
+    setBusy(false);
+  }
+
+  function beginClearAll() {
+    setError(null);
+    resetComposer();
+    setConfirmingDeleteId(null);
+    setConfirmingClearAll(true);
+  }
+
+  function cancelClearAll() {
+    setError(null);
+    setConfirmingClearAll(false);
+  }
+
+  async function clearAllNow() {
+    if (busy) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+
+    const outcome = await deleteAllShopSessions(client);
+
+    if (!outcome.ok) {
+      setBusy(false);
+      setError(outcome.message);
+      return;
+    }
+
+    await refresh();
+    setConfirmingClearAll(false);
+    setBusy(false);
   }
 
   async function submitCopy(session: ShopSessionRow) {
@@ -182,9 +268,26 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
       {error ? <ErrorNote message={error} /> : null}
 
+      {confirmingClearAll ? (
+        <Confirm
+          message="This permanently deletes every shop in your history — not just what's shown here. This can’t be undone."
+          confirmLabel="Clear all history"
+          onConfirm={clearAllNow}
+          onCancel={cancelClearAll}
+          busy={busy}
+        />
+      ) : (
+        <SecondaryButton
+          label="Clear all history"
+          onPress={beginClearAll}
+          disabled={busy}
+        />
+      )}
+
       {view.sessions.map((session) => {
         const locationName = locationNameFor(session);
         const composing = copyingSessionId === session.id;
+        const confirmingDelete = confirmingDeleteId === session.id;
 
         return (
           <Card key={session.id}>
@@ -229,12 +332,27 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
                 />
                 <SecondaryButton label="Cancel" onPress={cancelCopy} disabled={busy} />
               </View>
-            ) : (
-              <SecondaryButton
-                label="Start new list from this"
-                onPress={() => beginCopy(session)}
-                disabled={busy}
+            ) : confirmingDelete ? (
+              <Confirm
+                message="This permanently deletes this shop from your history. This can’t be undone."
+                confirmLabel="Delete"
+                onConfirm={() => void deleteSessionNow(session)}
+                onCancel={cancelDeleteSession}
+                busy={busy}
               />
+            ) : (
+              <View style={styles.cardActions}>
+                <SecondaryButton
+                  label="Start new list from this"
+                  onPress={() => beginCopy(session)}
+                  disabled={busy}
+                />
+                <SecondaryButton
+                  label="Delete"
+                  onPress={() => beginDeleteSession(session)}
+                  disabled={busy}
+                />
+              </View>
             )}
           </Card>
         );
@@ -259,6 +377,9 @@ function createStyles(tokens: Tokens) {
       color: tokens.color.textPrimary,
     },
     composer: {
+      gap: tokens.space.sm,
+    },
+    cardActions: {
       gap: tokens.space.sm,
     },
   });

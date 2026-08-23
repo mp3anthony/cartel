@@ -130,6 +130,48 @@ export async function loadShopSessionLocationCounts(
   };
 }
 
+/**
+ * Deletes one shop_sessions row. Real, permanent delete — no soft-delete
+ * concept exists here (unlike `lists`' `archived_at`/`deleted_at` idiom), per
+ * the issue's own explicit instruction. RLS (migration 20260823000002) scopes
+ * this to rows the caller owns or shares a household with, same equal-rank
+ * shape as every other write on this table — no client-side ownership check
+ * needed before calling this.
+ */
+export async function deleteShopSession(
+  client: SupabaseClient,
+  sessionId: string,
+): Promise<Outcome<void>> {
+  const { error } = await client.from('shop_sessions').delete().eq('id', sessionId);
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  return { ok: true, value: undefined };
+}
+
+/**
+ * Deletes every shop_sessions row currently visible to the caller under RLS —
+ * not just the capped page `loadShopSessions()` returns. `.not('id', 'is',
+ * null)` is a filter that is always true for every row (the primary key is
+ * never null); it exists only because this codebase's one other bulk-mutation
+ * precedent (none, until this function) left no established way to ask
+ * PostgREST for "every row RLS lets me see," and an unconditional `.delete()`
+ * call with zero filter arguments reads exactly like a mistake to the next
+ * person editing this file. RLS, not this filter, is what actually bounds
+ * the rows affected to the caller's own visible set.
+ */
+export async function deleteAllShopSessions(client: SupabaseClient): Promise<Outcome<void>> {
+  const { error } = await client.from('shop_sessions').delete().not('id', 'is', null);
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  return { ok: true, value: undefined };
+}
+
 export async function recordShopSession(
   client: SupabaseClient,
   params: {
