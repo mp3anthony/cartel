@@ -5,6 +5,94 @@
 
 ## Last active
 
+- **2026-08-23 build session — #54 (edit a location's chain after creation)
+  shipped and merged immediately after #51, [PR #55](https://github.com/mp3anthony/cartel/pull/55).
+  Issue auto-closed on merge. Filed and built same-session, not at a future
+  handoff: the user checked #51's real output on their own phone right after
+  it shipped and found the actual gap this closes — see below. [#52](https://github.com/mp3anthony/cartel/issues/52)
+  is still the only thing left `ready-for-human`/blocked on the user —
+  nothing else is queued, next session starts with the user.** Same
+  pipeline as #51: Planner → Code Writer → Code Reviewer (separate session,
+  one real should-fix found and fixed directly) → orchestrator live-browser
+  verification → merge (user's own "sort it all now" was the go-ahead for
+  both the fix and the merge).
+  - **Why this exists**: right after #51 merged, the user looked at the real
+    production donut chart on their phone and asked why it showed no
+    colours — turned out both of their real, already-in-use locations
+    ("Pak'nsave Papanui", "Woolworths Papanui") had `chain = null`, because
+    #51 could only set a chain *at creation time* and both predate it. A
+    direct SQL fix was tried first and correctly **blocked by the
+    permission classifier** as a live production data write — respected
+    rather than routed around; building the real in-app edit feature and
+    using it through the actual UI was the legitimate path instead, and is
+    what actually happened.
+  - **Design**: an open, non-owner-scoped `chain`-only UPDATE policy/grant
+    on `public.locations` — deliberately not restricted to the row's
+    creator, since this table has no ownership concept surfaced anywhere in
+    its UI and SELECT/INSERT are already open to any authenticated user.
+    `name`/`lat`/`lng` still have no UPDATE grant at all, unchanged.
+  - New `updateLocationChain()` (`locations.ts`). `LocationsScreen.tsx`
+    gained a pencil `IconButton` + status `Badge` on every row, reusing
+    #51's own `ChainPicker` inline rather than duplicating it — deliberately
+    a **sibling** of each row's `Row`, not nested inside its `trailing`
+    slot, to avoid the two-nested-Pressables-react-to-one-tap problem
+    `CheckTarget`'s own doc comment in `ui.tsx` already warns against.
+    Writes immediately on tap, no Save/Cancel — matches the picker's own
+    established feel from the create-composer.
+  - `supabase/tests/rls_locations_chain.sql` grew from 6 to 11 assertions —
+    #51's old "no UPDATE grant exists" negative control flipped into two
+    positive ones (owner updates their own location; a genuinely *different*
+    user also succeeds, proving the policy is actually open and not
+    accidentally owner-scoped), plus new coverage that `name`/`lat`/`lng`
+    stay unwritable (individually, and as part of one combined statement
+    with `chain`) and that the check constraint still applies on UPDATE, not
+    just INSERT. Ran clean against the live project, independently
+    re-verified by both the Code Reviewer and the orchestrator.
+  - **Code review caught one real should-fix**: closing a row's picker after
+    a successful write unconditionally cleared `editingLocationId` — if a
+    user switched to editing a *different* row while an earlier write was
+    still in flight (only the saving row's own pencil gets disabled, not
+    every other row's), the earlier write resolving would snatch the other
+    row's now-open, untouched picker closed out from under them. No data
+    corruption, fully recoverable by re-tapping, but a real glitch reachable
+    given this feature's own motivating scenario (correcting several
+    null-chain locations in one sitting). Fixed directly by only clearing
+    `editingLocationId` when it still matches the row that was actually
+    saved, re-verified clean.
+  - **Live-verified against the real Supabase project — the same one
+    production reads from — not a disposable test copy**, since fixing the
+    two real locations *was* the point. Used the actual UI (local dev,
+    pointed at the live project) to set "Pak'nsave Papanui" → `paknsave`
+    and "Woolworths Papanui" → `woolworths`, confirmed via direct DB query
+    after each. Verified changing an already-set chain by round-tripping
+    Pak'nsave Papanui through Four Square and back, confirmed at each step.
+    **One real mistake happened and was caught mid-session, worth knowing
+    if this pattern gets reused**: an early `javascript_tool` DOM-query
+    script located a pencil button by walking up a fixed number of parent
+    elements from a text node and querying for the first `✏`-labelled
+    button within that ancestor — too loose a locator, and it actually
+    landed on a different row's button, silently setting the real "New
+    World South City" location to `paknsave` instead of the intended
+    "Pak'nsave Papanui" row. Caught immediately via a direct
+    `execute_sql` check (not assumed correct from the click "succeeding"),
+    reverted through the same real app UI back to `null` (its original
+    state) before continuing, rather than patched via a raw SQL write. The
+    fix for the rest of this session's testing: use `read_page`'s
+    structured refs and the row's own unique `accessibilityLabel` (e.g.
+    `[aria-label="Edit chain for Pak'nsave Papanui"]`) to scope every
+    click precisely, instead of ad-hoc DOM-parent-walking — reliable every
+    time it was used afterward. **Lesson for any future session driving
+    this Browser pane against a list of near-identical rows**: prefer
+    `accessibilityLabel`-scoped queries over walking a fixed number of
+    parent levels from matched text — the latter is exactly the kind of
+    thing that silently targets the wrong row when the DOM structure
+    doesn't nest the way you assumed, and unlike a wrong read, a wrong
+    *write* against production data doesn't announce itself — only a
+    direct DB check after the fact caught this one.
+  - `npx tsc --noEmit` clean throughout (Code Writer, Code Reviewer, and the
+    orchestrator independently). `mobile/app.json`/`mobile/package.json`
+    bumped to `0.0.21`.
+
 - **2026-08-23 build session — #51 (chain brand colours on the store donut
   chart) shipped and merged, [PR #53](https://github.com/mp3anthony/cartel/pull/53).
   Issue auto-closed on merge. [#52](https://github.com/mp3anthony/cartel/issues/52)
