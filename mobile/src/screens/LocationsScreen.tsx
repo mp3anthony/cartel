@@ -27,6 +27,7 @@ import {
   type NearbyLocation,
 } from '../lib/locations';
 import type { RootStackParamList } from '../navigation/types';
+import { CHAIN_OPTIONS, chainColor, type Chain } from '../theme/chainColors';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
@@ -69,6 +70,7 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
   const [search, setSearch] = useState('');
   const [composing, setComposing] = useState(false);
   const [name, setName] = useState('');
+  const [chain, setChain] = useState<Chain | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -117,6 +119,7 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
   function beginComposing() {
     setError(null);
     setName('');
+    setChain(null);
     setComposing(true);
   }
 
@@ -170,7 +173,7 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
       return;
     }
 
-    const created = await createLocation(client, name, perm.lat, perm.lng);
+    const created = await createLocation(client, name, perm.lat, perm.lng, chain);
 
     if (!created.ok) {
       setBusy(false);
@@ -288,6 +291,7 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
             onSubmitEditing={submitCreate}
             returnKeyType="done"
           />
+          <ChainPicker value={chain} onChange={setChain} />
           <PrimaryButton
             label="Create"
             onPress={submitCreate}
@@ -325,10 +329,77 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
   );
 }
 
+/**
+ * The chain picker shown inside the create-location composer (#51). A
+ * vertical `Row`-based list, not `SegmentedControl` — six options, including
+ * long labels ("Four Square"/"FreshChoice") and the apostrophe in
+ * "PAK'nSAVE", would not fit an unwrapped single-row segmented track built
+ * for three short options. Kept local to this file, not added to `ui.tsx`,
+ * since it's single-use and chain-domain-specific.
+ *
+ * `value === null` renders as "Other" selected — the composer's own starting
+ * state and the "no chain chosen" state are the same thing, matching how
+ * `chainColor(null)` and `chainColor('other')` both resolve to "no brand
+ * colour" on the read side.
+ */
+function ChainPicker({
+  value,
+  onChange,
+}: {
+  value: Chain | null;
+  onChange: (chain: Chain | null) => void;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <View accessibilityRole="radiogroup" style={styles.chainPicker}>
+      <Body>Chain</Body>
+      {CHAIN_OPTIONS.map((option) => {
+        const selected = value === option.value || (value === null && option.value === 'other');
+        return (
+          <Row
+            key={option.value}
+            label={option.label}
+            leading={
+              <View
+                style={[
+                  styles.chainSwatch,
+                  { backgroundColor: chainColor(option.value) ?? tokens.color.border },
+                  // PAK'nSAVE's yellow has near-zero contrast against light-theme
+                  // surface/ground — the only swatch that needs an outline to stay
+                  // visible against a light background. Don't drop this "for
+                  // consistency"; every other brand colour has enough contrast on
+                  // its own.
+                  option.value === 'paknsave' && styles.chainSwatchOutlined,
+                ]}
+              />
+            }
+            trailing={selected ? <Badge label="Selected" /> : undefined}
+            onPress={() => onChange(option.value === 'other' ? null : option.value)}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     composer: {
       gap: tokens.space.sm,
+    },
+    chainPicker: {
+      gap: tokens.space.xs,
+    },
+    chainSwatch: {
+      width: 14,
+      height: 14,
+      borderRadius: tokens.radius.sm,
+    },
+    chainSwatchOutlined: {
+      borderWidth: 1,
+      borderColor: tokens.color.textPrimary,
     },
   });
 }

@@ -33,6 +33,7 @@ import {
 } from '../lib/locations';
 import { loadShopSessionLocationCounts, type LocationShopCount } from '../lib/shopSessions';
 import type { RootStackParamList } from '../navigation/types';
+import type { Chain } from '../theme/chainColors';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
@@ -214,6 +215,16 @@ export function DashboardScreen({
     [locationsView],
   );
 
+  // #51: the donut chart's brand-colour lookup — same find-by-id shape as
+  // locationName above, just returning chain instead of name.
+  const locationChain = useCallback(
+    (locationId: string): Chain | null =>
+      locationsView.status === 'loaded'
+        ? (locationsView.locations.find((l) => l.id === locationId)?.chain ?? null)
+        : null,
+    [locationsView],
+  );
+
   async function startOrContinueAtLocation(locationId: string) {
     if (busyLocationId) {
       return;
@@ -299,6 +310,7 @@ export function DashboardScreen({
     key: entry.locationId,
     label: locationName(entry.locationId),
     value: entry.count,
+    chain: locationChain(entry.locationId),
   }));
 
   const recentSessions = shopSessionsView.status === 'loaded' ? shopSessionsView.sessions.slice(0, 3) : [];
