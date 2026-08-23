@@ -5,6 +5,68 @@
 
 ## Last active
 
+- **2026-08-23 research session — NZ supermarket branding + Google Places
+  investigated, zero code written. Next session should start by building
+  [#51](https://github.com/mp3anthony/cartel/issues/51) directly
+  (Planner → Code Writer → Code Reviewer, same pipeline as every batch
+  above) — it's fully scoped, `ready-for-agent`, no more input needed from
+  the user.** Two out-of-spec ideas the user raised conversationally, run
+  through Protocol Step 1 (out-of-spec → `CHANGE-LOG.md`) then Step 2
+  (Problem Agreement via `AskUserQuestion`, not skipped) before either
+  became an issue. A dedicated research subagent did the actual legwork
+  (`docs/research/nz-supermarket-branding-and-google-places.md`, cited
+  primary sources throughout) — both issues below cite it rather than
+  re-deriving the research in the issue body.
+  - **[#51](https://github.com/mp3anthony/cartel/issues/51) — real NZ
+    supermarket brand colours on the dashboard donut chart (from #22) and
+    store badges, replacing today's single tint-mixed accent colour.**
+    `ready-for-agent`, start here. Chains confirmed still real/current as
+    of 2026 (Countdown fully renamed to Woolworths, Dec 2025 — no
+    "Countdown" stores left) with hex values pulled from each chain's own
+    logo SVG or live site CSS, not guessed: New World `#E11A2C`, PAK'nSAVE
+    `#FFD600`, Four Square `#ED1D24`/`#278342`, Woolworths `#007837`,
+    FreshChoice `#D8232A`/`#9EC73D`. **One correction worth knowing before
+    touching `locations`**: FreshChoice/SuperValue are Woolworths NZ
+    franchises (via their WDL subsidiary), not Foodstuffs South Island as
+    might be assumed — don't group them with New World/PAK'nSAVE/Four
+    Square in any UI copy or grouping logic. SuperValue itself is
+    deliberately excluded from the chain picker — down to ~3 stores
+    nationally, being phased into FreshChoice. **Real schema decision,
+    confirmed with the user via `AskUserQuestion` rather than assumed**: a
+    new explicit `chain` field on `locations` (dropdown: New
+    World/PAK'nSAVE/Four Square/Woolworths/FreshChoice/Other), not
+    auto-detection from the location's free-text name — name-matching was
+    explicitly rejected as too fragile (typos, reordered words, unrelated
+    names). Full hex table + sourcing notes, plus a "sample real signage
+    before shipping" caveat (neither chain publishes a formal brand PDF),
+    in the research doc.
+  - **[#52](https://github.com/mp3anthony/cartel/issues/52) — Google
+    Places API as a search-assist when creating a location.**
+    `ready-for-human`, genuinely blocked, don't hand this to
+    Investigator/Planner yet. Scope agreed with the user: search-assist
+    only (prefills the existing manual-create form's fields from a Google
+    result; the row still saves into Cartel's own `locations` table
+    exactly as today, no live/recurring Google querying, no change to the
+    existing GPS-based nearby-check). A genuine live-search feature was
+    explicitly considered and rejected as not worth the complexity at this
+    app's scale (2 users) — see the research doc, Question 2, for why:
+    Google's Places ToS only allows keeping `place_id` indefinitely
+    (lat/lng caps at 30 days, everything else — name, address — isn't
+    supposed to be cached at all), which is a genuine tension with even the
+    search-assist pattern on a strict reading, flagged in the issue as
+    accepted-low-risk for a private 2-household app rather than hidden.
+    Cost was never the blocker — 500-2,000 calls/month lands entirely
+    inside Google's free monthly allowance (5,000 calls, Nearby-Search-Pro
+    SKU) — the blockers are (a) Google Cloud billing/API key setup, which
+    only the user can do (a credit card has to go on file even to stay
+    inside the free tier — no agent action can complete this), and (b) a
+    real architecture fork not yet decided: Autocomplete+Place Details vs.
+    another endpoint (the research covered `searchNearby`, not this
+    feature's actual "search by name/area" shape, so that's still open),
+    and whether the API key is called directly from the mobile-web client
+    or proxied through a new Supabase Edge Function.
+  - Both issues are logged in `CHANGE-LOG.md`'s 2026-08-23 rows.
+
 - **2026-08-18 build session — Batch G (#42) shipped and merged,
   [PR #50](https://github.com/mp3anthony/cartel/pull/50). Issue auto-closed
   on merge. This was the last item in the 2026-08-15 triage backlog —
