@@ -27,11 +27,18 @@
 -- `location_id` foreign key does real work, not just a UI-level convenience.
 -- Assertion 10 checks `list_id`'s `on delete set null` — deliberately the
 -- opposite of `location_id`'s `on delete cascade`, per the migration's own header.
--- Assertions 11-12 confirm there is no UPDATE or DELETE path at all, not even for
--- a row's own owner: this table is append-only by design (matching
--- `location_checkoffs`' own stance), and the absence of a policy or grant for
--- either statement is the entire enforcement mechanism — nothing else in this
--- schema stops a client from mutating its own history otherwise.
+-- Assertion 11 confirms there is no UPDATE path at all, not even for a row's
+-- own owner — a shop_session's own fields stay immutable once written, and
+-- the absence of a policy or grant for that statement is the entire
+-- enforcement mechanism.
+--
+-- There was originally a symmetric assertion 12 here proving no DELETE path
+-- existed either — issue #57 deliberately reversed that: `shop_sessions` is
+-- no longer append-only, a household may now clear its own shop history
+-- (migration 20260823000002_shop_sessions_delete.sql). That assertion would
+-- fail if this file were re-run today, so it's removed rather than left to
+-- rot as a false failure; the DELETE policy's own coverage now lives in
+-- `rls_shop_sessions_delete.sql`, not here.
 --
 -- Fixtures are the premise, not the thing under test, so they are inserted as the
 -- owning role, which bypasses RLS. Only the assertions run as `authenticated`.
@@ -442,30 +449,8 @@ end $$;
 
 reset role;
 
--- ---------------------------------------------------------------------------
--- Assertion 12 — no DELETE path, not even for the row's own owner.
--- ---------------------------------------------------------------------------
-
-select set_config('request.jwt.claims',
-  '{"sub":"00000000-0000-4000-8000-000000000901","role":"authenticated"}', true);
-set local role authenticated;
-
-do $$
-declare
-  raised boolean := false;
-begin
-  begin
-    delete from public.shop_sessions
-    where id = '93000000-0000-4000-8000-000000000001';
-  exception when others then
-    raised := true;
-  end;
-
-  if not raised then
-    raise exception 'FAIL: A could DELETE a shop_sessions row A owns — there is no DELETE grant/policy on this table and there should be none';
-  end if;
-end $$;
-
-reset role;
+-- Assertion 12 (no DELETE path at all) used to live here — removed by issue
+-- #57, which deliberately added one. See the header note above; DELETE
+-- coverage now lives in rls_shop_sessions_delete.sql.
 
 rollback;

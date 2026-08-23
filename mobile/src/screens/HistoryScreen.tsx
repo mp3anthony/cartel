@@ -97,6 +97,7 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
   function beginCopy(session: ShopSessionRow) {
     setError(null);
     setConfirmingDeleteId(null);
+    setConfirmingClearAll(false);
     setCopyingSessionId(session.id);
     setCopyName(`${locationNameFor(session)} — ${formatCompletedAt(session.completedAt)}`);
     setCopyShared(false);
@@ -116,6 +117,7 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
   function beginDeleteSession(session: ShopSessionRow) {
     setError(null);
     resetComposer();
+    setConfirmingClearAll(false);
     setConfirmingDeleteId(session.id);
   }
 
