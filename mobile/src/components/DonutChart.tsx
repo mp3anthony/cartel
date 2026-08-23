@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 
 import { Row } from './ui';
+import { chainColor, type Chain } from '../theme/chainColors';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
@@ -10,6 +11,7 @@ export type DonutSegment = {
   key: string;
   label: string;
   value: number;
+  chain: Chain | null;
 };
 
 /**
@@ -28,6 +30,14 @@ export type DonutSegment = {
  * `tokens.color.border` — both so the ring stays legible for a household
  * with a long tail of one-off stores, and so the tint ramp never has to
  * invent a 9th or 10th step.
+ *
+ * #51 adds one deliberate, documented exception to the single-hue rule
+ * above: a segment whose location has a real, recognised chain (see
+ * `chainColors.ts`) renders in that chain's actual brand colour instead of a
+ * tint-mixed accent step. This makes the ring distinguish stores by identity,
+ * not just by rank — the tint ramp alone can't tell New World from
+ * PAK'nSAVE at a glance. A segment with no recognised chain ('other' or
+ * `null`) still falls through to the original tint-mixed look, unchanged.
  *
  * The arcs themselves are not individually tappable — hit-testing a thin SVG
  * stroke segment is fiddly and RN-SVG gives no built-in help for it. The
@@ -137,7 +147,9 @@ function buildArcs(
     key: segment.key,
     label: segment.label,
     fraction: segment.value / total,
-    color: mixWithSurface(tokens.color.accent, tokens.color.surface, i / MAX_SEGMENTS),
+    color:
+      chainColor(segment.chain) ??
+      mixWithSurface(tokens.color.accent, tokens.color.surface, i / MAX_SEGMENTS),
     onPressKey: segment.key,
   }));
 
