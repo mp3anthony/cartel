@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { humanise, type Outcome } from './household';
+import type { Chain } from '../theme/chainColors';
 
 export type LocationRow = {
   id: string;
@@ -8,6 +9,7 @@ export type LocationRow = {
   lat: number;
   lng: number;
   createdAt: string;
+  chain: Chain | null;
 };
 
 export type NearbyLocation = {
@@ -28,6 +30,7 @@ type LocationRecord = {
   lat: number;
   lng: number;
   created_at: string;
+  chain: Chain | null;
 };
 
 type NearbyLocationRecord = {
@@ -59,7 +62,7 @@ export async function loadLocations(client: SupabaseClient): Promise<Outcome<Loc
   // filter is needed here and none would narrow what comes back.
   const { data, error } = await client
     .from('locations')
-    .select('id, name, lat, lng, created_at')
+    .select('id, name, lat, lng, created_at, chain')
     .order('name');
 
   if (error) {
@@ -76,6 +79,7 @@ export async function loadLocations(client: SupabaseClient): Promise<Outcome<Loc
       lat: row.lat,
       lng: row.lng,
       createdAt: row.created_at,
+      chain: row.chain,
     })),
   };
 }
@@ -113,15 +117,20 @@ export async function createLocation(
   name: string,
   lat: number,
   lng: number,
+  chain: Chain | null,
 ): Promise<Outcome<string>> {
   // `created_by` is left out on purpose. The column defaults to auth.uid(), which is
   // the same value the insert policy checks it against, so a client that sends it can
   // only ever agree with the default or be rejected by the policy. One that never
   // names the column cannot get it wrong. Mirrors createList()'s treatment of
   // `owner_id` in lists.ts.
+  //
+  // `chain` (#51) is set at creation time only — there is no UPDATE grant/policy on
+  // this table at all, chain included, so a caller must decide it now or leave it
+  // null/'other' forever (short of a later slice adding an edit flow).
   const { data, error } = await client
     .from('locations')
-    .insert({ name: name.trim(), lat, lng })
+    .insert({ name: name.trim(), lat, lng, chain })
     .select('id')
     .single();
 
