@@ -125,9 +125,9 @@ export async function createLocation(
   // names the column cannot get it wrong. Mirrors createList()'s treatment of
   // `owner_id` in lists.ts.
   //
-  // `chain` (#51) is set at creation time only — there is no UPDATE grant/policy on
-  // this table at all, chain included, so a caller must decide it now or leave it
-  // null/'other' forever (short of a later slice adding an edit flow).
+  // `chain` can be set now or left null/'other' and corrected later — #54 added
+  // `updateLocationChain` below, an open (not owner-scoped) UPDATE path scoped to
+  // just this column, so a caller no longer has to get this right at creation time.
   const { data, error } = await client
     .from('locations')
     .insert({ name: name.trim(), lat, lng, chain })
@@ -139,4 +139,33 @@ export async function createLocation(
   }
 
   return { ok: true, value: (data as { id: string }).id };
+}
+
+/**
+ * Sets or clears a location's `chain` after creation (#54). Deliberately open —
+ * not scoped to the location's creator — matching migration
+ * 20260823000001_locations_chain_update.sql's `locations_update_chain` policy,
+ * which is `using (true)`/`with check (true)`: `public.locations` has no
+ * ownership concept surfaced anywhere in this app (see LocationsScreen.tsx's own
+ * header comment), so a chain correction is open to any authenticated user, the
+ * same as every other read/write this table already allows. What actually keeps
+ * this narrow is the column-level grant, not a row check — `name`/`lat`/`lng`
+ * still have no UPDATE grant at all, so this can never touch them regardless of
+ * who calls it.
+ */
+export async function updateLocationChain(
+  client: SupabaseClient,
+  locationId: string,
+  chain: Chain | null,
+): Promise<Outcome<void>> {
+  const { error } = await client
+    .from('locations')
+    .update({ chain })
+    .eq('id', locationId);
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  return { ok: true, value: undefined };
 }
