@@ -5,6 +5,79 @@
 
 ## Last active
 
+- **2026-08-23 build session — #57 (clear shop history: per-entry and
+  clear-all delete) shipped and merged, [PR #59](https://github.com/mp3anthony/cartel/pull/59).
+  Issue auto-closed on merge. Fully scoped `ready-for-agent` issue with no
+  genuine open design question (the issue itself resolved access shape and
+  clear-all scope), so this ran without a Problem Agreement round — straight
+  to implementation, a separate Code Reviewer subagent pass, live-browser
+  verification, then merge on the user's go-ahead. [#52](https://github.com/mp3anthony/cartel/issues/52)
+  is still the only thing left `ready-for-human`/blocked on the user —
+  nothing else is queued, next session starts with the user.**
+  - **First real DELETE grant `shop_sessions` has ever had** — the table was
+    deliberately append-only since Slice 9 (`20260811000003_shop_sessions.sql`'s
+    own header said so explicitly). New migration
+    `20260823000002_shop_sessions_delete.sql` adds a DELETE policy that
+    reuses the table's own SELECT predicate verbatim
+    (`owner_id = auth.uid() or household_id = current_household_id()`) —
+    equal-rank, not owner-only, matching every other household-shared
+    table's precedent, per the issue's explicit instruction not to make
+    shop history the first exception.
+  - New `deleteShopSession()`/`deleteAllShopSessions()` in `shopSessions.ts`.
+    The clear-all variant deliberately avoids a truly unfiltered
+    `.delete()` call (which would read as a mistake to the next editor) —
+    it uses `.delete().not('id','is',null)`, an always-true filter, and
+    relies on RLS alone (not the filter) to bound the affected rows to the
+    caller's own visible set, not just the `SHOP_SESSION_HISTORY_CAP=10`
+    page `HistoryScreen` renders.
+  - `HistoryScreen.tsx` gained a "Clear all history" action and a per-card
+    "Delete" action, both behind the app's existing shared `Confirm`
+    in-place card (same pattern as `ListDetailScreen`'s "Remove list") —
+    no new confirmation primitive needed.
+  - **New `supabase/tests/rls_shop_sessions_delete.sql` (6 assertions), run
+    clean against the live project — its own header documents a real bug
+    caught while authoring it, not a product bug**: a denied DELETE is
+    silent under RLS (it just matches 0 rows, no exception raised), so
+    checking whether a row survived a blocked delete *through the denied
+    actor's own query* is meaningless — that actor has no SELECT
+    visibility into the row either way, so the check always reads "gone"
+    regardless of whether the delete actually worked or was blocked, and
+    would silently pass a broken policy. Caught by directly reproducing
+    each negative case both ways against the live project before locking
+    the assertions in; fixed by checking ground truth via the bypass role
+    instead. Worth remembering for any future negative-case RLS assertion
+    on this project: the denying actor's own visibility is exactly what's
+    being denied, so it can never be the check.
+  - **Updated the original `rls_shop_sessions.sql`**: removed its now-stale
+    assertion 12 ("no DELETE path at all, not even for the row's own
+    owner") — this PR deliberately reverses that stance, so left
+    unedited it would fail the next time anyone re-runs that file.
+    Updated the header prose to point at the new test file instead of
+    leaving stale "append-only" documentation. Re-ran the remaining 12
+    assertions clean.
+  - **A separate Code Reviewer subagent pass (never reviewing its own
+    code) found one real UI bug before merge**: `beginCopy()`/
+    `beginDeleteSession()` never reset `confirmingClearAll`, so the
+    screen-level "Clear all history" confirm and a card's own
+    delete-confirm/copy-composer weren't actually mutually exclusive —
+    contradicting the code's own doc comment claiming at most one
+    confirmation is ever shown. Fixed directly and re-verified live
+    (opened clear-all's confirm, tapped a card's Delete, confirmed the
+    clear-all confirm closed).
+  - **Live-verified in the real Browser pane** against local dev
+    (`mobile-web`, port 8082) with real seeded-then-cleaned-up data, not
+    just code review: per-entry delete, clear-all (landing correctly in
+    the "No shops recorded yet" empty state), and both Cancel paths for a
+    real anonymous test user — each outcome confirmed against the
+    database directly (not just the UI), and confirmed clearing history
+    left the referenced location and any lists untouched. All test rows
+    queried and confirmed as this session's own before deletion, then
+    deleted and reverified at zero, across two separate seed/verify
+    rounds (one for the delete/clear-all flows, one for the mutual-
+    exclusion fix).
+  - `npx tsc --noEmit` clean throughout. `mobile/app.json`/
+    `mobile/package.json` bumped to `0.0.23`.
+
 - **2026-08-23 build session — #31 (iOS PWA status bar stays white,
   doesn't follow theme) shipped and merged, [PR #56](https://github.com/mp3anthony/cartel/pull/56).
   Issue auto-closed on merge. This was the last `ready-for-human` item
