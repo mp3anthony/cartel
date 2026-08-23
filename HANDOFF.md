@@ -5,6 +5,63 @@
 
 ## Last active
 
+- **2026-08-23 build session — #31 (iOS PWA status bar stays white,
+  doesn't follow theme) shipped and merged, [PR #56](https://github.com/mp3anthony/cartel/pull/56).
+  Issue auto-closed on merge. This was the last `ready-for-human` item
+  besides [#52](https://github.com/mp3anthony/cartel/issues/52) (still
+  blocked on the user's own Google Cloud billing/API key setup) —
+  nothing else is queued, next session starts with the user.** Unlike
+  #52, #31's `ready-for-human` label turned out to be resolvable
+  without a design interview: the "genuine open technical question" the
+  label cited was really a research gap, not a decision only the user
+  could make — closed by reading `expo-status-bar`'s actual web source
+  (confirmed a complete no-op — four empty functions in
+  `StatusBar.web.ts`) and researching iOS Safari/PWA `theme-color`
+  behaviour, then confirming the resulting plan with the user via
+  `AskUserQuestion` before writing any code. Real on-device verification
+  (the other half of the label) still genuinely needed the user's iOS 26
+  device — orchestrator built it, self-reviewed via a separate Code
+  Reviewer subagent (zero findings), then handed the user a Vercel
+  preview-branch shareable link (`get_access_to_vercel_url`) to test
+  directly; user confirmed it worked and gave the go-ahead to merge.
+  - **Root cause, not previously known**: `App.tsx`'s existing
+    `ThemedStatusBar` (`expo-status-bar`) never touched web/PWA chrome
+    at all — its web implementation is a no-op. The installed-PWA status
+    bar background is governed purely by `<meta name="theme-color">` /
+    `manifest.json`'s `theme_color` (both static, unwired leftovers from
+    #26's session) and, per iOS 26 reports, the top element's own
+    painted background — none of which tracked the app's Light/Dark/
+    System state. `manifest.json`'s `theme_color` was also simply wrong
+    — it held the accent color, not `tokens.color.ground`, which is what
+    the header actually renders at the very top of every screen.
+  - **Fix, layered rather than betting on one mechanism** (sources on
+    iOS 26's exact behaviour genuinely conflict, cited in the PR body):
+    static `prefers-color-scheme`-split `theme-color` meta tags + a
+    matching `body` CSS rule in `public/index.html` (System/no-JS
+    fallback), `manifest.json`'s `theme_color` corrected to `ground`,
+    and a new `ThemedPwaChrome` component (`App.tsx`, sibling to
+    `ThemedStatusBar`) that overwrites both the meta tags' `content` and
+    `body`/`html`'s inline background live whenever `resolvedScheme`
+    changes — the only way to track an **explicit** in-app override that
+    disagrees with the OS scheme, not just System.
+  - **Deliberately not touched**: `apple-mobile-web-app-status-bar-style`
+    (the status bar *icon/text* colour, separate from its background).
+    No documented `prefers-color-scheme` equivalent and no confirmed
+    live-update path for an already-installed home-screen icon exist for
+    that meta tag — it can only ever be one static baked-in choice,
+    legible in one theme and not the other (e.g. `black-translucent`
+    gives a transparent bar with permanently-white icons: great in Dark,
+    poor contrast in Light). Flagged in the PR as a likely follow-up
+    needing an explicit human call on which theme to favor, rather than
+    silently picked. **The user confirmed the shipped fix as "perfect"
+    without raising this** — read as icon legibility not being a problem
+    in practice, not as the question having been separately re-litigated;
+    worth a quick re-check if it ever comes up rather than assuming it
+    was formally resolved.
+  - `npx tsc --noEmit` clean (orchestrator and the separate Code Reviewer
+    session both). `mobile/app.json`/`mobile/package.json` bumped to
+    `0.0.22`.
+
 - **2026-08-23 build session — #54 (edit a location's chain after creation)
   shipped and merged immediately after #51, [PR #55](https://github.com/mp3anthony/cartel/pull/55).
   Issue auto-closed on merge. Filed and built same-session, not at a future
