@@ -10,6 +10,7 @@ import {
   EmptyState,
   ErrorNote,
   Field,
+  IconButton,
   NAVIGATOR_EDGES,
   PrimaryButton,
   Row,
@@ -24,6 +25,7 @@ import {
   findNearbyLocations,
   MERGE_RADIUS_M,
   roundToNearest10,
+  updateLocationChain,
   type NearbyLocation,
 } from '../lib/locations';
 import type { RootStackParamList } from '../navigation/types';
@@ -60,6 +62,22 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Locations'> & {
  * lives in exactly one function. Absent, `handleSelect` does exactly what this
  * screen did before Slice 5 existed; present, it writes `location_id` onto that list
  * and returns to it instead.
+ *
+ * #54 adds an edit affordance for an existing location's `chain`, beneath each
+ * location's own `Row` rather than inside its `trailing` slot — `Row` is itself
+ * a `Pressable` when `onPress` is given, and nesting a second `Pressable`
+ * (`IconButton`) inside `trailing` recreates the "two nested Pressables reacting
+ * to one tap" problem `CheckTarget`'s doc comment in `ui.tsx` warns against.
+ * Mirrors `ShoppingScreen.tsx`'s pencil-opens-inline-composer pattern for
+ * `location_items.section` corrections: a pencil `IconButton` toggles a
+ * `ChainPicker` open/closed for that row only (`editingLocationId`), reusing the
+ * same `ChainPicker` the create-composer already uses rather than a second copy.
+ * `ChainPicker` already writes on tap in the create-composer's own usage, so
+ * editing keeps that same feel — tapping an option writes immediately via
+ * `updateLocationChain` and closes the picker, no separate Save/Cancel. The
+ * pencil is the toggle: tapping it while that row's picker is open closes it
+ * with no write (this is "Cancel"); tapping a different row's pencil switches
+ * which row is being edited.
  */
 export function LocationsScreen({ client, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -78,6 +96,8 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
   const [selected, setSelected] = useState<{ id: string; name: string } | null>(
     null,
   );
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
+  const [savingChainId, setSavingChainId] = useState<string | null>(null);
 
   /**
    * The single place a selection "becomes real". Absent `attachToListId`, this is
@@ -213,6 +233,37 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
     setNearbyMatch(null);
   }
 
+  function toggleEditingChain(locationId: string) {
+    setError(null);
+    setEditingLocationId((current) => (current === locationId ? null : locationId));
+  }
+
+  async function submitChainEdit(locationId: string, nextChain: Chain | null) {
+    if (savingChainId) {
+      return;
+    }
+
+    setSavingChainId(locationId);
+    setError(null);
+
+    const outcome = await updateLocationChain(client, locationId, nextChain);
+
+    if (!outcome.ok) {
+      setSavingChainId(null);
+      setError(outcome.message);
+      return;
+    }
+
+    await refresh();
+    setSavingChainId(null);
+    // Only close *this* row's picker, not whichever one happens to be open
+    // now — a user can switch to editing a different row while this write
+    // is still in flight (only the saving row's pencil is disabled, not
+    // every other row's), and unconditionally clearing editingLocationId
+    // here would snatch that other row's picker closed out from under them.
+    setEditingLocationId((current) => (current === locationId ? null : current));
+  }
+
   if (view.status === 'loading') {
     return (
       <Screen edges={NAVIGATOR_EDGES}>
@@ -246,14 +297,34 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
       />
 
       {filtered.map((location) => (
-        <Row
-          key={location.id}
-          label={location.name}
-          onPress={() => void handleSelect(location.id, location.name)}
-          trailing={
-            location.id === selected?.id ? <Badge label="Selected" /> : undefined
-          }
-        />
+        <View key={location.id} style={styles.locationGroup}>
+          <Row
+            label={location.name}
+            onPress={() => void handleSelect(location.id, location.name)}
+            trailing={
+              location.id === selected?.id ? <Badge label="Selected" /> : undefined
+            }
+          />
+          <View style={styles.chainRow}>
+            <Badge label={chainLabel(location.chain)} />
+            <IconButton
+              glyph="✏"
+              accessibilityLabel={
+                editingLocationId === location.id
+                  ? `Close chain editor for ${location.name}`
+                  : `Edit chain for ${location.name}`
+              }
+              onPress={() => toggleEditingChain(location.id)}
+              disabled={savingChainId === location.id}
+            />
+          </View>
+          {editingLocationId === location.id ? (
+            <ChainPicker
+              value={location.chain}
+              onChange={(nextChain) => void submitChainEdit(location.id, nextChain)}
+            />
+          ) : null}
+        </View>
       ))}
 
       {locations.length > 0 && search.trim().length > 0 && filtered.length === 0 ? (
@@ -330,12 +401,26 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
 }
 
 /**
- * The chain picker shown inside the create-location composer (#51). A
- * vertical `Row`-based list, not `SegmentedControl` — six options, including
- * long labels ("Four Square"/"FreshChoice") and the apostrophe in
- * "PAK'nSAVE", would not fit an unwrapped single-row segmented track built
- * for three short options. Kept local to this file, not added to `ui.tsx`,
- * since it's single-use and chain-domain-specific.
+ * Resolves a stored `chain` value to its display label, always showing a real
+ * value — including "Other" for `null` — so every location row has a visible
+ * current-value indicator rather than an absent badge for the common
+ * unset/'other' case.
+ */
+function chainLabel(chain: Chain | null): string {
+  return (
+    CHAIN_OPTIONS.find((option) => option.value === (chain ?? 'other'))?.label ??
+    'Other'
+  );
+}
+
+/**
+ * The chain picker shown inside the create-location composer (#51) and,
+ * since #54, reused unchanged for editing an existing location's chain from
+ * the locations list. A vertical `Row`-based list, not `SegmentedControl` —
+ * six options, including long labels ("Four Square"/"FreshChoice") and the
+ * apostrophe in "PAK'nSAVE", would not fit an unwrapped single-row segmented
+ * track built for three short options. Kept local to this file, not added to
+ * `ui.tsx`, since it's single-use and chain-domain-specific.
  *
  * `value === null` renders as "Other" selected — the composer's own starting
  * state and the "no chain chosen" state are the same thing, matching how
@@ -387,6 +472,14 @@ function ChainPicker({
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     composer: {
+      gap: tokens.space.sm,
+    },
+    locationGroup: {
+      gap: tokens.space.xs,
+    },
+    chainRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: tokens.space.sm,
     },
     chainPicker: {
