@@ -5,6 +5,110 @@
 
 ## Last active
 
+- **2026-08-24 build session — #52 (Google Places search-assist) fully
+  implemented, reviewed, and live-tested — parked, not merged, blocked on a
+  real external cost the user can't cover right now. Nothing left to build;
+  next session should start by checking whether that's changed, not by
+  re-running Investigator/Planner/Code Writer.** Every open design question
+  from the issue's own `ready-for-human` label was closed via
+  `AskUserQuestion` this session (key called directly from the client,
+  Autocomplete (New) + Place Details (New), attribution placement, and the
+  real structural fork the issue didn't originally name — whether a picked
+  suggestion's coordinates or a fresh GPS fix drive the nearby-merge check
+  and the saved row; resolved as the picked place's coordinates, GPS only as
+  the no-pick fallback) — full Investigator → Planner → Code Writer →
+  separate Code Reviewer pipeline ran straight through with no further
+  Problem Agreement needed.
+  - **Where it's parked**: branch `52-google-places-search-assist`,
+    committed (not pushed, not merged, not a PR) — `git checkout
+    52-google-places-search-assist` to resume. New
+    `mobile/src/lib/googlePlaces.ts` (stateless `searchPlaces`/
+    `fetchPlaceDetails` against Places API (New), session-token lifecycle,
+    `Outcome<T>`-shaped errors), `env.ts`'s `googlePlacesApiKey` made
+    optional (its absence can never fail `envResult.ok` or blank-page the
+    app — only hides the search-assist UI section),
+    `LocationsScreen.tsx`'s debounced search state + `submitCreate`'s
+    coordinate-source branch + new local `PlaceSuggestionRow`,
+    `.env.example` documents the new optional var. `npx tsc --noEmit` clean.
+    `mobile/app.json`/`package.json` bumped to `0.0.24` **on that branch
+    only** — `main` is still `0.0.23`, don't assume the two stay in sync
+    while this is parked.
+  - **Code review (separate subagent session, never self-reviewing) found
+    one real blocking bug and two related should-fixes, all in
+    `pickSuggestion`'s missing staleness guard** — a slow/abandoned Details
+    call's response could land after the user had already moved on (cleared
+    the field, cancelled, picked a different suggestion) and silently
+    overwrite `name`/`pickedPlace` with stale data. Applied directly by the
+    orchestrator (small, well-specified, single-file fix — same
+    `seq`-capture-and-check pattern `runPlaceSearch` already used elsewhere
+    in the same file), then **re-verified by the same original Reviewer
+    session** against the real disk state, not the description of the fix —
+    confirmed clean, one purely cosmetic nice-to-have noted (a sub-second
+    flicker window on Create-tap-during-pick, never wrong persisted data),
+    not required before merge.
+  - **One real process mistake this session, worth remembering**: at the
+    re-verify step, an `Agent` call was fired with a placeholder prompt and
+    `isolation: 'worktree'` by mistake — this is exactly the anti-pattern a
+    2026-08-17 session (Batch D's entry, further down this file) already
+    documented and named: never wrap a *continuation* of an existing
+    subagent's already-loaded session in a fresh worktree. Caught
+    immediately before the bad agent could do anything, stopped via
+    `TaskStop`, and the real re-verify request sent correctly via
+    `SendMessage` to the original Reviewer session's agent id instead. No
+    damage done, but this is the second time this exact mistake has been
+    made and documented — worth being genuinely careful about next time
+    rather than assuming the earlier note was enough.
+  - **Live verification found the actual root cause of "no joy" after the
+    user set up the API key**, in three real steps, none of them guesses:
+    (1) `mobile/.env` had gotten corrupted into UTF-16 encoding with the key
+    line triplicated (from repeated append attempts), which the orchestrator
+    fixed via a PowerShell rewrite — **and that rewrite itself had a bug**:
+    a leading byte-order-mark on the first line broke a regex anchor and
+    silently dropped both Supabase env vars from the file. Caught
+    immediately by reading the file back before declaring success; restored
+    both values from this same session's own earlier `cat mobile/.env`
+    output (both are non-secret, ship-in-the-bundle-by-design values per
+    the file's own `.env.example` comment, so this was recovery from
+    already-seen data, not fresh credential handling). (2) The real content
+    of the "fixed" file turned out to be the literal placeholder text
+    `your_key_here` — copied verbatim from the orchestrator's own example
+    command instead of the user's real key substituted in. (3) Once a real
+    key was in place and the dev server restarted, the app's own displayed
+    error ("Store search is misconfigured for this build") wasn't enough to
+    diagnose from — the orchestrator installed a `window.fetch` interceptor
+    via `javascript_tool` to capture the real Google response without ever
+    reading the actual key value, and got the real answer directly from
+    Google: `SERVICE_DISABLED` — **"Places API (New) has not been used in
+    project 457203238164 before or it is disabled."** The key, its HTTP-
+    referrer/API restrictions, and all the application code were correct
+    throughout — the Google Cloud project simply never had the specific
+    "Places API (New)" service (distinct from the similarly-named legacy
+    "Places API") enabled.
+  - **Real blocker, not a code or setup mistake**: enabling that service
+    prompted Google Cloud for a one-time NZ$50 refundable Cloud Billing
+    prepayment (a real, legitimate Google mechanism for certain
+    country/risk billing profiles — confirmed via web research this
+    session, not assumed) before the account's billing can activate at all.
+    The user doesn't have $50 to put toward this right now — explicit
+    instruction to park the issue, not chase a workaround. No known
+    documented way to skip this prepayment was found. **Resume path is
+    simple and needs no further design work**: once the user can cover that
+    prepayment and enables Places API (New) on Cloud project
+    `457203238164`, check out the parked branch, restart the dev server,
+    and pick up live verification exactly where this session left off (a
+    real NZ supermarket search, the zero-results case, abandon-without-
+    picking, the coordinate-source branch, and the nearby-merge dedup
+    check — full manual test plan already written into the Planner's
+    original brief, not repeated here) — then open the PR and merge. No
+    re-running Investigator/Planner/Code Writer.
+  - This is a genuinely different kind of parked state than any prior
+    `ready-for-human` entry in this file — those were blocked *before* any
+    code was written pending a design or setup decision; this one is
+    blocked *after* a complete, reviewed, mostly-live-verified
+    implementation, purely on the user's own external finances. Worth the
+    distinction if a future session's triage ever needs to prioritize what
+    to pick up next.
+
 - **2026-08-23 build session — #57 (clear shop history: per-entry and
   clear-all delete) shipped and merged, [PR #59](https://github.com/mp3anthony/cartel/pull/59).
   Issue auto-closed on merge. Fully scoped `ready-for-agent` issue with no
