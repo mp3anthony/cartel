@@ -9,11 +9,16 @@
   (per-location item catalog) shipped together in one PR
   ([PR #66](https://github.com/mp3anthony/cartel/pull/66)), both issues
   auto-closed on merge. [#64](https://github.com/mp3anthony/cartel/issues/64)
-  is still open, `ready-for-human`, genuinely unresolved — needs the user's
-  own memory of the original tagging, not more data-side investigation (see
-  the prior session's entry below). [#52](https://github.com/mp3anthony/cartel/issues/52)
-  is still parked/blocked on the user's $50 GCP prepayment, unchanged. Next
-  session should start with the user on #64 if nothing else is queued.**
+  resolved and closed the same session — not a bug: the user confirmed
+  directly that the original Milk tag at Pak'nsave Papanui never actually
+  happened, they simply weren't aware at the time of how to tag/add a
+  location's items. Consistent with the prior session's own finding (every
+  `location_items` row at that location dated to a single day, no earlier
+  tag existing) — that finding just didn't yet have the human context to
+  close it. [#52](https://github.com/mp3anthony/cartel/issues/52) is still
+  the only thing left open, parked/blocked on the user's $50 GCP
+  prepayment, unchanged. Nothing is queued — next session starts with the
+  user.**
   - **#63's Problem Agreement ran this session** (`AskUserQuestion`, not
     skipped): new item starts unchecked; route placement uses
     `computeRouteOrder`'s existing section-tag-fallback tier if already
