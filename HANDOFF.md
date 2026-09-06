@@ -5,6 +5,91 @@
 
 ## Last active
 
+- **2026-09-06 build session — keyboard-close-on-add fixed and merged,
+  [PR #60](https://github.com/mp3anthony/cartel/pull/60). Reported
+  conversationally (not a filed issue), diagnosed and resolved same
+  session via subagents at the user's explicit request. #52 is still
+  parked/blocked on the user's $50 GCP prepayment (unchanged, see below);
+  [#58](https://github.com/mp3anthony/cartel/issues/58) (partial-finish
+  redesign, `ready-for-agent`, filed since the last session) is still open
+  and untouched — next session should pick it up if nothing else comes up
+  first.**
+  - **Root cause**: `editable={!busy}` on "Add an item"
+    (`ListDetailScreen.tsx`) and the analogous "List name"
+    (`ListsScreen.tsx`) / "Location name" (`LocationsScreen.tsx`) create
+    fields blurred the field the instant a write started (`busy` flips
+    true for the round trip) — on react-native-web, disabling a focused
+    `TextInput` blurs it, closing the on-screen keyboard even though the
+    write resolves almost instantly. Fixed by removing `editable={!busy}`
+    from just these three fields (the "keep typing to add the next one"
+    composers) and leaving every other `editable={!busy}`/
+    `editable={!pending...}` field alone (rename fields, tag/correction
+    composers, household code fields, `submitCopy()`) — those are one-shot
+    dialogs whose field disappears on success, so the same blip isn't
+    user-visible there. Added `blurOnSubmit={false}` to ListsScreen's/
+    LocationsScreen's fields (ListDetailScreen already had it from Batch
+    A/#43's unrelated earlier fix).
+  - **Pipeline caught a real, more serious bug live that code review
+    missed — worth remembering as a general lesson**: removing
+    `editable={!busy}` meant the Return-key path needed its own guard
+    against a fast double-Return firing two overlapping writes. First pass
+    (Planner-specified, Code-Writer-implemented, Code-Reviewer-approved
+    with zero findings) added `|| busy` — reading React state — to each
+    handler (`add()`/`submit()`/`submitCreate()`). **The orchestrator's own
+    live-browser verification then proved this doesn't work**: dispatching
+    3 rapid synchronous `KeyboardEvent('keydown', {key:'Enter'})` events on
+    one field created 3 duplicate items, not 1. Root cause: React batches
+    `setBusy(true)`, so several keydown handlers fired in the same
+    synchronous burst all read the same stale `busy === false` from their
+    closures before any render flushes — a genuine race the separate
+    Reviewer's static-plus-reasoning pass didn't catch (it reasoned
+    "React flushes the prior setBusy before the next event's handler
+    runs," which is wrong for events dispatched synchronously in the same
+    script execution, only true across separate event-loop turns). **This
+    is the same class of bug Batch F's HANDOFF entry already
+    documented once** (a reconciliation effect reading batched `pending`
+    state instead of a synchronous ref) — the fix follows that same
+    established idiom: a `busyRef` (`useRef`) per screen, set synchronously
+    the instant a write starts and cleared once it settles
+    (`.finally()`/`try-finally`, verified to cover every early-return
+    branch — `LocationsScreen.submitCreate()` has 5), checked in the guard
+    instead of the batched `busy` state. `busy` state itself is untouched
+    as the UI source of truth (button disabling/spinners).
+  - Sent back to a **fresh** Code Writer subagent (not a continued session
+    — this environment's `SendMessage` isn't available for Agent-tool
+    subagents here, confirmed via `ListAgents` showing no such peer/session
+    to target) with the full diagnosis and the exact required fix shape;
+    then a **fresh separate Code Reviewer** subagent re-verified — this one
+    had real Browser-pane access and reproduced the rapid-triple-Return
+    scenario itself, confirming exactly one row created per burst
+    post-fix, both via the UI and a direct DB check.
+  - **Live-verified by the orchestrator directly** against local dev
+    (`mobile-web`, port 8082), real seeded-then-cleaned-up data: created a
+    real test list via Return-key submit (confirming the field-focus fix
+    itself — typed a list name, hit Return via a dispatched `KeyboardEvent`
+    since `computer{action:"key"}` doesn't reliably reach RN-web's keydown
+    handler here, same documented trap as Batch A — confirmed focus stayed
+    on the same input element immediately after submit, then typed the
+    next item with zero re-click needed), then reproduced and confirmed
+    the fixed re-entrancy behavior (3 rapid Returns → exactly 1 "Eggs" item
+    once the ref-based fix landed, vs. 3 duplicate "Eggs" rows on the first
+    attempt before the fix). One environment note: `computer
+    {action:"screenshot"}`/`read_page` initially reported a `0x0` viewport
+    ("pane not displayed") until `resize_window {preset:"desktop"}` forced
+    a real compositing size — after that, `read_page`/`computer` worked
+    normally for the rest of the session. All test rows (own: 1 anonymous
+    user, 1 list, up to 5 items incl. the 3 duplicate "Eggs"; the separate
+    Reviewer subagent's own: 1 location, 1 list, 1 item) queried and
+    confirmed as this session's own before deletion, then deleted and
+    reverified at zero.
+  - `npx tsc --noEmit` clean throughout (both Code Writer passes, both
+    Code Reviewer passes). `mobile/app.json`/`mobile/package.json` bumped
+    to `0.0.24`.
+  - Not filed as a GitHub issue — reported conversationally and resolved
+    same-session per the user's own explicit instruction ("resolve
+    however's most logical, use subagents"), consistent with this
+    project's precedent for small, well-scoped, immediately-actioned fixes.
+
 - **2026-08-24 build session — #52 (Google Places search-assist) fully
   implemented, reviewed, and live-tested — parked, not merged, blocked on a
   real external cost the user can't cover right now. Nothing left to build;
