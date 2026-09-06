@@ -34,6 +34,14 @@ export type RootStackParamList = {
    * App.tsx for why it carries no path template of its own.
    */
   Locations: { attachToListId?: string } | undefined;
+  /**
+   * #65's per-location item catalog — browse (and correct) every
+   * `location_items` row ever tagged at a store. `locationId` is real and
+   * required, unlike `Locations`'s optional `attachToListId`: this screen is
+   * meaningless without one, so there is no "absent" case to model here the
+   * way `Locations`'s dual create-or-attach mode needs one.
+   */
+  LocationCatalog: { locationId: string };
   Shopping: { listId: string };
   History: undefined;
 };

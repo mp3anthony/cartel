@@ -26,6 +26,7 @@ import { HouseholdScreen } from './src/screens/HouseholdScreen';
 import { HouseholdSetupScreen } from './src/screens/HouseholdSetupScreen';
 import { ListDetailScreen } from './src/screens/ListDetailScreen';
 import { ListsScreen } from './src/screens/ListsScreen';
+import { LocationCatalogScreen } from './src/screens/LocationCatalogScreen';
 import { LocationsScreen } from './src/screens/LocationsScreen';
 import { ShoppingScreen } from './src/screens/ShoppingScreen';
 import { ThemeProvider, useTheme, useThemeMode } from './src/theme/ThemeProvider';
@@ -66,6 +67,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       HouseholdSetup: 'household/setup',
       Household: 'household',
       Locations: 'locations',
+      LocationCatalog: 'location/:locationId',
       Shopping: 'shop/:listId',
       History: 'history',
     },
@@ -283,6 +285,15 @@ function Bootstrapped({ env }: { env: Env }) {
               client={client}
               onListsChanged={lists.refresh}
             />
+          )}
+        </Stack.Screen>
+
+        {/* Title is a placeholder for the same reason ListDetail's is: the screen
+            replaces it with the real location name once useLocations resolves. No
+            onListsChanged/lists props — #65's catalog never touches lists/list_items. */}
+        <Stack.Screen name="LocationCatalog" options={{ title: 'Catalog' }}>
+          {(props) => (
+            <LocationCatalogScreen {...props} client={client} />
           )}
         </Stack.Screen>
 
