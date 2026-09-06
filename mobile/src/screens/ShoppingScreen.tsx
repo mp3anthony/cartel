@@ -26,7 +26,7 @@ import { useLocationItemVotes } from '../hooks/useLocationItemVotes';
 import { computeRouteOrder } from '../lib/locationCheckoffs';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
-import { finishShopping, setChecked, type ListItemRow } from '../lib/lists';
+import { addItem, finishShopping, setChecked, type ListItemRow } from '../lib/lists';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -151,6 +151,24 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * rather than waiting on their own next unrelated reload. A partial finish
  * leaves `archivedAt` null, so those views keep showing the list — correctly,
  * since it is still active with items left to buy.
+ *
+ * Issue #63 adds a persistent "Add an item" composer, always rendered (not
+ * tap-to-reveal) at the **top** of the item list — above every row, below the
+ * "N of M checked" header — rather than at the bottom. This was a deliberate
+ * correction after an initial bottom placement: while shopping, the top of
+ * the screen is where a user's attention already is (the next item to grab),
+ * so a bottom-anchored composer would sit out of sight, disconnected from the
+ * point of view this screen is built around. `addNewItem()` uses its own
+ * `addBusy`/`addBusyRef` pair rather than the shared `pending` Set above —
+ * `pending` is keyed by an *existing* item's id, and a not-yet-inserted item
+ * has none, so folding this into `pending` isn't possible; a brand-new,
+ * separate ref/state pair is the correct shape here, not a shortcut. The new
+ * item needs no ordering logic of its own: `computeRouteOrder`'s tier-3
+ * fallback (no check-off history, no section tag) already keeps a
+ * newly-added item in its entry-order position via `Array.prototype.sort`'s
+ * stability, confirmed by reading that function rather than assumed. Gated
+ * on `list.archivedAt === null`, matching every other write this screen
+ * already gates the same way — an archived list is read-only.
  *
  * Item check/uncheck (`toggle()`) is gated on `list.archivedAt` the same way
  * the "Finish shopping" button already is — an archived list's item state is
@@ -289,6 +307,9 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   const [confirmingFinish, setConfirmingFinish] = useState(false);
   const [finishingShopping, setFinishingShopping] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
+  const [addDraft, setAddDraft] = useState('');
+  const [addBusy, setAddBusy] = useState(false);
+  const addBusyRef = useRef(false);
 
   // Effective checked state for a row: the optimistic overlay above wins while a
   // value is present, otherwise falls back to whatever the database last reported.
@@ -526,6 +547,42 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     }
   }
 
+  async function addNewItem() {
+    if (!list || list.archivedAt !== null) {
+      return;
+    }
+    if (addDraft.trim().length === 0 || addBusy || addBusyRef.current) {
+      return;
+    }
+
+    // Read straight off `view` rather than the later-computed `orderedItems`/
+    // `items` locals (those are defined below this component's early returns,
+    // out of scope here) — same source ListDetailScreen.add() already reads
+    // from, just accessed defensively since this handler must stay above the
+    // early returns that guarantee `view.status === 'loaded'`.
+    const currentItems = view.status === 'loaded' ? view.items : [];
+    const last = currentItems.length > 0 ? currentItems[currentItems.length - 1].position : null;
+
+    addBusyRef.current = true;
+    setAddBusy(true);
+    setError(null);
+
+    try {
+      const outcome = await addItem(client, listId, addDraft, last);
+
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+
+      await refresh();
+      setAddDraft('');
+    } finally {
+      setAddBusy(false);
+      addBusyRef.current = false;
+    }
+  }
+
   if (lists.status === 'loading') {
     return (
       <Screen edges={NAVIGATOR_EDGES}>
@@ -639,6 +696,29 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
       <Body>{`${checkedCount} of ${items.length} checked`}</Body>
 
       {error ? <ErrorNote message={error} /> : null}
+
+      <View style={styles.addComposer}>
+        <Field
+          label="Add an item"
+          value={addDraft}
+          onChangeText={setAddDraft}
+          placeholder="Milk"
+          autoCapitalize="sentences"
+          maxLength={120}
+          onSubmitEditing={() => void addNewItem()}
+          returnKeyType="done"
+          submitBehavior="submit"
+          blurOnSubmit={false}
+          editable={list.archivedAt === null}
+        />
+        <PrimaryButton
+          label="Add"
+          onPress={() => void addNewItem()}
+          busy={addBusy}
+          disabled={addDraft.trim().length === 0 || list.archivedAt !== null}
+          keepFocus
+        />
+      </View>
 
       {orderedItems.map((item) => {
         const section = sectionForItemName(locationItems.items, item.name);
@@ -787,6 +867,9 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
+    addComposer: {
+      gap: tokens.space.sm,
+    },
     itemGroup: {
       gap: tokens.space.xs,
     },

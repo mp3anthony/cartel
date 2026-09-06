@@ -78,6 +78,14 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Locations'> & {
  * pencil is the toggle: tapping it while that row's picker is open closes it
  * with no write (this is "Cancel"); tapping a different row's pencil switches
  * which row is being edited.
+ *
+ * #65 adds a "View catalog" `SecondaryButton` per row, navigating to the new
+ * `LocationCatalog` screen — a plain sibling element alongside each row's own
+ * `Row`/`chainRow`, not nested inside `Row`'s `trailing` slot, for the same
+ * "two nested Pressables reacting to one tap" reason #54's chain-edit pencil
+ * above already avoids. No `disabled` gating needed: unlike the chain-edit
+ * pencil, this is a plain navigation with no in-flight write of its own to
+ * race.
  */
 export function LocationsScreen({ client, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -338,6 +346,10 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
               onChange={(nextChain) => void submitChainEdit(location.id, nextChain)}
             />
           ) : null}
+          <SecondaryButton
+            label="View catalog"
+            onPress={() => navigation.navigate('LocationCatalog', { locationId: location.id })}
+          />
         </View>
       ))}
 
