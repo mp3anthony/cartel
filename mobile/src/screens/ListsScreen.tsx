@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -51,6 +51,13 @@ export function ListsScreen({
   const [shared, setShared] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // `busy` is React state, batched: several keydown-triggered `submit()` calls fired
+  // in the same synchronous burst (a fast typist double-hitting Return) all read the
+  // same stale `busy === false` from their closures before any render flushes, so a
+  // state check alone never trips. This ref is set synchronously inside `submit()`
+  // itself, before anything async happens, purely for that re-entrancy guard — `busy`
+  // state stays the source of truth for everything UI-facing (button disabling).
+  const busyRef = useRef(false);
 
   function beginComposing() {
     setError(null);
@@ -68,10 +75,11 @@ export function ListsScreen({
     // The button is disabled on an empty name, but the keyboard's return key is not.
     // `lists.name` carries a length check, and an empty one comes back as raw
     // constraint prose that `humanise` has no mapping for.
-    if (name.trim().length === 0) {
+    if (name.trim().length === 0 || busy || busyRef.current) {
       return;
     }
 
+    busyRef.current = true;
     setBusy(true);
     setError(null);
 
@@ -82,6 +90,7 @@ export function ListsScreen({
     );
 
     if (!outcome.ok) {
+      busyRef.current = false;
       setBusy(false);
       setError(outcome.message);
       return;
@@ -92,6 +101,7 @@ export function ListsScreen({
     // there as a list that does not exist.
     await refresh();
 
+    busyRef.current = false;
     setBusy(false);
     setComposing(false);
     setName('');
@@ -133,9 +143,9 @@ export function ListsScreen({
             autoCapitalize="sentences"
             autoFocus
             maxLength={60}
-            editable={!busy}
             onSubmitEditing={submit}
             returnKeyType="done"
+            blurOnSubmit={false}
           />
           {household ? (
             // A checkbox rather than a pair of buttons: there are two scopes, one of

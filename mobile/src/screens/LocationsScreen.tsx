@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -98,6 +98,14 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
   );
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [savingChainId, setSavingChainId] = useState<string | null>(null);
+  // `busy` is React state, batched: several keydown-triggered `submitCreate()` calls
+  // fired in the same synchronous burst (a fast typist double-hitting Return) all read
+  // the same stale `busy === false` from their closures before any render flushes, so
+  // a state check alone never trips. This ref is set synchronously inside
+  // `submitCreate()` itself, before anything async happens, purely for that
+  // re-entrancy guard — `busy` state stays the source of truth for everything
+  // UI-facing (button disabling).
+  const busyRef = useRef(false);
 
   /**
    * The single place a selection "becomes real". Absent `attachToListId`, this is
@@ -150,66 +158,72 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
 
   async function submitCreate() {
     // The button is disabled on an empty name, but the keyboard's return key is not.
-    if (name.trim().length === 0) {
+    if (name.trim().length === 0 || busy || busyRef.current) {
       return;
     }
 
-    setBusy(true);
-    setError(null);
+    busyRef.current = true;
 
-    const perm = await requestLocation();
+    try {
+      setBusy(true);
+      setError(null);
 
-    if (perm.status === 'denied') {
+      const perm = await requestLocation();
+
+      if (perm.status === 'denied') {
+        setBusy(false);
+        setPermissionDenied(true);
+        setComposing(false);
+        return;
+      }
+
+      if (perm.status === 'error') {
+        setBusy(false);
+        setError(perm.message);
+        return;
+      }
+
+      const nearby = await findNearbyLocations(
+        client,
+        perm.lat,
+        perm.lng,
+        MERGE_RADIUS_M,
+      );
+
+      if (!nearby.ok) {
+        setBusy(false);
+        setError(nearby.message);
+        return;
+      }
+
+      if (nearby.value.length > 0) {
+        // Already ordered by distance — the nearest candidate is the one worth
+        // surfacing, and there is only ever room for one merge prompt on screen.
+        setBusy(false);
+        setNearbyMatch(nearby.value[0]);
+        return;
+      }
+
+      const created = await createLocation(client, name, perm.lat, perm.lng, chain);
+
+      if (!created.ok) {
+        setBusy(false);
+        setError(created.message);
+        return;
+      }
+
+      // Captured before setName('') clears it, and before handleSelect's own attach
+      // path may navigate this screen away.
+      const createdName = name.trim();
+
+      await refresh();
       setBusy(false);
-      setPermissionDenied(true);
       setComposing(false);
-      return;
+      setName('');
+      await handleSelect(created.value, createdName);
+    } finally {
+      busyRef.current = false;
     }
-
-    if (perm.status === 'error') {
-      setBusy(false);
-      setError(perm.message);
-      return;
-    }
-
-    const nearby = await findNearbyLocations(
-      client,
-      perm.lat,
-      perm.lng,
-      MERGE_RADIUS_M,
-    );
-
-    if (!nearby.ok) {
-      setBusy(false);
-      setError(nearby.message);
-      return;
-    }
-
-    if (nearby.value.length > 0) {
-      // Already ordered by distance — the nearest candidate is the one worth
-      // surfacing, and there is only ever room for one merge prompt on screen.
-      setBusy(false);
-      setNearbyMatch(nearby.value[0]);
-      return;
-    }
-
-    const created = await createLocation(client, name, perm.lat, perm.lng, chain);
-
-    if (!created.ok) {
-      setBusy(false);
-      setError(created.message);
-      return;
-    }
-
-    // Captured before setName('') clears it, and before handleSelect's own attach
-    // path may navigate this screen away.
-    const createdName = name.trim();
-
-    await refresh();
-    setBusy(false);
-    setComposing(false);
-    setName('');
-    await handleSelect(created.value, createdName);
   }
 
   function confirmMerge() {
@@ -358,9 +372,9 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
             autoCapitalize="sentences"
             autoFocus
             maxLength={60}
-            editable={!busy}
             onSubmitEditing={submitCreate}
             returnKeyType="done"
+            blurOnSubmit={false}
           />
           <ChainPicker value={chain} onChange={setChain} />
           <PrimaryButton
