@@ -56,57 +56,20 @@ export async function loadLocationCheckoffs(
 }
 
 /**
- * Records one completed shop at a location: the item names checked off,
- * normalized, in the order `orderedCheckedItemNames` determined.
- *
- * Normalizes every entry itself via `normalizeItemName`, matching
- * `tagItemLocation`'s convention of normalizing internally rather than
- * trusting the caller to have done it. Unlike `tagItemLocation`, no error
- * code is special-cased — there is no unique constraint on this table, no
- * race to swallow (see migration 20260811000001's header), so every error
- * surfaces via `humanise()` normally.
+ * The order a shop's checked-off items are recorded in, both here
+ * (`location_checkoffs.item_names`) and in `shop_sessions.checked_item_names`,
+ * is decided once, in SQL, inside `public.finish_shopping()` (migration
+ * 20260906000000): ascending `checked_at`, tie-broken by `id` — the same
+ * tie-break `loadItems()`'s own `.order('position').order('id')` convention
+ * uses in `mobile/src/lib/lists.ts`, for the same reason (two items checked
+ * at the same stored timestamp need a deterministic order, and `id` is the
+ * one field guaranteed to differ between them and sort identically on every
+ * device). Issue #58 moved both the check-off write and this ordering
+ * decision from a client-computed array (this file's own former
+ * `orderedCheckedItemNames`, deleted) into that function's own query, so the
+ * rule is written down in exactly one place rather than duplicated in JS and
+ * SQL where the two could drift.
  */
-export async function recordLocationCheckoff(
-  client: SupabaseClient,
-  locationId: string,
-  itemNames: readonly string[],
-): Promise<Outcome<void>> {
-  const { error } = await client.from('location_checkoffs').insert({
-    location_id: locationId,
-    item_names: itemNames.map(normalizeItemName),
-  });
-
-  if (error) {
-    return { ok: false, message: humanise(error) };
-  }
-
-  return { ok: true, value: undefined };
-}
-
-/**
- * The names of a list's checked items, in the order they were actually
- * checked off during a shop.
- *
- * `checked_at` is the only signal this app has for "when was this checked,"
- * so ascending `checked_at` is the one coherent reading of "the order
- * actually checked during that shop." Ties break on `id`, mirroring
- * `loadItems()`'s own `.order('position').order('id')` tie-break convention
- * in `mobile/src/lib/lists.ts`: two items checked at the same stored
- * timestamp need a deterministic order, and `id` is the one field guaranteed
- * to differ between them and to sort identically on every device.
- */
-export function orderedCheckedItemNames<
-  T extends { id: string; name: string; checkedAt: string | null },
->(items: readonly T[]): string[] {
-  return items
-    .filter((item): item is T & { checkedAt: string } => item.checkedAt !== null)
-    .slice()
-    .sort((a, b) => {
-      const byCheckedAt = new Date(a.checkedAt).getTime() - new Date(b.checkedAt).getTime();
-      return byCheckedAt !== 0 ? byCheckedAt : a.id.localeCompare(b.id);
-    })
-    .map((item) => item.name);
-}
 
 /** Arithmetic mean of a non-empty array of numbers. */
 function mean(values: readonly number[]): number {

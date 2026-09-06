@@ -75,23 +75,6 @@ export async function loadShopSessions(
   };
 }
 
-/**
- * Records one completed shop. Takes an options object rather than positional
- * arguments — a deliberate, small deviation from this file's siblings
- * (`tagItemLocation`, `createLocation`, `recordLocationCheckoff` are all
- * positional): this call has two adjacent nullable-string parameters
- * (`householdId`, `listId`) that read identically at a call site and would
- * be easy to transpose silently if positional. Named fields remove that
- * failure mode for the price of one extra line per call.
- *
- * `ownerId` is left out on purpose, matching `createList()`'s own treatment
- * of `lists.owner_id`: the column defaults to auth.uid(), which is the same
- * value the insert policy checks it against, so a client that never names
- * the column cannot get it wrong.
- *
- * Neither array is normalized here — see the migration's header for why
- * these must keep their original casing, unlike `location_checkoffs`.
- */
 /** One location's share of a household's/user's full shop history. */
 export type LocationShopCount = {
   locationId: string;
@@ -172,27 +155,41 @@ export async function deleteAllShopSessions(client: SupabaseClient): Promise<Out
   return { ok: true, value: undefined };
 }
 
-export async function recordShopSession(
-  client: SupabaseClient,
-  params: {
-    locationId: string;
-    householdId: string | null;
-    listId: string | null;
-    itemNames: readonly string[];
-    checkedItemNames: readonly string[];
-  },
-): Promise<Outcome<void>> {
-  const { error } = await client.from('shop_sessions').insert({
-    location_id: params.locationId,
-    household_id: params.householdId,
-    list_id: params.listId,
-    item_names: [...params.itemNames],
-    checked_item_names: [...params.checkedItemNames],
-  });
+export type ShopSessionItemBreakdown = {
+  name: string;
+  bought: boolean;
+};
 
-  if (error) {
-    return { ok: false, message: humanise(error) };
+/**
+ * Every original item in a shop session, in snapshot order, each marked
+ * whether it was actually checked off during that shop. Issue #58's
+ * presentational answer to "does History show a partial shop any
+ * differently" — it doesn't get a separate badge; this per-item breakdown is
+ * the only signal, applied uniformly to every card (a fully-completed shop's
+ * card just has nothing marked).
+ *
+ * Counts rather than a plain `.includes()` membership test, because
+ * `itemNames`/`checkedItemNames` are plain string arrays with no per-item id
+ * (03-SPEC.md's shop_sessions design) — a list with two items of the same
+ * name needs its bought/unbought split to track occurrence count, not just
+ * "is this name anywhere in checkedItemNames," or a duplicate name would
+ * either double-mark or under-mark once one occurrence was checked and the
+ * other wasn't.
+ */
+export function sessionItemBreakdown(
+  session: Pick<ShopSessionRow, 'itemNames' | 'checkedItemNames'>,
+): ShopSessionItemBreakdown[] {
+  const remaining = new Map<string, number>();
+  for (const name of session.checkedItemNames) {
+    remaining.set(name, (remaining.get(name) ?? 0) + 1);
   }
 
-  return { ok: true, value: undefined };
+  return session.itemNames.map((name) => {
+    const left = remaining.get(name) ?? 0;
+    if (left > 0) {
+      remaining.set(name, left - 1);
+      return { name, bought: true };
+    }
+    return { name, bought: false };
+  });
 }

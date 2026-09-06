@@ -24,6 +24,7 @@ import { addItems, attachLocation, createList } from '../lib/lists';
 import {
   deleteAllShopSessions,
   deleteShopSession,
+  sessionItemBreakdown,
   type ShopSessionRow,
 } from '../lib/shopSessions';
 import type { RootStackParamList } from '../navigation/types';
@@ -69,6 +70,19 @@ type Props = NativeStackScreenProps<RootStackParamList, 'History'> & {
  * composer, its own delete confirm, and the screen-level clear-all confirm
  * are mutually exclusive — opening one resets the others, so at most one
  * confirmation is ever on screen at a time.
+ *
+ * Issue #58 (partial finish) added the per-item breakdown every card now
+ * shows beneath its summary line — `sessionItemBreakdown()` (`../lib/
+ * shopSessions`) pairs each of `itemNames`' original entries with whether it
+ * was actually checked off, marking the unbought ones "(not in this shop)".
+ * This is the screen's whole answer to "does a partial shop look any
+ * different in History" — deliberately no separate badge/pill on top; the
+ * per-item list alone already says everything a badge would duplicate (#58's
+ * explicit choice). A fully-completed shop's card simply has nothing
+ * marked. `submitCopy()` is unaffected — it already copies `itemNames`, the
+ * full original snapshot, not `checkedItemNames`, so "Start new list from
+ * this" continues to template every original item regardless of what was
+ * actually bought that trip.
  */
 export function HistoryScreen({ client, household, navigation, onListsChanged }: Props) {
   const tokens = useTheme();
@@ -298,6 +312,14 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
               }`}
             </Body>
 
+            <View style={styles.itemList}>
+              {sessionItemBreakdown(session).map((entry, index) => (
+                <Text key={`${entry.name}-${index}`} style={styles.itemLine}>
+                  {entry.bought ? entry.name : `${entry.name} (not in this shop)`}
+                </Text>
+              ))}
+            </View>
+
             {composing ? (
               <View style={styles.composer}>
                 <Field
@@ -375,6 +397,13 @@ function createStyles(tokens: Tokens) {
       fontSize: tokens.fontSize.title,
       fontWeight: '600',
       color: tokens.color.textPrimary,
+    },
+    itemList: {
+      gap: tokens.space.xs,
+    },
+    itemLine: {
+      color: tokens.color.textPrimary,
+      fontSize: tokens.fontSize.body,
     },
     composer: {
       gap: tokens.space.sm,
