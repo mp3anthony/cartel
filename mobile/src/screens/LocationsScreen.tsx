@@ -382,6 +382,7 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
             onPress={submitCreate}
             busy={busy}
             disabled={name.trim().length === 0}
+            keepFocus
           />
           <SecondaryButton
             label="Cancel"

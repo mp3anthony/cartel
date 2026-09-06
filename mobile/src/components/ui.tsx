@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -112,11 +113,30 @@ export function PrimaryButton({
   onPress,
   busy = false,
   disabled = false,
+  keepFocus = false,
 }: {
   label: string;
   onPress: () => void;
   busy?: boolean;
   disabled?: boolean;
+  /**
+   * For a button sitting next to a "keep typing to add the next one" composer field
+   * (add an item, create a list/location) — a plain tap on this button would
+   * otherwise shift DOM focus to it first, blurring that field and, on a real
+   * device, dismissing the on-screen keyboard before `onPress` ever runs. The
+   * `blurOnSubmit={false}`/`editable`-always-true fix on those fields (see
+   * HANDOFF) only keeps the keyboard open across a *Return-key* submit — it does
+   * nothing for a tap on this button, a separate code path with the same visible
+   * symptom. `onMouseDown`'s preventDefault stops that browser default focus
+   * shift while it's still the same event dispatch, so the field never blurs in
+   * the first place; `onPress` still fires normally off the subsequent click.
+   * Web-only (`onMouseDown` isn't a thing on native, where tap-elsewhere-blurs
+   * isn't reachable behind the pre-existing `keyboardShouldPersistTaps="handled"`
+   * on `Screen`'s ScrollView), and only opted into by the specific buttons next
+   * to those fields — not a blanket default, matching how narrowly the Return-key
+   * fix itself was scoped.
+   */
+  keepFocus?: boolean;
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -128,6 +148,9 @@ export function PrimaryButton({
       accessibilityState={{ disabled: inactive, busy }}
       disabled={inactive}
       onPress={onPress}
+      {...(keepFocus && Platform.OS === 'web'
+        ? { onMouseDown: (e: { preventDefault: () => void }) => e.preventDefault() }
+        : null)}
       style={({ pressed }) => [
         styles.primaryButton,
         pressed && styles.primaryButtonPressed,

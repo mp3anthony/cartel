@@ -433,6 +433,7 @@ export function ListDetailScreen({
         onPress={() => add(items)}
         busy={busy}
         disabled={draft.trim().length === 0}
+        keepFocus
       />
 
       {error ? <ErrorNote message={error} /> : null}
