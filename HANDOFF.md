@@ -8,16 +8,19 @@
 - **2026-09-06 (second) build session — #58 shipped and merged
   ([PR #62](https://github.com/mp3anthony/cartel/pull/62)), keyboard-close
   regression fully closed with a second, separate fix
-  ([PR #61](https://github.com/mp3anthony/cartel/pull/61)), and two new
-  `ready-for-human` issues filed
-  ([#63](https://github.com/mp3anthony/cartel/issues/63), add-an-item mid
-  Shopping Mode; [#64](https://github.com/mp3anthony/cartel/issues/64),
-  a possible silent tag-loss bug — genuinely unresolved, see below).
+  ([PR #61](https://github.com/mp3anthony/cartel/pull/61)), and three new
+  issues filed: [#63](https://github.com/mp3anthony/cartel/issues/63)
+  (`ready-for-human`, add-an-item mid Shopping Mode),
+  [#64](https://github.com/mp3anthony/cartel/issues/64) (`ready-for-human`,
+  a possible silent tag-loss bug — genuinely unresolved, see below), and
+  [#65](https://github.com/mp3anthony/cartel/issues/65) (`ready-for-agent`,
+  per-location item catalog — both design forks already resolved with the
+  user via `AskUserQuestion`, no Problem Agreement round needed).
   [#52](https://github.com/mp3anthony/cartel/issues/52) is still open,
   still parked/blocked on the user's $50 GCP prepayment, unchanged. Next
   session should start with the user on #64 (it needs their memory of what
-  happened, not more data-side investigation) before #63's Problem
-  Agreement, if nothing else is queued.**
+  happened, not more data-side investigation), then #63's Problem
+  Agreement, then #65 (already unblocked) if nothing else is queued.**
   - **#61 — the keyboard-close bug PR #60 was supposed to fully close
     turned out to have a second, separate root cause the user was still
     hitting.** PR #60 (prior session) only fixed the *Return-key* submit
@@ -169,6 +172,21 @@
     don't let a new add-composer's write-in-flight state block unrelated
     check-off taps (`ShoppingScreen` already uses a per-item `pending` set
     for exactly this reason).
+  - **[#65](https://github.com/mp3anthony/cartel/issues/65) filed,
+    `ready-for-agent`**: a per-location item catalog — browse everything
+    ever tagged at a store, reached from `LocationsScreen`. Raised by the
+    user in the context of #64 (a catalog would make "has anyone tagged
+    this before" answerable at a glance instead of needing a DB check).
+    Both real design forks resolved via `AskUserQuestion` before filing,
+    not guessed: placement (a link from each `LocationsScreen` row, not a
+    new top-level nav item) and editability (inline correction *is* in
+    scope, reusing the existing quorum-vote flow Shopping Mode's pencil
+    icon already uses — not read-only, and not a new correction
+    mechanism). Explicitly does not support tagging a brand-new,
+    never-tagged item from the catalog itself — that stays
+    `tagItemLocation()`'s first-write-wins path in Shopping Mode; the
+    catalog only ever shows/corrects items that already have at least one
+    tag. Independent of #52 despite both touching locations.
 
 - **2026-09-06 (first) build session — keyboard-close-on-add fixed and merged,
   [PR #60](https://github.com/mp3anthony/cartel/pull/60). Reported
