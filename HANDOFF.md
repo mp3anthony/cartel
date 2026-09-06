@@ -5,7 +5,172 @@
 
 ## Last active
 
-- **2026-09-06 build session — keyboard-close-on-add fixed and merged,
+- **2026-09-06 (second) build session — #58 shipped and merged
+  ([PR #62](https://github.com/mp3anthony/cartel/pull/62)), keyboard-close
+  regression fully closed with a second, separate fix
+  ([PR #61](https://github.com/mp3anthony/cartel/pull/61)), and two new
+  `ready-for-human` issues filed
+  ([#63](https://github.com/mp3anthony/cartel/issues/63), add-an-item mid
+  Shopping Mode; [#64](https://github.com/mp3anthony/cartel/issues/64),
+  a possible silent tag-loss bug — genuinely unresolved, see below).
+  [#52](https://github.com/mp3anthony/cartel/issues/52) is still open,
+  still parked/blocked on the user's $50 GCP prepayment, unchanged. Next
+  session should start with the user on #64 (it needs their memory of what
+  happened, not more data-side investigation) before #63's Problem
+  Agreement, if nothing else is queued.**
+  - **#61 — the keyboard-close bug PR #60 was supposed to fully close
+    turned out to have a second, separate root cause the user was still
+    hitting.** PR #60 (prior session) only fixed the *Return-key* submit
+    path. Tapping the adjacent "Add"/"Create" button is a different code
+    path — a plain DOM click shifts focus to the button first, blurring
+    the field and dismissing the keyboard before `onPress` even runs.
+    Fixed by giving `PrimaryButton` an opt-in `keepFocus` prop
+    (`onMouseDown={e => e.preventDefault()}`, web-only), applied to
+    exactly the three buttons next to the three "keep typing" composer
+    fields — not a blanket default. Live-verified via a real dispatched
+    `mousedown` that `event.defaultPrevented` fires and
+    `document.activeElement` stays on the input, then confirmed the click
+    still submits normally. **Honest gap, stated in the PR**: this
+    Browser pane has no real on-screen keyboard to observe — verification
+    proved the underlying mechanism, not that a real phone's keyboard
+    visibly stays up. Orchestrator-diagnosed and fixed directly (not
+    through the full subagent pipeline) — a quick, well-scoped
+    conversational report, same precedent as #60's own session.
+  - **#58 — partial finish keeps list active; history marks items not
+    bought.** Ran the full pipeline: Planner (produced a plan the
+    orchestrator saved as this session's `PLAN-58.md`, since the Planner
+    role has no write tool) → Code Writer → separate Code Reviewer →
+    orchestrator's own live-browser verification (subagents still can't
+    reach real Browser-pane compositing, standing constraint since
+    2026-08-15's Batch A).
+    - **Design**: new `security definer` RPC, `public.finish_shopping()`
+      (migration `20260906000000`), replacing the sequential
+      direct-table-write shape (`archiveList()`'s conditional-update claim
+      → `recordLocationCheckoff()` → `recordShopSession()`). Once a
+      partial finish must leave `archived_at` null, there's no longer a
+      single column whose transition can serve as an atomicity claim — the
+      function instead locks the list row and its item rows, re-checks
+      live state, and does everything (both inserts, the archive-or-trim
+      branch) in one transaction, the same shape Slice 8's
+      `vote_location_item_correction()` already established. Two
+      concurrent finishes for the same list now serialize on the row lock
+      instead of racing. `archiveList()`, `unarchiveList()`,
+      `recordLocationCheckoff()`, `recordShopSession()` are all deleted —
+      fully superseded, not left dead. Direct-write grants for the
+      columns/tables they used are revoked; the RPC is now the only write
+      path.
+    - **History** shows every item from a shop's full snapshot, marking
+      anything not bought "(not in this shop)" — applied uniformly to
+      every card. Deliberately no separate "partially completed" badge
+      (explicit choice): the per-item breakdown alone already says
+      everything a badge would duplicate.
+    - **Code review caught one real blocking bug**: the RPC's new
+      exception codes (`already_finished`, `nothing_checked`,
+      `no_location`) weren't mapped in `humanise()` — a lost race would
+      have shown the user a raw internal string instead of a sane message.
+      Fixed and re-verified by the same review pass.
+    - **Orchestrator's own live verification caught a second real bug
+      neither subagent flagged**: the "Finish shopping" confirm dialog's
+      copy still said "It won't uncheck anything or change today's list"
+      — true before this issue, false now (a partial finish does remove
+      the checked items). Fixed live, before opening the PR.
+    - Live-verified end to end against real seeded-then-cleaned-up data:
+      partial finish trims the list and keeps it active; finishing the
+      remainder later archives it and creates a **second, independent**
+      History entry without touching the first; "Start new list from
+      this" on a partial-finish card still copies the full original
+      snapshot; directly re-invoking the RPC against an already-finished
+      list cleanly raises `already_finished` with no duplicate write (the
+      concurrency guard the issue explicitly asked not to hand-wave). All
+      test rows queried and confirmed as this session's own before
+      deletion, then deleted and reverified at zero.
+    - `npx tsc --noEmit` clean throughout. `supabase/tests/rls_finish_shopping.sql`
+      (new, 6 assertions) ran clean; `rls_lists_archived_at.sql` deleted
+      (its assertions directly UPDATE `archived_at` as `authenticated`,
+      which the new revoke breaks — its own atomicity claim is exactly
+      what this issue supersedes).
+    - **Housekeeping-only mismatch, not a correctness issue**: the live
+      project's migration history has two applied entries (an original +
+      a live follow-up fixing a `shop_sessions.location_id` NOT NULL
+      violation the new RLS test itself caught before it ever reached the
+      client) consolidated into one committed migration file. Verified the
+      live function body is byte-identical to the committed file.
+    - **`mobile/app.json`/`mobile/package.json` bumped 0.0.24 → 0.0.25 on
+      both PR #61 and PR #62 independently** (same precedent as several
+      past sessions) — both branches converged on the identical value, so
+      the merge needed no manual resolution.
+  - **A real, self-inflicted incident happened between these two PRs
+    merging, worth remembering as a standing lesson**: the Code Writer
+    applied #58's migration (including the grant revocations) directly to
+    the **live, shared Supabase project** — the same one `main`'s deployed
+    Vercel production build reads from — mid-session, well before PR #62
+    was reviewed, verified, or merged. Production's still-deployed old
+    frontend code (`archiveList()`/`recordLocationCheckoff()`/
+    `recordShopSession()`, all direct table writes) started failing every
+    real "Finish shopping" attempt with a permission-denied error the
+    instant those grants were revoked — the user hit this live, on their
+    phone, mid-session, and reported it as "You don't have access to
+    that." Root cause confirmed by reading `humanise()`'s generic-denial
+    fallback and correlating the timing, not guessed. **Fixed by merging
+    PR #62 immediately** once the user approved both PRs — the moment the
+    new RPC-based frontend deployed, the mismatch was gone. **The
+    standing lesson**: this project's Supabase project is a single shared
+    instance with no separate dev/staging tier, so a migration that
+    *revokes* a grant an already-deployed frontend still relies on is
+    live-breaking the moment it's applied, regardless of whether the
+    matching frontend PR has merged yet. A future session doing a
+    migration of this shape (RPC replacing direct writes, with a grant
+    revocation) should either apply the migration and merge the frontend
+    PR in the same short window, or hold the revoke statements back into a
+    fast-follow migration applied only after the frontend is confirmed
+    live.
+  - **Investigated a second user report in two rounds — the first
+    conclusion was real but incomplete, the user's pushback surfaced a
+    genuinely separate, unresolved question. [#64](https://github.com/mp3anthony/cartel/issues/64)
+    filed for it, `ready-for-human` — this is NOT closed, don't assume it
+    is.** Initial report: "items I've located in previous shops aren't
+    repopulating." First check: `milk`/`energy drinks` were tagged
+    2026-08-23 at **Woolworths Papanui**, but today's list was shopping
+    **Pak'nsave Papanui** — a different store, and `location_items` tags
+    are deliberately per-location, so that specific case is genuinely
+    working as designed (per-location crowd-sourcing, not a repopulation
+    failure) — told to the user as such. **The user immediately pushed
+    back with a detail that reframes the question**: they said Pak'nsave
+    is specifically where their "big shop" happens, and they'd tagged
+    Milk there before, at least once. Checked again, directly: `locations`
+    has exactly one Pak'nsave Papanui row (created 2026-08-15, never
+    duplicated), and **every** `location_items` row at that location —
+    all nine of them, Milk included — has a `created_at` of *today*, all
+    within an 11-minute window. There is no tag at this location
+    predating today, full stop. Also ruled out a location-merge/cascade
+    explanation: grepped `mobile/src` and confirmed **no code path in
+    this app ever deletes a `locations` row** at all ("merge" here only
+    means "reuse the existing nearby row," never delete-and-recreate), so
+    there's no mechanism in current code that could have cascade-wiped a
+    real tag. **Genuinely unresolved**: either the original Milk tag at
+    Pak'nsave never actually saved at the time (a real, currently
+    unlocated silent-write-failure bug — `tagItemLocation()`'s `23505`-
+    is-fine handling is flagged in the issue as worth a hard look, not
+    assumed innocent), or the user is thinking of Woolworths and the two
+    "...Papanui" names got crossed in memory. Data alone can't
+    distinguish these. Next session should start by asking the user for
+    any more specific memory of the original tagging (roughly when, which
+    store, whether they saw it confirm) before jumping to a live
+    network-level repro.
+  - **[#63](https://github.com/mp3anthony/cartel/issues/63) filed,
+    `ready-for-human`**: no way to add an item while in Shopping Mode
+    (`ShoppingScreen.tsx` has no "Add an item" field at all today, only
+    `ListDetailScreen` does). Two genuine open questions recorded in the
+    issue rather than guessed at: whether a newly-added item starts
+    checked or unchecked, and where it slots into `computeRouteOrder()`'s
+    output. Design notes for whoever picks it up: reuse `addItem()`
+    unchanged, reuse the `busyRef`-not-`busy`-state re-entrancy guard
+    pattern and #61's `keepFocus` fix rather than re-deriving them, and
+    don't let a new add-composer's write-in-flight state block unrelated
+    check-off taps (`ShoppingScreen` already uses a per-item `pending` set
+    for exactly this reason).
+
+- **2026-09-06 (first) build session — keyboard-close-on-add fixed and merged,
   [PR #60](https://github.com/mp3anthony/cartel/pull/60). Reported
   conversationally (not a filed issue), diagnosed and resolved same
   session via subagents at the user's explicit request. #52 is still
