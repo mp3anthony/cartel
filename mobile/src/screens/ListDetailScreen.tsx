@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -87,6 +87,13 @@ export function ListDetailScreen({
   const [copyShared, setCopyShared] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // `busy` is React state, batched: several keydown-triggered `add()` calls fired in
+  // the same synchronous burst (a fast typist double-hitting Return) all read the same
+  // stale `busy === false` from their closures before any render flushes, so a state
+  // check alone never trips. This ref is set synchronously inside `add()` itself,
+  // before anything async happens, purely for that re-entrancy guard — `busy` state
+  // stays the source of truth for everything UI-facing (button disabling, spinners).
+  const busyRef = useRef(false);
 
   const list =
     lists.status === 'loaded'
@@ -133,8 +140,10 @@ export function ListDetailScreen({
     // The Add button is disabled on an empty draft, but the keyboard's return key
     // reaches here regardless. `list_items.name` carries a length check, so without
     // this the round trip comes back as raw constraint prose that `humanise` has no
-    // mapping for and shows the user the schema.
-    if (draft.trim().length === 0) {
+    // mapping for and shows the user the schema. The `busy` check exists because the
+    // field itself no longer disables while a write is in flight — the keyboard stays
+    // up between submits — so without it a fast double-Return could fire two writes.
+    if (draft.trim().length === 0 || busy || busyRef.current) {
       return;
     }
 
@@ -142,10 +151,14 @@ export function ListDetailScreen({
     // the upper bound is nothing at all.
     const last = items.length > 0 ? items[items.length - 1].position : null;
 
+    busyRef.current = true;
+
     void mutate(
       () => addItem(client, listId, draft, last),
       () => setDraft(''),
-    );
+    ).finally(() => {
+      busyRef.current = false;
+    });
   }
 
   function commitRename() {
@@ -410,7 +423,6 @@ export function ListDetailScreen({
         placeholder="Milk"
         autoCapitalize="sentences"
         maxLength={120}
-        editable={!busy}
         onSubmitEditing={() => add(items)}
         returnKeyType="done"
         submitBehavior="submit"
