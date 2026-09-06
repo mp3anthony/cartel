@@ -765,7 +765,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
 
       {confirmingFinish ? (
         <Confirm
-          message="This records everything currently checked, in the order you checked it, as one completed shop at this location. It won't uncheck anything or change today's list."
+          message="This records everything currently checked, in the order you checked it, as one completed shop at this location. If everything is checked, the list is done and moves out of your active lists. If some items are left unchecked, they'll stay on this list to finish later — only the checked ones are removed."
           confirmLabel="Finish shopping"
           onConfirm={() => void finishThisShop()}
           onCancel={() => setConfirmingFinish(false)}
