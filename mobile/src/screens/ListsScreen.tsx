@@ -170,6 +170,7 @@ export function ListsScreen({
             onPress={submit}
             busy={busy}
             disabled={name.trim().length === 0}
+            keepFocus
           />
           <SecondaryButton
             label="Cancel"
