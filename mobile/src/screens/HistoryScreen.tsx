@@ -77,8 +77,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'History'> & {
  * was actually checked off, marking the unbought ones "(not in this shop)".
  * This is the screen's whole answer to "does a partial shop look any
  * different in History" — deliberately no separate badge/pill on top; the
- * per-item list alone already says everything a badge would duplicate (see
- * PLAN-58.md's Decision 2). A fully-completed shop's card simply has nothing
+ * per-item list alone already says everything a badge would duplicate (#58's
+ * explicit choice). A fully-completed shop's card simply has nothing
  * marked. `submitCopy()` is unaffected — it already copies `itemNames`, the
  * full original snapshot, not `checkedItemNames`, so "Start new list from
  * this" continues to template every original item regardless of what was
