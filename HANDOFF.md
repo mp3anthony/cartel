@@ -5,6 +5,81 @@
 
 ## Last active
 
+- **2026-09-06 (third) build session — #63 (add an item mid-shop) and #65
+  (per-location item catalog) shipped together in one PR
+  ([PR #66](https://github.com/mp3anthony/cartel/pull/66)), both issues
+  auto-closed on merge. [#64](https://github.com/mp3anthony/cartel/issues/64)
+  is still open, `ready-for-human`, genuinely unresolved — needs the user's
+  own memory of the original tagging, not more data-side investigation (see
+  the prior session's entry below). [#52](https://github.com/mp3anthony/cartel/issues/52)
+  is still parked/blocked on the user's $50 GCP prepayment, unchanged. Next
+  session should start with the user on #64 if nothing else is queued.**
+  - **#63's Problem Agreement ran this session** (`AskUserQuestion`, not
+    skipped): new item starts unchecked; route placement uses
+    `computeRouteOrder`'s existing section-tag-fallback tier if already
+    tagged, entry-order tail otherwise (verified live reading the algorithm
+    already handles a brand-new item correctly — no new ordering logic
+    needed); UI is a persistent composer. **The UI placement was corrected
+    mid-session by the user after the Planner's first draft**: the
+    composer sits at the **top** of the Shopping Mode list (above every
+    item row), not the bottom — the user's own reasoning: the top of the
+    screen is where attention actually is while shopping (point of view /
+    "next item to grab"), not the bottom. The Planner had specified the
+    bottom per the orchestrator's own initial (wrong) instruction; caught
+    and fixed in the plan file before any code was written, so the
+    Code Writer never had to be corrected. New `addBusyRef`/`addBusy` pair
+    is a dedicated guard, deliberately not reusing `ShoppingScreen`'s
+    existing per-item `pending: Set<string>` (that Set is keyed by
+    existing item ids, useless for a not-yet-inserted item, and reusing a
+    single shared boolean would have blocked unrelated check-off taps
+    mid-write — the exact anti-pattern the issue's own design notes warned
+    against). Reuses `addItem()` unchanged and `PrimaryButton`'s `keepFocus`
+    prop from #61.
+  - **#65 was already fully scoped** (`ready-for-agent`, no Problem
+    Agreement round needed) — both real design forks were resolved with
+    the user via `AskUserQuestion` in the prior session before filing.
+    New `LocationCatalogScreen` (deep-linkable at `location/:locationId`),
+    reached via a "View catalog" button on each `LocationsScreen` row.
+    Reuses `loadLocationItems` and the *exact same* quorum-vote correction
+    flow (`voteLocationItemCorrection`) Shopping Mode's pencil icon already
+    uses — no new backend mechanism, no schema/migration changes. Grouped
+    by section, alphabetical within each. Real empty state for an untagged
+    location. Deliberately does not support tagging a never-before-tagged
+    item (stays Shopping Mode's `tagItemLocation()` first-write-wins path
+    only, per the issue's explicit non-goal).
+  - **Both issues bundled into one PR at the user's request** — planned
+    together (confirmed non-overlapping files: `ShoppingScreen.tsx` for
+    #63 vs. `LocationCatalogScreen.tsx`/`LocationsScreen.tsx`/
+    `App.tsx`/`navigation/types.ts` for #65, with only the last two shared
+    and edited additively) since a single Code Writer pass could safely do
+    both. Standard pipeline: Planner (plan saved to `PLAN-63-65.md`,
+    committed on the branch) → Code Writer → separate Code Reviewer (zero
+    findings, first pass) → orchestrator's own live-browser verification.
+  - **Live-verified with real seeded-then-cleaned-up data**: added an item
+    mid-shop via the real UI, confirmed unchecked/correct tail position/
+    check-off-unblocked-during-write; a rapid triple-Enter burst on the new
+    composer produced exactly 1 row, confirmed directly against the
+    database (the `addBusyRef` guard actually works, not just compiles).
+    For #65: proposed a correction from the catalog with one anonymous
+    session, confirmed the same-proposer `already_voted` rejection, then
+    confirmed it from a second, independent real anonymous session — and
+    confirmed the applied correction shows identically from both the
+    catalog and Shopping Mode (same underlying tables). Verified the real
+    empty state on a genuine zero-tagged-item location ("New World South
+    City") rather than a throwaway. **One thing worth carrying forward**:
+    the second live-verification session (Claude-in-Chrome) turned out to
+    be a *persisted* real anonymous test account from 2026-08-14
+    ("Weekly Shop"), not a fresh one — Chrome profiles aren't incognito
+    between sessions the way two separate tools might suggest. Still a
+    genuinely distinct `auth.uid()` for the quorum test, but cleanup had to
+    specifically scope to only this session's own new rows and leave that
+    older account/household alone — confirmed untouched afterward, same
+    "select first, confirm ownership" discipline this file has documented
+    since production went public.
+  - `npx tsc --noEmit` clean throughout (Code Writer, Code Reviewer, and
+    the orchestrator independently). `mobile/app.json`/`mobile/package.json`
+    bumped to `0.0.26`.
+
 - **2026-09-06 (second) build session — #58 shipped and merged
   ([PR #62](https://github.com/mp3anthony/cartel/pull/62)), keyboard-close
   regression fully closed with a second, separate fix
