@@ -23,15 +23,10 @@ import type { ListsView } from '../hooks/useLists';
 import { useLocationCheckoffs } from '../hooks/useLocationCheckoffs';
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocationItemVotes } from '../hooks/useLocationItemVotes';
-import {
-  computeRouteOrder,
-  orderedCheckedItemNames,
-  recordLocationCheckoff,
-} from '../lib/locationCheckoffs';
+import { computeRouteOrder } from '../lib/locationCheckoffs';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
-import { archiveList, setChecked, unarchiveList, type ListItemRow } from '../lib/lists';
-import { recordShopSession } from '../lib/shopSessions';
+import { finishShopping, setChecked, type ListItemRow } from '../lib/lists';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -89,8 +84,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * `useListItems` returns — a read-time sort only, `position` is never written
  * (03-SPEC.md § Slice 7's Agreed block). "Finish shopping" is confirm-gated like
  * this screen's siblings' occasional destructive/one-way actions and records one
- * `location_checkoffs` row via `recordLocationCheckoff`, snapshotting whatever's
- * checked, in check-off order, the moment it's pressed — it does not uncheck
+ * `location_checkoffs` row, snapshotting whatever's checked, in check-off
+ * order, the moment it's pressed (originally via a direct client write,
+ * `recordLocationCheckoff` — folded into `finish_shopping()` by issue #58,
+ * see below) — it does not uncheck
  * anything or touch list reuse across weeks, matching this project's habit of not
  * building ahead of the slice (9) that actually needs that.
  *
@@ -118,44 +115,42 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  *
  * Slice 9 makes "Finish shopping" write two independent rows instead of one.
  * The pre-existing `location_checkoffs` write (anonymous, feeds route
- * learning) is unchanged; alongside it, `finishShopping()` now also calls
- * `recordShopSession()` (`../lib/shopSessions`) to write a household-
- * attributed `shop_sessions` row — the full item snapshot plus which of them
- * were checked — that feeds the new History screen and its copy-into-a-new-
- * list flow. Both are plain direct-to-table writes with no atomicity
- * requirement in the resolved design, so this is two sequential awaited
+ * learning) is unchanged; alongside it, the finish-shopping write also wrote
+ * a household-attributed `shop_sessions` row (originally via a direct client
+ * write, `recordShopSession()` — folded into `finish_shopping()` by issue
+ * #58, see below) — the full item snapshot plus which of them were checked —
+ * that feeds the new History screen and its copy-into-a-new-list flow. At
+ * the time, both were plain direct-to-table writes with no atomicity
+ * requirement in the resolved design, so this was two sequential awaited
  * calls, not an RPC: a failure landing after the first write succeeds but
- * before the second is a real, accepted possibility (a checkoff recorded
+ * before the second was a real, accepted possibility (a checkoff recorded
  * with no matching session row), the same class of risk this project already
  * tolerates elsewhere — see Slice 4's accepted location-merge race window —
  * rather than a case worth an atomic function for.
  *
- * Batch C (#33 + #35) makes `finishShopping()` claim `list.archivedAt` via
- * `archiveList()` (`../lib/lists`) as its very first write, before either of
- * the two writes above. That claim is the actual duplicate-recording guard:
- * `archiveList()`'s conditional UPDATE is atomic at the database level, so of
- * two concurrent `finishShopping()` calls for the same list, only one can
- * ever see `value: true` back. That caller alone proceeds to
- * `recordLocationCheckoff`/`recordShopSession`; a caller that sees
- * `value: false` (already archived — a race, a second device, or this
- * device's own retry) skips straight to the finished-state UI instead of
- * writing either row again. Archiving also feeds #33: `ListsScreen` and
- * `DashboardScreen` both filter `archivedAt === null` into their active
- * views, so a finished list drops out of "Lists" and "Continue shopping" the
- * moment this write lands — hence the added `onListsChanged` prop, called
- * after a real (not already-archived) finish, giving the Dashboard/Lists
- * views this screen doesn't itself own a chance to refresh, rather than
- * leaving them showing a now-archived list until their own next unrelated
- * reload.
- *
- * If either `recordLocationCheckoff` or `recordShopSession` fails *after* a
- * successful `value: true` claim, `finishShopping()` calls `unarchiveList()`
- * (`../lib/lists`) as a best-effort compensating write before surfacing the
- * error — without it, that failure would leave the list permanently archived
- * with no history ever written, and every retry would read the stale claim as
- * "already recorded" and silently skip the writes that never actually
- * happened. A failure in the compensating unarchive itself is swallowed
- * rather than shown, so it can never mask the real error that triggered it.
+ * Issue #58 replaced Batch C's (#33 + #35) `archiveList()`/`unarchiveList()`
+ * client-side claim-and-compensate sequence with a single `security definer`
+ * RPC, `finishShopping()` (`../lib/lists`, calling `finish_shopping()`,
+ * migration 20260906000000). Batch C's mechanism relied on `archived_at`'s
+ * null-to-non-null transition being the one thing every successful finish
+ * did — but a *partial* finish (issue #58's whole point: some items left
+ * unchecked) must never archive the list at all, so there is no longer a
+ * single column whose transition can serve as that claim. The RPC moves the
+ * whole "check what's true, then act on it" sequence server-side instead: it
+ * locks the list row and every one of its item rows, re-reads live state
+ * under those locks, records the checkoff/session snapshots, and then either
+ * archives the list (everything was checked) or soft-deletes just the
+ * checked items (the list stays active with only the unchecked ones left) —
+ * all inside one transaction. This is why `finishThisShop()` below is a
+ * single awaited call with no claim/compensate dance: a partial failure
+ * anywhere inside the function rolls the whole thing back, so there is
+ * nothing left for the client to undo. `onListsChanged` is still called
+ * after a real (non-error) result, same reason as before: `ListsScreen`/
+ * `DashboardScreen` filter `archivedAt === null` into their active views, and
+ * a full finish needs to make this list disappear from those views promptly
+ * rather than waiting on their own next unrelated reload. A partial finish
+ * leaves `archivedAt` null, so those views keep showing the list — correctly,
+ * since it is still active with items left to buy.
  *
  * Item check/uncheck (`toggle()`) is gated on `list.archivedAt` the same way
  * the "Finish shopping" button already is — an archived list's item state is
@@ -194,25 +189,14 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * this one screen renders while a write is in flight, using the exact same
  * `pending` Set as the guard against a second tap racing the first.
  *
- * `finishShopping()` reacts to `toggle()` dropping its own `refresh()` by no
- * longer trusting the `items` it was called with (the render-time array,
- * which may now be stale — `toggle()`'s Realtime-echo refresh may not have
- * landed yet by the time "Finish shopping" is pressed, or may never land at
- * all if this device's channel is degraded). Immediately after the archive
- * claim succeeds, it calls `refresh()` itself once, uses that guaranteed-
- * fresh array for both `recordLocationCheckoff` and `recordShopSession`, and
- * — if that refresh itself fails — treats it the same as either of those two
- * calls failing: a compensating `unarchiveList()` so the list stays
- * retryable rather than permanently archived with a stale or missing record.
- * This is a genuine fix, not one more instance of the accepted-race class
- * HANDOFF.md documents for Slice 4's location-merge window, Slice 8's vote
- * race, or Slice 9/Batch C's own accepted write-gap risk — those are all
- * cases where a second write can independently and correctly land after the
- * first, so tolerating the gap costs nothing but a rare inconsistency; a
- * `finishShopping()` fed stale `items` would instead single-handedly write a
- * permanent, wrong record of what was checked, from data it already had a
- * cheap way to freshen at the one moment (finish-time) that record is
- * created.
+ * The staleness problem Batch F's own `finishShopping()` had to work around
+ * (`toggle()` dropping its own `refresh()` meant the render-time `items`
+ * array could be stale by the time "Finish shopping" was pressed) is now
+ * moot: `finish_shopping()`'s own row locks mean it reads its own fresh copy
+ * of every item under lock, inside the same transaction that records the
+ * checkoff/session snapshots — the client's `items` is never passed to the
+ * RPC at all, so there is nothing for this screen to freshen before calling
+ * it.
  */
 export function ShoppingScreen({ client, lists, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -496,7 +480,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     }
   }
 
-  async function finishShopping(items: ListItemRow[]) {
+  async function finishThisShop() {
     if (!list || list.locationId === null) {
       return;
     }
@@ -510,7 +494,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
       setConfirmingFinish(false);
       return;
     }
-    if (items.filter((item) => item.checkedAt !== null).length === 0) {
+    if (checkedCount === 0) {
       return;
     }
     if (finishingShopping || pending.size > 0) {
@@ -519,71 +503,20 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     setFinishingShopping(true);
     setError(null);
     try {
-      // The atomic claim. Only the caller that flips `archived_at` from null to
-      // non-null (`value: true`) is the one that actually gets to write the
-      // checkoff/session rows below — see this screen's own header comment for
-      // why this has to come first, and why it's this call, not either of the
-      // two below, that's the real duplicate-recording guard (#35).
-      const archiveOutcome = await archiveList(client, list.id);
-      if (!archiveOutcome.ok) {
-        setError(archiveOutcome.message);
+      const outcome = await finishShopping(client, list.id);
+      if (!outcome.ok) {
+        setError(outcome.message);
         return;
       }
 
-      if (!archiveOutcome.value) {
-        // Already archived by an earlier call — this device's own retry, a
-        // second device, or a genuine race. The shop was already recorded;
-        // don't write either row again, just land on the same finished state.
-        setConfirmingFinish(false);
-        setJustFinished(true);
-        return;
-      }
-
-      // toggle() no longer forces its own refresh() after a successful check-off
-      // (that was the redundant reload #39 named) — it relies on the Realtime
-      // echo instead, which may not have landed yet, or at all if this device's
-      // channel is degraded. Force one guaranteed-fresh read here, at the single
-      // point this screen writes a permanent record of what was checked, rather
-      // than trusting the `items` this function was called with.
-      const freshOutcome = await refresh();
-      if (!freshOutcome.ok) {
-        await unarchiveList(client, list.id);
-        setError(freshOutcome.message);
-        return;
-      }
-      const freshItems = freshOutcome.value;
-
-      const checkedNames = orderedCheckedItemNames(freshItems);
-
-      const checkoffOutcome = await recordLocationCheckoff(client, list.locationId, checkedNames);
-      if (!checkoffOutcome.ok) {
-        // The archive claim above already succeeded, so without this the list
-        // would be stuck permanently archived with no history ever written —
-        // undo the claim so the list stays retryable. Best-effort: a failure
-        // here doesn't get its own error message, so it can't mask the real
-        // one below.
-        await unarchiveList(client, list.id);
-        setError(checkoffOutcome.message);
-        return;
-      }
-
-      const sessionOutcome = await recordShopSession(client, {
-        locationId: list.locationId,
-        householdId: list.householdId,
-        listId: list.id,
-        itemNames: freshItems.map((item) => item.name),
-        checkedItemNames: checkedNames,
-      });
-      if (!sessionOutcome.ok) {
-        // Same compensating unarchive as above — the checkoff write already
-        // landed by this point, but the archive claim still needs to be
-        // undone so a retry doesn't skip straight to "already recorded"
-        // without a shop_sessions row ever existing.
-        await unarchiveList(client, list.id);
-        setError(sessionOutcome.message);
-        return;
-      }
-
+      // Whether this call actually claimed the finish (archived === true means
+      // full finish; false means partial — either way this call's own write
+      // succeeded) or lost a race to another device (surfaces as the
+      // already_finished/nothing_checked exceptions humanise() maps to
+      // friendly text, landing in the branch above instead), refresh so this
+      // screen reflects whatever is now true server-side — a partial finish
+      // leaves this list showing only the items still left unchecked.
+      await refresh();
       await refreshCheckoffs();
       await onListsChanged();
       setConfirmingFinish(false);
@@ -834,7 +767,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
         <Confirm
           message="This records everything currently checked, in the order you checked it, as one completed shop at this location. It won't uncheck anything or change today's list."
           confirmLabel="Finish shopping"
-          onConfirm={() => void finishShopping(items)}
+          onConfirm={() => void finishThisShop()}
           onCancel={() => setConfirmingFinish(false)}
           busy={finishingShopping}
         />

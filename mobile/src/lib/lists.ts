@@ -216,66 +216,44 @@ export async function attachLocation(
   return { ok: true, value: undefined };
 }
 
+export type FinishShoppingResult = {
+  /** true if every item was checked and the list was archived; false if this
+   * was a partial finish (checked items removed, list stays active). */
+  archived: boolean;
+  checkedCount: number;
+  totalCount: number;
+};
+
 /**
- * Archives a list — called the moment `finishShopping()` succeeds. `value: true`
- * means this call claimed it (`archived_at` was null and is now set by this call);
- * `value: false` means it was already archived by an earlier call (this device's own
- * retry, a second device, or a race) and nothing was written.
- *
- * The `.is('archived_at', null)` clause is not a convenience filter — it is the whole
- * mechanism. Supabase executes the UPDATE and its `WHERE` clause as one statement, so
- * "is it still unarchived" and "archive it" happen atomically at the database level;
- * two concurrent `finishShopping()` calls for the same list can never both see
- * `value: true`. `.select('id')` reads back which rows the UPDATE actually touched —
- * empty means this call lost the race (or the list was already archived), not an
- * error.
- *
- * `.eq('id', listId)` names the row; it does not authorise the write. The existing
- * `lists_update_visible` policy already covers this column (see migration
- * 20260817000000's header) — any household member may finish shopping and archive
- * the list, not only its owner, matching 03-SPEC.md's "all members equal rank".
+ * Finishes the current shop for a list: records the checked-off snapshot to
+ * both location_checkoffs (route learning) and shop_sessions (household
+ * history), then either archives the list (every item was checked) or
+ * removes just the checked items (some were left unchecked) — one atomic
+ * `security definer` RPC (migration 20260906000000), not a sequence of
+ * direct-table writes. See that migration's header for why: once a partial
+ * finish must leave `archived_at` null, there is no longer a single column
+ * whose transition can serve as the old archiveList() claim, so the
+ * atomicity moved into the function itself (row locks + a live re-check),
+ * the same shape vote_location_item_correction() already established.
  */
-export async function archiveList(
+export async function finishShopping(
   client: SupabaseClient,
   listId: string,
-): Promise<Outcome<boolean>> {
+): Promise<Outcome<FinishShoppingResult>> {
   const { data, error } = await client
-    .from('lists')
-    .update({ archived_at: new Date().toISOString() })
-    .eq('id', listId)
-    .is('archived_at', null)
-    .select('id');
+    .rpc('finish_shopping', { p_list_id: listId })
+    .single();
 
   if (error) {
     return { ok: false, message: humanise(error) };
   }
 
-  return { ok: true, value: (data ?? []).length > 0 };
-}
+  const row = data as { archived: boolean; checked_count: number; total_count: number };
 
-/**
- * Reverses `archiveList()` — used only as a compensating action when a write that
- * was supposed to follow a successful archive claim (recording the checkoff/shop-
- * session history) fails partway through, so the list becomes retryable again
- * instead of silently and permanently losing that shop's history. Without this,
- * a transient failure after a successful claim would leave the list archived
- * forever with no history ever written, and every retry would read the claim as
- * "already recorded" and skip straight to the success state.
- *
- * `.eq('id', listId)` names the row; it does not authorise the write. Same
- * `lists_update_visible` coverage as `archiveList()` above.
- */
-export async function unarchiveList(
-  client: SupabaseClient,
-  listId: string,
-): Promise<Outcome<void>> {
-  const { error } = await client.from('lists').update({ archived_at: null }).eq('id', listId);
-
-  if (error) {
-    return { ok: false, message: humanise(error) };
-  }
-
-  return { ok: true, value: undefined };
+  return {
+    ok: true,
+    value: { archived: row.archived, checkedCount: row.checked_count, totalCount: row.total_count },
+  };
 }
 
 export async function loadItems(
