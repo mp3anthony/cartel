@@ -44,4 +44,15 @@ export type RootStackParamList = {
   LocationCatalog: { locationId: string };
   Shopping: { listId: string };
   History: undefined;
+  /**
+   * #69's feedback form. `fromScreen` names whichever screen's own row opened
+   * it — today that's always `'Household'`, since `HouseholdScreen` is this
+   * screen's one caller, but it's a real param rather than a hardcoded
+   * constant inside `FeedbackScreen` itself so a future second entry point
+   * doesn't have to touch this screen to supply its own name. Optional, with
+   * a fallback in `FeedbackScreen`, the same shape `Locations`'s
+   * `attachToListId` already established for an in-app-only param with no
+   * URL to parse it from.
+   */
+  Feedback: { fromScreen?: string } | undefined;
 };

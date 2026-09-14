@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { NavigationProp } from '@react-navigation/native';
 
 import {
   Body,
@@ -8,12 +9,14 @@ import {
   ErrorNote,
   NAVIGATOR_EDGES,
   PrimaryButton,
+  Row,
   Screen,
   SecondaryButton,
   SegmentedControl,
 } from '../components/ui';
 import { appVersion, buildChannel, buildChannelLabel } from '../lib/buildInfo';
 import { createInvite, type Invite } from '../lib/household';
+import type { RootStackParamList } from '../navigation/types';
 import { useTheme, useThemeMode } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
@@ -35,10 +38,12 @@ export function HouseholdScreen({
   client,
   memberCount,
   onRefresh,
+  navigation,
 }: {
   client: SupabaseClient;
   memberCount: number;
   onRefresh: () => void;
+  navigation: NavigationProp<RootStackParamList>;
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -102,6 +107,14 @@ export function HouseholdScreen({
           { value: 'dark', label: 'Dark' },
           { value: 'system', label: 'System' },
         ]}
+      />
+
+      {/* #69's entry point — a plain Row, not the global NavMenu or a floating
+          button, per that issue's own explicit UI-placement decision. Sits above
+          the version footer below, which stays the last element in the flow. */}
+      <Row
+        label="Report a bug or idea"
+        onPress={() => navigation.navigate('Feedback', { fromScreen: 'Household' })}
       />
 
       {/* Just the last element in a normal flow — this screen doesn't scroll/
