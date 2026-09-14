@@ -5,6 +5,19 @@
 
 ## Last active
 
+- **2026-09-07 session — [#42](https://github.com/mp3anthony/cartel/issues/42)
+  (intermittent JWT error / blank page) reopened at the user's report that
+  it's still happening occasionally after PR #50's fix. That fix was
+  recovery-only (error boundary, manual retry, `[cartel:*]` diagnostic
+  logging) — the root cause was never diagnosed. Explicitly parked at the
+  user's request, no investigation done this session — next session should
+  start by asking the user for specifics on a recent occurrence (roughly
+  when, whether the recovery screen showed or it was a truly blank page,
+  network conditions) before diving into the `[cartel:error-boundary]`/
+  `[cartel:auth-state]` logs. [#52](https://github.com/mp3anthony/cartel/issues/52)
+  is still the other open item, unchanged, still blocked on the user's $50
+  GCP prepayment.**
+
 - **2026-09-06 (third) build session — #63 (add an item mid-shop) and #65
   (per-location item catalog) shipped together in one PR
   ([PR #66](https://github.com/mp3anthony/cartel/pull/66)), both issues

@@ -71,6 +71,53 @@
         }
       }
     </style>
+    <!--
+      #42's blank-page fix, one layer below App.tsx's own AppErrorBoundary.
+      That boundary only catches a throw *inside* the mounted React tree —
+      it cannot help if the bundle itself never finishes loading (a chunk
+      request dropped on flaky mobile data, per the user's own report: a
+      truly blank page, never the boundary's "Cartel hit a snag" screen) or
+      if something throws before the boundary itself mounts. Both leave
+      #root permanently empty with no React around to notice.
+      cartel-boot-fallback is plain HTML/CSS/JS with no framework
+      dependency, so it works even in that case: if #root still has no
+      children a fixed delay after page load, something never rendered, and
+      the fallback below becomes the only thing visible with a way out
+      (reload). If the app boots normally this never shows and never
+      matters — #root fills in well under the delay.
+    -->
+    <style id="cartel-boot-fallback-style">
+      #cartel-boot-fallback {
+        display: none;
+        position: fixed;
+        inset: 0;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 24px;
+        text-align: center;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: #F2E9DC;
+        background-color: #15110D;
+      }
+      @media (prefers-color-scheme: light) {
+        #cartel-boot-fallback {
+          color: #1A140D;
+          background-color: #FAF6F1;
+        }
+      }
+      #cartel-boot-fallback button {
+        font: inherit;
+        font-weight: 600;
+        padding: 12px 28px;
+        border-radius: 999px;
+        border: none;
+        background-color: #C2410C;
+        color: #FFFFFF;
+        min-height: 44px;
+      }
+    </style>
   </head>
 
   <body>
@@ -80,5 +127,27 @@
     </noscript>
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
+    <div id="cartel-boot-fallback" role="alert">
+      <p style="margin: 0; font-size: 17px; font-weight: 600;">Cartel didn’t load</p>
+      <p style="margin: 0; font-size: 14px; opacity: 0.8;">
+        This can happen on a weak connection. Check your signal and try again.
+      </p>
+      <button type="button" onclick="window.location.reload()">Reload</button>
+    </div>
+    <script>
+      (function () {
+        // 8s is generous past a normal cold load (this app's own
+        // AppErrorBoundary testing measured ~200ms round trips on a good
+        // connection) without making a genuinely slow-but-working load flash
+        // the fallback needlessly.
+        window.setTimeout(function () {
+          var root = document.getElementById('root');
+          var fallback = document.getElementById('cartel-boot-fallback');
+          if (root && fallback && root.childElementCount === 0) {
+            fallback.style.display = 'flex';
+          }
+        }, 8000);
+      })();
+    </script>
   </body>
 </html>
