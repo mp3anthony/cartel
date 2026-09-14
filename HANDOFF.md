@@ -5,7 +5,135 @@
 
 ## Last active
 
-- **2026-09-14 session — #42 narrowed and mitigated (not root-caused),
+- **2026-09-14 (third) session — #69 built and pushed as
+  [PR #71](https://github.com/mp3anthony/cartel/pull/71), open, NOT
+  merged — genuinely blocked on a step only the user can do, not left
+  unmerged out of caution. Next session should start by asking the user
+  whether they've set the secret and tested a real submission; if yes,
+  merge #71 directly (already tsc-clean and live-verified as far as this
+  session could go) rather than re-running any part of the pipeline.
+  [#70](https://github.com/mp3anthony/cartel/issues/70) (screenshot
+  attachment) stays blocked on #71 merging.**
+  - **What's built**: new Supabase Edge Function `report-feedback`
+    (`supabase/functions/report-feedback/index.ts`, deployed live to
+    project `chacavfoewyiwrfgvxtj`), new `mobile/src/lib/feedback.ts`,
+    new `mobile/src/screens/FeedbackScreen.tsx`, a new "Report a bug or
+    idea" `Row` on `HouseholdScreen` above the version footer, and the
+    matching nav-type/`App.tsx` wiring. Read `funded`'s shipped
+    `src/app/api/bug-report/route.ts` + `BugReportSheet.tsx` directly
+    before writing anything, per the prior session's own pointer — same
+    auth-re-derivation shape and idempotent-label-create reasoning,
+    adapted to this project's Deno Edge Function runtime.
+  - **Why it's not merged — a real, external blocker, not a testing
+    shortcut**: the function needs `GITHUB_BUG_REPORT_TOKEN` set as a
+    Supabase Edge Function secret to ever reach GitHub's API at all, and
+    there is no MCP tool available in this environment that can manage
+    Edge Function secrets — only the user can set this (dashboard or
+    `supabase secrets set`), using a real GitHub PAT this session
+    correctly never asked for or handled directly. Until that secret
+    exists, the single most load-bearing acceptance criterion — a real
+    submission actually producing a correctly labeled GitHub issue —
+    cannot be exercised by anyone, agent or human, against this
+    deployment.
+  - **What WAS live-verified this session, without that secret**: an
+    unauthenticated call to the deployed function is rejected (`401`,
+    plain `curl`, confirmed no GitHub issue was created). The full
+    client flow end to end against a real seeded household in the
+    Browser pane — navigated Household → Feedback via the new row,
+    confirmed Send is disabled until every required field
+    ("what's happening"/"what should happen"/device-OS) is filled and
+    enables once they are, submitted, and confirmed the resulting
+    "not configured on the server" failure surfaces correctly through
+    the existing `ErrorNote`/`humanise()` pattern with every typed field
+    preserved (the retry-without-re-typing acceptance criterion this
+    exercised for real, not by reading the code). Test household +
+    anonymous user queried, confirmed as this session's own, deleted,
+    reverified at zero. No GitHub issue was created anywhere by this
+    testing — the function fails before ever reaching GitHub's API
+    without the secret, so there was nothing to clean up on that side.
+  - **What still needs the user, spelled out in the PR body's own
+    "Before merging" section**: (1) set `GITHUB_BUG_REPORT_TOKEN` as an
+    Edge Function secret with `repo`/`public_repo` scope on
+    `mp3anthony/cartel`; (2) submit one real bug-type and one real
+    feature-type report (one with a title, one relying on the ~60-char
+    fallback) and confirm each produces a correctly labeled real GitHub
+    issue; (3) confirm the `from-app` label actually appears on the
+    repo's label list, not just that label-creation didn't error; (4)
+    close/delete the test issues afterward. Once done, this PR needs no
+    further agent work — just the user's go-ahead to merge.
+  - `npx tsc --noEmit` clean. `mobile/app.json`/`mobile/package.json`
+    bumped to `0.0.28`.
+
+- **2026-09-14 (second) session — in-app feature/bug reporting system
+  scoped and ticketed, zero code written. A new, formal spec→tickets
+  workflow was tried for the first time on this project (the user's own
+  explicit ask, to "practice better workflows" going forward) — worth
+  knowing the shape of it before the next session assumes the old
+  conversational Problem Agreement → single GitHub issue pattern still
+  applies here. Next session should start by picking up
+  [#69](https://github.com/mp3anthony/cartel/issues/69), the first
+  unblocked ticket.**
+  - **Process, for real this time, not just this file's usual prose
+    description of it**: `/grill-me` interrogated the idea end-to-end
+    conversationally (reporter scope, backend architecture, identity/
+    attribution, labels, UI placement, form fields, auto-attached
+    context, abuse protection, success/failure UX, title-fallback
+    behavior) — functionally a Problem Agreement round, just run through
+    a dedicated skill instead of ad hoc. Then `/to-spec` synthesized that
+    interrogation (no re-interview) into a full spec — problem statement,
+    20 user stories, implementation decisions, testing decisions, out of
+    scope — published as
+    [#68](https://github.com/mp3anthony/cartel/issues/68) with
+    `ready-for-agent`. Then `/to-tickets` split it into two dependency-
+    ordered vertical slices, confirmed with the user before publishing,
+    each referencing #68 as parent and each other via `Blocked by`.
+  - **[#69](https://github.com/mp3anthony/cartel/issues/69) — core
+    text-only reporting flow, unblocked, start here.** New `FeedbackScreen`
+    (reached from a row at the bottom of `HouseholdScreen`, above the
+    version footer — not the global `NavMenu`, not a floating button) +
+    a new Supabase Edge Function that holds a GitHub PAT as a server-side
+    secret and files a real GitHub issue. Required fields: type (Bug/
+    Feature dropdown), "what's happening", "what should happen", device/
+    OS (free text, asked — not sniffed). Optional: name, title (a ~60-char
+    truncation of "what's happening" is the fallback title). App version/
+    platform/current screen auto-attach invisibly. Labels: `from-app`
+    (new, idempotent-create) + `bug`/`enhancement` (existing defaults).
+    Success = plain `Banner` "thanks", no issue number shown. Failure =
+    existing `ErrorNote`/`humanise()`, form contents preserved for retry.
+    No rate limiting, no contact-back mechanism — both explicit, deliberate
+    omissions for now (rate limiting deferred until real outside testers;
+    contact-back superseded by a separate, not-yet-built patch-notes/
+    known-issues feature the user mentioned wanting eventually).
+  - **[#70](https://github.com/mp3anthony/cartel/issues/70) — screenshot
+    attachment, blocked by #69.** Optional device-photo-library attach
+    (`expo-image-picker`, not live capture) uploaded to a new public-read/
+    authenticated-write Storage bucket, embedded inline in the issue body.
+    New `supabase/tests/rls_feedback_screenshots.sql` for the bucket's
+    access policy — matches this project's existing `rls_*.sql`
+    convention (no unit-test framework anywhere in this codebase; the
+    project's own testing discipline throughout has always been RLS SQL
+    assertions + live-browser/live-deploy verification, never mocks — #69
+    and #70 both explicitly follow that rather than introducing one).
+  - **Working reference implementation this was scoped against, not
+    invented from scratch**: the sibling `funded` project
+    (`D:\Anthonys-HQ\business\hazardous-schematics\Code\funded\funded
+    rebuild\funded-nextjs\src\app\api\bug-report\route.ts` +
+    `BugReportSheet.tsx`) already has a working, shipped version of
+    almost this exact feature — server-held GitHub PAT, never-trust-
+    client-identity auth, idempotent label creation, optional screenshot
+    uploaded to a public-read bucket. Read directly during the grilling
+    session to confirm the architecture (not assumed) — only the server
+    runtime differs (a Supabase Edge Function here vs. `funded`'s
+    Next.js API route, since Cartel's web build has no server of its own
+    outside Supabase). Worth reading that file directly again before
+    building #69 rather than re-deriving the shape from this summary
+    alone.
+  - **Nothing built yet** — no Edge Function, no new table/bucket, no
+    screen. This session was scoping only, end to end. #52 (Google Places,
+    still parked on the user's own GCP billing prepayment) remains
+    untouched and unrelated.
+
+- **2026-09-14 (first) session — #42 narrowed and mitigated (not root-caused),
   shipped and merged, [PR #67](https://github.com/mp3anthony/cartel/pull/67).
   Session run under a tight usage budget (~5% left at the start), by the
   user's own explicit choice — flagging that up front since it shaped every
