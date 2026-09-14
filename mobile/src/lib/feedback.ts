@@ -17,6 +17,14 @@ export type FeedbackInput = {
    * `FeedbackScreen`'s own doc comment for why this is a caller-supplied param
    * rather than something read off the navigator at submit time. */
   fromScreen: string;
+  /** #70: the public Storage URL of an already-uploaded screenshot, or
+   * `undefined` when none was attached. Upload happens before this function
+   * is ever called (`FeedbackScreen` awaits `uploadFeedbackScreenshot` first)
+   * — if the upload itself fails, `submitFeedback` is never reached and
+   * nothing is filed to GitHub, satisfying the issue's "no partial issue
+   * with a broken image link" acceptance criterion by construction rather
+   * than by any check in this file. */
+  screenshotUrl?: string;
 };
 
 /**
@@ -51,6 +59,7 @@ export async function submitFeedback(
       whatsHappening: input.whatsHappening.trim(),
       whatShouldHappen: input.whatShouldHappen.trim(),
       deviceOs: input.deviceOs.trim(),
+      screenshotUrl: input.screenshotUrl,
       context: {
         appVersion,
         platform: Platform.OS,

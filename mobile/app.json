@@ -3,7 +3,7 @@
     "name": "Cartel",
     "slug": "cartel",
     "scheme": "cartel",
-    "version": "0.0.28",
+    "version": "0.0.29",
     "orientation": "portrait",
     "icon": "./assets/icon-light.png",
     "userInterfaceStyle": "automatic",
@@ -31,6 +31,12 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Cartel uses your location to check whether the supermarket you're adding already exists, so it isn't listed twice."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Cartel uses your photo library so you can attach a screenshot to a bug or feature report."
         }
       ],
       [
