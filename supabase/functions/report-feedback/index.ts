@@ -48,6 +48,14 @@ type SubmitPayload = {
   whatsHappening: string;
   whatShouldHappen: string;
   deviceOs: string;
+  /** #70: a public Storage URL for an optionally-attached screenshot. Never
+   * validated server-side beyond "is it a string" — the client already
+   * validated file type/size before upload (`feedbackScreenshots.ts`), and
+   * this function has no way to re-check an arbitrary URL's actual content
+   * anyway. Worst case a bad value is a broken image link in the filed
+   * issue, not a security problem: this is embedded as plain markdown, never
+   * interpolated into anything executable. */
+  screenshotUrl?: string;
   context: {
     appVersion: string;
     platform: string;
@@ -69,6 +77,7 @@ Deno.serve(async (req: Request) => {
     const deviceOs = typeof body?.deviceOs === 'string' ? body.deviceOs.trim() : '';
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     const userTitle = typeof body?.title === 'string' ? body.title.trim() : '';
+    const screenshotUrl = typeof body?.screenshotUrl === 'string' ? body.screenshotUrl.trim() : '';
     const context = {
       appVersion: typeof body?.context?.appVersion === 'string' ? body.context.appVersion : 'unknown',
       platform: typeof body?.context?.platform === 'string' ? body.context.platform : 'unknown',
@@ -160,6 +169,8 @@ Deno.serve(async (req: Request) => {
       '**Device / OS**',
       deviceOs,
       '',
+      screenshotUrl ? `![Screenshot](${screenshotUrl})` : null,
+      screenshotUrl ? '' : null,
       '---',
       `Filed from the app by user ID \`${user.id}\`. App v${context.appVersion}, ${context.platform}, on ${context.screen}.`,
     ].filter((line) => line !== null);
