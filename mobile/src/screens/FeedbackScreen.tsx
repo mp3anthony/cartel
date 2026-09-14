@@ -178,11 +178,19 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
   );
 }
 
-function createStyles(_tokens: Tokens) {
+function createStyles(tokens: Tokens) {
   return StyleSheet.create({
+    // `Field`'s base input style only ever needs paddingHorizontal — a
+    // single-line TextInput centres its text vertically inside minHeight on
+    // its own, so no paddingVertical was ever added there. `textAlignVertical:
+    // 'top'` turns that auto-centring off for a multiline field, which means
+    // this style has to supply the vertical breathing room a single-line
+    // field gets for free — matching paddingHorizontal's own space.md so the
+    // text sits the same distance from all four edges, not just the sides.
     multiline: {
       minHeight: 88,
       textAlignVertical: 'top',
+      paddingVertical: tokens.space.md,
     },
   });
 }
