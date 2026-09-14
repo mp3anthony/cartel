@@ -5,6 +5,75 @@
 
 ## Last active
 
+- **2026-09-14 (fifth) session — [PR #75](https://github.com/mp3anthony/cartel/pull/75)
+  merged, closing #70 (screenshot attachment for feedback reports). #68 (the
+  parent spec issue) closed too — both its child tickets (#69, #70) are now
+  shipped. [#52](https://github.com/mp3anthony/cartel/issues/52) (Google
+  Places search-assist) is the only issue left open, still `ready-for-human`,
+  still blocked on the user's own GCP billing prepayment — nothing queued,
+  next session starts with the user.**
+  - **What's built**: a new public-read/authenticated-write Storage bucket
+    `feedback-screenshots` (migration `20260914000000`, own-uid-folder INSERT
+    policy — the standard Supabase Storage per-user-folder pattern),
+    `mobile/src/lib/feedbackScreenshots.ts` (JPEG/PNG/WebP validation, 8 MB
+    cap — a value this session chose, not confirmed with the user, worth
+    revisiting if a real submission ever gets rejected by it), a new
+    attach/preview/remove control on `FeedbackScreen.tsx`
+    (`expo-image-picker`, library picker only — added as a new dependency
+    this session), and the `report-feedback` Edge Function now embeds an
+    optional `screenshotUrl` as a markdown image in the filed issue body.
+    Upload happens before the Edge Function is ever called — a failed
+    upload stops the whole submission, so there's no code path that can
+    file an issue with a broken image link.
+  - **`supabase/tests/rls_feedback_screenshots.sql` (5 assertions), run
+    clean against the live project**: authenticated own-folder upload
+    succeeds, a cross-user write into another uid's folder is rejected, an
+    unauthenticated (anon) write is rejected outright, anon read of an
+    uploaded object succeeds, and the bucket itself is confirmed `public =
+    true` (the flag GitHub's own image-fetching bots rely on, separate
+    from the RLS SELECT policy).
+  - **Live-verified end to end against the real project**, not just RLS
+    SQL: the Browser pane's real headless Chromium can't drive a native
+    OS photo-picker dialog, so the pick itself was simulated by injecting a
+    real `File` into the hidden `<input type=file>` `expo-image-picker`
+    renders on web and dispatching a `change` event — confirmed the
+    preview thumbnail and remove control both worked off that real state
+    change, not a mock. Filled out a real report and submitted: produced a
+    real GitHub issue (#74) with `![Screenshot](...)` in its body pointing
+    at the real uploaded object's public Storage URL; confirmed that exact
+    URL resolves with a plain unauthenticated `curl` (200, `image/png`) —
+    the same access path GitHub's own image-fetching bots use to actually
+    render it inline, not just that the URL was well-formed. Test issue
+    #74 deleted afterward. Text-only submission (no screenshot attached)
+    was not separately re-verified live this session — reasoned as
+    unaffected by code review (the whole screenshot path is additive and
+    short-circuits to `undefined` when nothing's picked), consistent with
+    how "regression, not re-tested" gaps are usually flagged in this file.
+  - **One real, load-bearing limitation surfaced by this session's own
+    cleanup attempt, not by the issue's own testing checklist — worth
+    knowing before anyone tries to delete a `feedback-screenshots` object
+    again**: Supabase blocks `DELETE` on `storage.objects` via direct SQL
+    outright (`protect_delete()` trigger, "Use the Storage API instead"),
+    and this bucket deliberately has no DELETE policy or grant at all
+    (matching this project's existing write-once precedent — e.g.
+    `location_items` has no edit path either). The Storage HTTP API is the
+    only real deletion path, and no tool available in this session's
+    environment could reach it (would need either a signed-in owning
+    user's own session, which doesn't exist once that test user's
+    `auth.users` row is deleted, or a service-role key, which this session
+    correctly never handles directly). **Net effect**: the one test
+    screenshot from this session's live verification is permanently
+    orphaned in the live bucket — a harmless, anonymous 1×1 PNG under a
+    since-deleted test user's uid folder, publicly readable, no PII, no
+    functional impact — flagged here rather than silently left
+    unmentioned. The test household and anonymous user themselves (not
+    Storage-gated) were deleted normally and confirmed gone. If cleaning
+    up a stray Storage object is ever genuinely needed, it'll need the
+    Supabase dashboard directly (Storage → the bucket → delete), not a
+    tool call from a session like this one.
+  - `npx tsc --noEmit` clean. `mobile/app.json`/`mobile/package.json`
+    bumped to `0.0.29`.
+
 - **2026-09-14 (fourth) session — [PR #71](https://github.com/mp3anthony/cartel/pull/71)
   merged, closing #69. [#70](https://github.com/mp3anthony/cartel/issues/70)
   (screenshot attachment) is now unblocked, `ready-for-agent`, and the
