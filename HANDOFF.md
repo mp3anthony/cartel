@@ -6,7 +6,10 @@
 ## Last active
 
 - **2026-09-14 (fourth) session — [PR #71](https://github.com/mp3anthony/cartel/pull/71)
-  merged, closing #69. The user set `GITHUB_BUG_REPORT_TOKEN` themselves
+  merged, closing #69. [#70](https://github.com/mp3anthony/cartel/issues/70)
+  (screenshot attachment) is now unblocked, `ready-for-agent`, and the
+  only open item — start there next session. The user set
+  `GITHUB_BUG_REPORT_TOKEN` themselves
   (dashboard, per this session's own step-by-step instructions — no MCP
   tool in this environment manages Edge Function secrets, and a PAT is a
   credential this session correctly never touched), submitted one real
