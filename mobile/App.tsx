@@ -21,6 +21,7 @@ import { getSupabaseClient } from './src/lib/supabase';
 import type { RootStackParamList } from './src/navigation/types';
 import { ConfigErrorScreen } from './src/screens/ConfigErrorScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
+import { FeedbackScreen } from './src/screens/FeedbackScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { HouseholdScreen } from './src/screens/HouseholdScreen';
 import { HouseholdSetupScreen } from './src/screens/HouseholdSetupScreen';
@@ -70,6 +71,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       LocationCatalog: 'location/:locationId',
       Shopping: 'shop/:listId',
       History: 'history',
+      Feedback: 'feedback',
     },
   },
 };
@@ -321,14 +323,19 @@ function Bootstrapped({ env }: { env: Env }) {
           )}
         </Stack.Screen>
 
+        <Stack.Screen name="Feedback" options={{ title: 'Feedback' }}>
+          {(props) => <FeedbackScreen {...props} client={client} />}
+        </Stack.Screen>
+
         {state.status === 'none' ? (
           <Stack.Screen name="HouseholdSetup" options={{ title: 'Household' }}>
             {() => <HouseholdSetupScreen client={client} onJoined={refresh} />}
           </Stack.Screen>
         ) : (
           <Stack.Screen name="Household" options={{ title: state.household.name }}>
-            {() => (
+            {(props) => (
               <HouseholdScreen
+                {...props}
                 client={client}
                 memberCount={state.memberCount}
                 onRefresh={refresh}

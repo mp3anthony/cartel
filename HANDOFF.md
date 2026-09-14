@@ -5,6 +5,60 @@
 
 ## Last active
 
+- **2026-09-14 (fourth) session — [PR #71](https://github.com/mp3anthony/cartel/pull/71)
+  merged, closing #69. The user set `GITHUB_BUG_REPORT_TOKEN` themselves
+  (dashboard, per this session's own step-by-step instructions — no MCP
+  tool in this environment manages Edge Function secrets, and a PAT is a
+  credential this session correctly never touched), submitted one real
+  Bug and one real Feature idea report, and confirmed both landed as
+  correctly labeled GitHub issues before deleting the test issues. That
+  was the entire remaining blocker from the third session's entry below —
+  nothing else needed re-running.
+  - **Before merging, four rounds of UI feedback on the report form itself,
+    all from live screenshots the user sent from their own phone against
+    the deployed preview** — not requested proactively, and each fixed and
+    re-verified in the local Browser pane before pushing:
+    1. Replaced `SegmentedControl` with a new `Select` dropdown primitive
+       (`ui.tsx`, reuses `NavMenu`'s Modal-popover shape) for the Type
+       field — the user wanted this to read as a real dropdown, not the
+       inline segmented-track look `SegmentedControl` gives Light/Dark/
+       System and the chain picker.
+    2. Found and fixed a real, previously-invisible bug in `Field`
+       (`ui.tsx`): `style={styles.input} {...inputProps}` let a caller's
+       own `style` (inside `inputProps`) silently replace the whole input
+       box — background, border, radius, everything — instead of merging
+       with it, since a later same-named JSX prop wins outright. This is
+       why the two textarea fields rendered with no visible border at all.
+       Fixed to `style={[styles.input, style]}`. `FeedbackScreen` was the
+       only caller passing a custom `style` to `Field` anywhere in the
+       app, which is why this had never surfaced before.
+    3. Added a `required` prop to `Field` — a styled asterisk appended to
+       the label — replacing the "(optional)"/no-suffix inconsistency
+       across the form's fields.
+    4. Replaced the plain "Report a bug or idea" `Row` on `HouseholdScreen`
+       with a floating pill button (a hand-drawn outline-bug SVG icon +
+       "Report" text, `react-native-svg`, matching Claude desktop's own
+       bug-report affordance) anchored bottom-right. **Confirmed with the
+       user via `AskUserQuestion` that this stays local to
+       `HouseholdScreen`, not global across every screen** — the user's
+       own reference (Claude desktop) has it globally present, but the
+       explicit choice this session was local-only, so a future session
+       shouldn't assume the global placement was silently adopted.
+    5. The two textareas' placeholder text sat flush against the top
+       border while the sides had normal breathing room —
+       `textAlignVertical: 'top'` turns off a `TextInput`'s automatic
+       vertical centring (which is how the single-line fields get even
+       spacing for free, confirmed by reading the actual rendered
+       `<input>`/`<textarea>` computed styles rather than guessing: a
+       native `<input>` centres text vertically with zero CSS padding at
+       all, a `<textarea>` never does), so the multiline style needed its
+       own explicit `paddingVertical` to match. The user's first "try
+       again" report on this was on a not-yet-deployed build; the fix
+       itself was already correct on re-measurement.
+  - `npx tsc --noEmit` clean throughout every round. No version bump this
+    session — #69's own `0.0.28` (set in the third session below) still
+    stands; this was UI polish on an unreleased branch, not a new shipped
+    change.
 - **2026-09-14 (third) session — #69 built and pushed as
   [PR #71](https://github.com/mp3anthony/cartel/pull/71), open, NOT
   merged — genuinely blocked on a step only the user can do, not left
