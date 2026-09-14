@@ -12,7 +12,7 @@ import {
   NAVIGATOR_EDGES,
   PrimaryButton,
   Screen,
-  SegmentedControl,
+  Select,
 } from '../components/ui';
 import { submitFeedback, type FeedbackType } from '../lib/feedback';
 import type { RootStackParamList } from '../navigation/types';
@@ -32,11 +32,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Feedback'> & {
  * added, it supplies its own screen name the same way; nothing here needs to
  * change.
  *
- * `type` uses `SegmentedControl` rather than a native picker/dropdown — this app
- * has no dropdown primitive (`SegmentedControl` already fills that role for
- * Light/Dark/System and the chain picker), and two options fit it exactly. It
- * always holds a value, so "required" is satisfied by construction rather than
- * needing a third, unset state to guard against.
+ * `type` uses `Select`, a real dropdown (`ui.tsx`) rather than
+ * `SegmentedControl` — the user asked for this to read as a dropdown
+ * specifically, not the inline segmented-track look `SegmentedControl` gives
+ * Light/Dark/System and the chain picker. It always holds a value, so
+ * "required" is satisfied by construction rather than needing a third,
+ * unset state to guard against.
  *
  * Submitting failure preserves every field (nothing is cleared in the error
  * path) so a retry never means re-typing from scratch, per the issue's own
@@ -109,7 +110,7 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
         triage — there's no reply loop, so don't expect a response here.
       </Body>
 
-      <SegmentedControl
+      <Select
         label="Type"
         value={type}
         onChange={setType}
@@ -120,7 +121,7 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
       />
 
       <Field
-        label="Your name (optional)"
+        label="Your name"
         value={name}
         onChangeText={setName}
         editable={!busy}
@@ -128,7 +129,7 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
       />
 
       <Field
-        label="Title (optional)"
+        label="Title"
         value={title}
         onChangeText={setTitle}
         editable={!busy}
@@ -137,6 +138,7 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
 
       <Field
         label="What's happening"
+        required
         value={whatsHappening}
         onChangeText={setWhatsHappening}
         editable={!busy}
@@ -148,6 +150,7 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
 
       <Field
         label="What should happen instead"
+        required
         value={whatShouldHappen}
         onChangeText={setWhatShouldHappen}
         editable={!busy}
@@ -159,6 +162,7 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
 
       <Field
         label="Device / OS"
+        required
         value={deviceOs}
         onChangeText={setDeviceOs}
         editable={!busy}

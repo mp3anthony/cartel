@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -13,7 +14,7 @@ import {
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme/ThemeProvider';
-import type { Tokens } from '../theme/tokens';
+import { scrimColor, type Tokens } from '../theme/tokens';
 
 /**
  * The shared surface every screen sits on. Centralising it is what keeps the ground
@@ -195,20 +196,39 @@ export function SecondaryButton({
   );
 }
 
+/**
+ * `required` only ever adds a visible marker to the label — it never validates
+ * anything itself. Every caller already has its own `canSubmit`-style check
+ * for what's actually mandatory; this prop just has to agree with that check,
+ * not replace it.
+ *
+ * `style` is destructured out on purpose rather than left inside `inputProps`.
+ * Passing it straight through as `{...inputProps}` after `style={styles.input}`
+ * would let a caller's own `style` silently replace the whole box — background,
+ * border, radius, everything — instead of adding to it, since a later `style`
+ * prop in JSX wins outright rather than merging. Pulling it out and combining
+ * both into one array (`[styles.input, style]`) is what lets a caller like a
+ * multiline textarea add `minHeight` without losing its box.
+ */
 export function Field({
   label,
+  required = false,
+  style,
   ...inputProps
-}: { label: string } & TextInputProps) {
+}: { label: string; required?: boolean } & TextInputProps) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={styles.fieldLabel}>
+        {label}
+        {required ? <Text style={styles.requiredMark}> *</Text> : null}
+      </Text>
       <TextInput
         accessibilityLabel={label}
         placeholderTextColor={tokens.color.textSecondary}
-        style={styles.input}
+        style={[styles.input, style]}
         {...inputProps}
       />
     </View>
@@ -630,6 +650,83 @@ export function SegmentedControl<T extends string>({
   );
 }
 
+/**
+ * A single-select dropdown: a Field-shaped trigger showing the current value,
+ * opening a Modal list of options on tap. Reuses `NavMenu`'s established
+ * Modal-popover shape (the same reason it uses `Modal` rather than an
+ * absolutely-positioned `View` — see that component's own doc comment)
+ * instead of `SegmentedControl`, which stays reserved for a bounded 2-3
+ * option exclusive choice shown inline (Light/Dark/System, the chain
+ * picker). This is for a caller that wants the choice to read as a real
+ * dropdown/picker, closed until tapped.
+ *
+ * Centred on screen rather than anchored under the trigger like NavMenu's
+ * popover — this dropdown can open from anywhere in a scrolling form, not
+ * just a fixed header icon, so there's no one corner to hang it from.
+ */
+export function Select<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label?: string;
+  value: T;
+  onChange: (value: T) => void;
+  options: { value: T; label: string }[];
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value);
+
+  return (
+    <View style={styles.field}>
+      {label ? <Text style={styles.fieldLabel}>{label}</Text> : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label ?? 'Choose an option'}
+        onPress={() => setOpen(true)}
+        style={({ pressed }) => [
+          styles.input,
+          styles.selectTrigger,
+          pressed && styles.rowPressed,
+        ]}
+      >
+        <Text style={styles.selectValue}>{selected?.label ?? ''}</Text>
+        <Text style={styles.selectChevron}>▾</Text>
+      </Pressable>
+
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
+        <Pressable
+          style={styles.selectScrim}
+          accessibilityLabel="Close"
+          onPress={() => setOpen(false)}
+        >
+          <View style={styles.selectPopover} onStartShouldSetResponder={() => true}>
+            {options.map((option) => (
+              <Row
+                key={option.value}
+                label={option.label}
+                trailing={option.value === value ? <Text style={styles.iconGlyph}>✓</Text> : null}
+                onPress={() => {
+                  setOpen(false);
+                  onChange(option.value);
+                }}
+              />
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
+
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     ground: {
@@ -729,6 +826,10 @@ function createStyles(tokens: Tokens) {
       fontSize: tokens.fontSize.caption,
       color: tokens.color.textSecondary,
       fontWeight: '600',
+    },
+    requiredMark: {
+      color: tokens.color.negative,
+      fontWeight: '700',
     },
     input: {
       backgroundColor: tokens.color.surface,
@@ -927,6 +1028,35 @@ function createStyles(tokens: Tokens) {
     },
     segmentLabelSelected: {
       color: tokens.color.accent,
+    },
+    selectTrigger: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    selectValue: {
+      fontSize: tokens.fontSize.body,
+      color: tokens.color.textPrimary,
+    },
+    selectChevron: {
+      fontSize: tokens.fontSize.body,
+      color: tokens.color.textSecondary,
+    },
+    selectScrim: {
+      flex: 1,
+      backgroundColor: scrimColor,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: tokens.space.lg,
+    },
+    selectPopover: {
+      width: '100%',
+      maxWidth: 400,
+      backgroundColor: tokens.color.surface,
+      borderRadius: tokens.radius.lg,
+      padding: tokens.space.sm,
+      gap: tokens.space.xs,
+      ...tokens.elevation.card,
     },
   });
 }
