@@ -5,18 +5,68 @@
 
 ## Last active
 
-- **2026-09-07 session — [#42](https://github.com/mp3anthony/cartel/issues/42)
-  (intermittent JWT error / blank page) reopened at the user's report that
-  it's still happening occasionally after PR #50's fix. That fix was
-  recovery-only (error boundary, manual retry, `[cartel:*]` diagnostic
-  logging) — the root cause was never diagnosed. Explicitly parked at the
-  user's request, no investigation done this session — next session should
-  start by asking the user for specifics on a recent occurrence (roughly
-  when, whether the recovery screen showed or it was a truly blank page,
-  network conditions) before diving into the `[cartel:error-boundary]`/
-  `[cartel:auth-state]` logs. [#52](https://github.com/mp3anthony/cartel/issues/52)
-  is still the other open item, unchanged, still blocked on the user's $50
-  GCP prepayment.**
+- **2026-09-14 session — #42 narrowed and mitigated (not root-caused),
+  shipped and merged, [PR #67](https://github.com/mp3anthony/cartel/pull/67).
+  Session run under a tight usage budget (~5% left at the start), by the
+  user's own explicit choice — flagging that up front since it shaped every
+  call below: a small direct fix instead of a full Investigator → Planner →
+  Code Writer → Reviewer pipeline, and no live-browser reproduction. [#52](https://github.com/mp3anthony/cartel/issues/52)
+  is still the only other open item, unchanged, still blocked on the user's
+  $50 GCP prepayment. Nothing is queued — next session starts with the
+  user, same as before.**
+  - **Asked the user the three questions this file's own prior entry had
+    queued up** (`AskUserQuestion`, per Protocol Step 0), and the answers
+    were a real, load-bearing finding, not just colour: **truly blank page,
+    never the "Cartel hit a snag" recovery screen, on mobile data.** That
+    single detail rules out what PR #50 already built and points somewhere
+    new — `AppErrorBoundary` (#50) only catches a throw *inside* the
+    mounted React tree; a genuinely blank page means React never got that
+    far, which the boundary structurally cannot help with regardless of
+    what it logs.
+  - **Leading hypothesis, not confirmed**: on a weak mobile connection the
+    JS bundle (or a chunk) fails to fully fetch/parse, leaving only the
+    static HTML shell (`mobile/public/index.html`'s own background-color
+    CSS) with nothing else — matches "truly blank," matches "mobile data,"
+    matches the intermittency. An early throw *before* `AppErrorBoundary`
+    itself mounts (e.g. in `ThemeProvider`/`SafeAreaProvider` in `App.tsx`)
+    is a second, less-explored possibility not ruled out either way this
+    session — the fix below is deliberately agnostic between the two
+    rather than betting on one.
+  - **Fix, scoped down given the budget**: a static, framework-free
+    fallback added directly to `mobile/public/index.html` (no subagent
+    pipeline this time — a conscious, explicitly-confirmed-with-the-user
+    trade-off, not a shortcut taken silently). A small inline `<script>`
+    checks 8s after load whether `#root` still has zero children; if so, a
+    plain HTML "Cartel didn't load" message + Reload button (already
+    present in the DOM, `display: none` until then) becomes visible. Pure
+    DOM/CSS/JS, zero React dependency — the whole point is that it works
+    even in the exact scenario `AppErrorBoundary` can't reach. 8s was
+    picked against #50's own prior session's measured ~200ms normal
+    round-trip time as a large safety margin, not tuned against a real
+    slow-load reproduction.
+  - **Verified via a real `npx expo export --platform web`** (the actual
+    command Vercel's build runs) — confirmed the favicon `<link>` injection
+    and `#root` both still come through untouched (this file's own Traps
+    section already documents a prior session hijacking that same
+    injection point via a careless comment; checked directly this time,
+    not assumed), and the new fallback markup/script survive the build
+    byte-for-byte. **Explicitly not live-reproduced** — no real dropped
+    bundle or throttled connection was simulated to confirm the fallback
+    actually fires in anger; this is a well-reasoned static-analysis fix,
+    stated as such in the PR rather than implied as fully tested.
+  - **This is still recovery/mitigation, not a diagnosed root cause** —
+    same honest framing #50's own entry used. If the user reports this
+    again post-merge, the new fallback screen itself becomes a real
+    diagnostic signal going forward (distinguishes "bundle/boot never
+    happened at all" from every other failure mode #50's logging already
+    covers) — next session should ask specifically whether the *new*
+    "Cartel didn't load" screen showed, versus a blank page, versus #50's
+    "Cartel hit a snag" screen, before assuming which layer failed.
+  - `npx tsc --noEmit` not re-run — this change touches only static HTML,
+    no TypeScript. `mobile/app.json`/`mobile/package.json` bumped to
+    `0.0.27` directly on `main` after merge — an oversight under the
+    usage-budget pressure (missed in the PR itself), caught and fixed
+    same-session rather than left drifting for whoever ships next.
 
 - **2026-09-06 (third) build session — #63 (add an item mid-shop) and #65
   (per-location item catalog) shipped together in one PR
