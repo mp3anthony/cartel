@@ -5,7 +5,76 @@
 
 ## Last active
 
-- **2026-09-14 session — #42 narrowed and mitigated (not root-caused),
+- **2026-09-14 (second) session — in-app feature/bug reporting system
+  scoped and ticketed, zero code written. A new, formal spec→tickets
+  workflow was tried for the first time on this project (the user's own
+  explicit ask, to "practice better workflows" going forward) — worth
+  knowing the shape of it before the next session assumes the old
+  conversational Problem Agreement → single GitHub issue pattern still
+  applies here. Next session should start by picking up
+  [#69](https://github.com/mp3anthony/cartel/issues/69), the first
+  unblocked ticket.**
+  - **Process, for real this time, not just this file's usual prose
+    description of it**: `/grill-me` interrogated the idea end-to-end
+    conversationally (reporter scope, backend architecture, identity/
+    attribution, labels, UI placement, form fields, auto-attached
+    context, abuse protection, success/failure UX, title-fallback
+    behavior) — functionally a Problem Agreement round, just run through
+    a dedicated skill instead of ad hoc. Then `/to-spec` synthesized that
+    interrogation (no re-interview) into a full spec — problem statement,
+    20 user stories, implementation decisions, testing decisions, out of
+    scope — published as
+    [#68](https://github.com/mp3anthony/cartel/issues/68) with
+    `ready-for-agent`. Then `/to-tickets` split it into two dependency-
+    ordered vertical slices, confirmed with the user before publishing,
+    each referencing #68 as parent and each other via `Blocked by`.
+  - **[#69](https://github.com/mp3anthony/cartel/issues/69) — core
+    text-only reporting flow, unblocked, start here.** New `FeedbackScreen`
+    (reached from a row at the bottom of `HouseholdScreen`, above the
+    version footer — not the global `NavMenu`, not a floating button) +
+    a new Supabase Edge Function that holds a GitHub PAT as a server-side
+    secret and files a real GitHub issue. Required fields: type (Bug/
+    Feature dropdown), "what's happening", "what should happen", device/
+    OS (free text, asked — not sniffed). Optional: name, title (a ~60-char
+    truncation of "what's happening" is the fallback title). App version/
+    platform/current screen auto-attach invisibly. Labels: `from-app`
+    (new, idempotent-create) + `bug`/`enhancement` (existing defaults).
+    Success = plain `Banner` "thanks", no issue number shown. Failure =
+    existing `ErrorNote`/`humanise()`, form contents preserved for retry.
+    No rate limiting, no contact-back mechanism — both explicit, deliberate
+    omissions for now (rate limiting deferred until real outside testers;
+    contact-back superseded by a separate, not-yet-built patch-notes/
+    known-issues feature the user mentioned wanting eventually).
+  - **[#70](https://github.com/mp3anthony/cartel/issues/70) — screenshot
+    attachment, blocked by #69.** Optional device-photo-library attach
+    (`expo-image-picker`, not live capture) uploaded to a new public-read/
+    authenticated-write Storage bucket, embedded inline in the issue body.
+    New `supabase/tests/rls_feedback_screenshots.sql` for the bucket's
+    access policy — matches this project's existing `rls_*.sql`
+    convention (no unit-test framework anywhere in this codebase; the
+    project's own testing discipline throughout has always been RLS SQL
+    assertions + live-browser/live-deploy verification, never mocks — #69
+    and #70 both explicitly follow that rather than introducing one).
+  - **Working reference implementation this was scoped against, not
+    invented from scratch**: the sibling `funded` project
+    (`D:\Anthonys-HQ\business\hazardous-schematics\Code\funded\funded
+    rebuild\funded-nextjs\src\app\api\bug-report\route.ts` +
+    `BugReportSheet.tsx`) already has a working, shipped version of
+    almost this exact feature — server-held GitHub PAT, never-trust-
+    client-identity auth, idempotent label creation, optional screenshot
+    uploaded to a public-read bucket. Read directly during the grilling
+    session to confirm the architecture (not assumed) — only the server
+    runtime differs (a Supabase Edge Function here vs. `funded`'s
+    Next.js API route, since Cartel's web build has no server of its own
+    outside Supabase). Worth reading that file directly again before
+    building #69 rather than re-deriving the shape from this summary
+    alone.
+  - **Nothing built yet** — no Edge Function, no new table/bucket, no
+    screen. This session was scoping only, end to end. #52 (Google Places,
+    still parked on the user's own GCP billing prepayment) remains
+    untouched and unrelated.
+
+- **2026-09-14 (first) session — #42 narrowed and mitigated (not root-caused),
   shipped and merged, [PR #67](https://github.com/mp3anthony/cartel/pull/67).
   Session run under a tight usage budget (~5% left at the start), by the
   user's own explicit choice — flagging that up front since it shaped every
