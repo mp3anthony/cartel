@@ -5,7 +5,25 @@
 
 ## Last active
 
-- **2026-09-21 (fourth) — START HERE. [PR #83](https://github.com/mp3anthony/cartel/pull/83)
+- **2026-09-22 — START HERE. #79 (one-line add-item composer) built through the
+  full pipeline (Planner → Code Writer → separate Code Reviewer, zero findings →
+  orchestrator live check) and opened as a PR from branch
+  `79-one-line-add-item-composer`, version `0.0.33`. Next: merge it if the user
+  approves, then [#80](https://github.com/mp3anthony/cartel/issues/80) (add-to-list
+  screen compact rows + single pencil editor) through the same pipeline; #80 can
+  reuse `PrimaryButton compact` and the label-less `Field` (`accessibilityLabel`
+  instead of `label`) from #79. The #78 parenthetical nit is fixed; item 4 (dead
+  code) is still open for after #80.**
+  - **Live-verified** (local dev, 375px): composer is one 44px row, no overflow;
+    Enter adds, "+" adds, focus stays; triple-Enter → exactly one row (DB-confirmed);
+    caption tracks optimistic check-offs; `mousedown` default is prevented on "+"
+    (`keepFocus`) when enabled; dark and light tokens match the palette. Screenshots
+    timed out all session — verified via computed styles/DOM/DB. Test data cleaned
+    to zero.
+  - Note: `PrimaryButton` is `aria-disabled` when the draft is empty, so a
+    synthetic `mousedown` on it reports `defaultPrevented: false` — set text first.
+
+- **2026-09-21 (fourth). [PR #83](https://github.com/mp3anthony/cartel/pull/83)
   merged: the #77/#78 review findings are fixed (full pipeline this time: Code
   Writer → separate Code Reviewer → same Reviewer re-verified clean →
   orchestrator live check). Next: [#79](https://github.com/mp3anthony/cartel/issues/79)
