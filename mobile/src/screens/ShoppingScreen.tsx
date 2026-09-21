@@ -1,18 +1,17 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
-  Badge,
   Banner,
   Body,
-  CheckTarget,
+  CompactItemRow,
   Confirm,
   EmptyState,
   ErrorNote,
   Field,
-  IconButton,
+  InlineRowEditor,
   NAVIGATOR_EDGES,
   PrimaryButton,
   Screen,
@@ -215,6 +214,18 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * checkoff/session snapshots — the client's `items` is never passed to the
  * RPC at all, so there is nothing for this screen to freshen before calling
  * it.
+ *
+ * Issue #77 (compact list rows, parent #76) supersedes the Slice 6/8 and Batch E
+ * paragraphs above wherever they describe the tag UI: each item is now one
+ * `CompactItemRow` line (check circle + name, a right-aligned neutral pill for the
+ * section, a pencil) instead of a `CheckTarget` plus a separate tag row. An untagged
+ * item shows the pencil alone — the "+ Tag aisle" prompt is gone. The pencil turns
+ * that row into an `InlineRowEditor`, and `editingItemId` is a single slot, so only
+ * one editor is ever open (previously the tag and correction composers had separate
+ * ids and could both be open). Tagged vs. untagged only decides which existing write
+ * the editor's ✓ calls — `submitTag` (first-write-wins) or `submitCorrection` (quorum
+ * proposal); neither write changed. The pending-corrections block still renders as
+ * before, passed through the row's `footer` slot until #78 compacts it.
  */
 export function ShoppingScreen({ client, lists, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -300,10 +311,11 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   }, [view]);
 
   const [error, setError] = useState<string | null>(null);
-  const [composingItemId, setComposingItemId] = useState<string | null>(null);
-  const [sectionDraft, setSectionDraft] = useState('');
-  const [correctingItemId, setCorrectingItemId] = useState<string | null>(null);
-  const [correctionDraft, setCorrectionDraft] = useState('');
+  // One inline location editor at a time (#77). Whether it tags an untagged item or
+  // proposes a correction to a tagged one is derived from the item's current section
+  // at render time, not stored — so the two flows can't drift apart.
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [locationDraft, setLocationDraft] = useState('');
   const [confirmingFinish, setConfirmingFinish] = useState(false);
   const [finishingShopping, setFinishingShopping] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
@@ -373,22 +385,22 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     }
   }
 
-  function beginTagging(itemId: string) {
+  function beginEditing(itemId: string) {
     setError(null);
-    setComposingItemId(itemId);
-    setSectionDraft('');
+    setEditingItemId(itemId);
+    setLocationDraft('');
   }
 
-  function cancelTagging() {
-    setComposingItemId(null);
-    setSectionDraft('');
+  function cancelEditing() {
+    setEditingItemId(null);
+    setLocationDraft('');
   }
 
   async function submitTag(item: ListItemRow) {
     if (!list || list.locationId === null) {
       return;
     }
-    if (sectionDraft.trim().length === 0 || pending.has(item.id)) {
+    if (locationDraft.trim().length === 0 || pending.has(item.id)) {
       return;
     }
 
@@ -400,7 +412,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
         client,
         list.locationId,
         item.name,
-        sectionDraft,
+        locationDraft,
       );
 
       if (!outcome.ok) {
@@ -409,7 +421,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
       }
 
       await refreshLocationItems();
-      cancelTagging();
+      cancelEditing();
     } finally {
       setPending((current) => {
         const next = new Set(current);
@@ -419,22 +431,11 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     }
   }
 
-  function beginCorrecting(itemId: string) {
-    setError(null);
-    setCorrectingItemId(itemId);
-    setCorrectionDraft('');
-  }
-
-  function cancelCorrecting() {
-    setCorrectingItemId(null);
-    setCorrectionDraft('');
-  }
-
   async function submitCorrection(item: ListItemRow) {
     if (!list || list.locationId === null) {
       return;
     }
-    if (correctionDraft.trim().length === 0 || pending.has(item.id)) {
+    if (locationDraft.trim().length === 0 || pending.has(item.id)) {
       return;
     }
 
@@ -446,7 +447,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
         client,
         list.locationId,
         item.name,
-        correctionDraft,
+        locationDraft,
       );
 
       if (!outcome.ok) {
@@ -456,7 +457,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
 
       await refreshLocationItems();
       await refreshLocationItemVotes();
-      cancelCorrecting();
+      cancelEditing();
     } finally {
       setPending((current) => {
         const next = new Set(current);
@@ -720,122 +721,68 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
         />
       </View>
 
-      {orderedItems.map((item) => {
-        const section = sectionForItemName(locationItems.items, item.name);
-        const composing = composingItemId === item.id;
-        const correcting = correctingItemId === item.id;
-        const corrections =
-          section !== null
-            ? pendingCorrectionsForItemName(itemVotes.votes, item.name, section)
-            : [];
+      <View>
+        {orderedItems.map((item) => {
+          const section = sectionForItemName(locationItems.items, item.name);
+          const editing = editingItemId === item.id;
+          const corrections =
+            section !== null
+              ? pendingCorrectionsForItemName(itemVotes.votes, item.name, section)
+              : [];
 
-        return (
-          <View key={item.id} style={styles.itemGroup}>
-            <CheckTarget
-              size="large"
-              label={item.name}
+          return (
+            <CompactItemRow
+              key={item.id}
+              name={item.name}
               checked={isChecked(item)}
               onToggle={() => void toggle(item)}
               disabled={pending.has(item.id) || list.archivedAt !== null}
-              accessibilityLabel={item.name}
-            />
-
-            <View style={styles.tagRow}>
-              {section !== null ? (
-                correcting ? (
-                  <View style={styles.tagComposer}>
-                    <Field
-                      label="New section"
-                      value={correctionDraft}
-                      onChangeText={setCorrectionDraft}
-                      placeholder={`Currently: ${section}`}
-                      autoCapitalize="sentences"
-                      autoFocus
-                      maxLength={60}
-                      editable={!pending.has(item.id)}
-                      onSubmitEditing={() => void submitCorrection(item)}
-                      returnKeyType="done"
-                    />
-                    <PrimaryButton
-                      label="Propose"
-                      onPress={() => void submitCorrection(item)}
-                      busy={pending.has(item.id)}
-                      disabled={correctionDraft.trim().length === 0}
-                    />
-                    <SecondaryButton
-                      label="Cancel"
-                      onPress={cancelCorrecting}
-                      disabled={pending.has(item.id)}
-                    />
-                  </View>
-                ) : (
-                  <View style={styles.tagBadgeRow}>
-                    <Badge label={section} />
-                    <IconButton
-                      glyph="✏"
-                      accessibilityLabel={`Propose a new location for ${item.name}`}
-                      onPress={() => beginCorrecting(item.id)}
-                      disabled={pending.has(item.id)}
-                    />
-                  </View>
-                )
-              ) : composing ? (
-                <View style={styles.tagComposer}>
-                  <Field
-                    label="Section"
-                    value={sectionDraft}
-                    onChangeText={setSectionDraft}
-                    placeholder="Aisle 4"
-                    autoCapitalize="sentences"
-                    autoFocus
-                    maxLength={60}
-                    editable={!pending.has(item.id)}
-                    onSubmitEditing={() => void submitTag(item)}
-                    returnKeyType="done"
-                  />
-                  <PrimaryButton
-                    label="Save"
-                    onPress={() => void submitTag(item)}
+              pill={section}
+              onEdit={() => beginEditing(item.id)}
+              editLabel={
+                section !== null
+                  ? `Propose a new location for ${item.name}`
+                  : `Tag a location for ${item.name}`
+              }
+              editDisabled={pending.has(item.id)}
+              editor={
+                editing ? (
+                  <InlineRowEditor
+                    value={locationDraft}
+                    onChangeText={setLocationDraft}
+                    placeholder={section !== null ? `Currently: ${section}` : 'Aisle 4'}
+                    accessibilityLabel={
+                      section !== null ? `New location for ${item.name}` : `Location for ${item.name}`
+                    }
+                    onSubmit={() => void (section !== null ? submitCorrection(item) : submitTag(item))}
+                    onCancel={cancelEditing}
                     busy={pending.has(item.id)}
-                    disabled={sectionDraft.trim().length === 0}
+                    submitDisabled={locationDraft.trim().length === 0}
+                    maxLength={60}
                   />
-                  <SecondaryButton
-                    label="Cancel"
-                    onPress={cancelTagging}
-                    disabled={pending.has(item.id)}
-                  />
-                </View>
-              ) : (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Tag a section for ${item.name}`}
-                  onPress={() => beginTagging(item.id)}
-                  style={({ pressed }) => [styles.tagPrompt, pressed && styles.tagPromptPressed]}
-                >
-                  <Text style={styles.tagPromptGlyph}>+</Text>
-                  <Text style={styles.tagPromptLabel}>Tag aisle</Text>
-                </Pressable>
-              )}
-            </View>
-
-            {corrections.length > 0 ? (
-              <View style={styles.pendingCorrections}>
-                {corrections.map((correction) => (
-                  <View key={correction.proposedSection} style={styles.pendingCorrectionRow}>
-                    <Body>{`Proposed new location: "${correction.proposedSection}"`}</Body>
-                    <PrimaryButton
-                      label="Confirm"
-                      onPress={() => void confirmCorrection(item, correction.proposedSection)}
-                      busy={pending.has(item.id)}
-                      disabled={pending.has(item.id)}
-                    />
+                ) : undefined
+              }
+              footer={
+                corrections.length > 0 ? (
+                  <View style={styles.pendingCorrections}>
+                    {corrections.map((correction) => (
+                      <View key={correction.proposedSection} style={styles.pendingCorrectionRow}>
+                        <Body>{`Proposed new location: "${correction.proposedSection}"`}</Body>
+                        <PrimaryButton
+                          label="Confirm"
+                          onPress={() => void confirmCorrection(item, correction.proposedSection)}
+                          busy={pending.has(item.id)}
+                          disabled={pending.has(item.id)}
+                        />
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
-            ) : null}
-          </View>
-        );
-      })}
+                ) : undefined
+              }
+            />
+          );
+        })}
+      </View>
 
       {justFinished ? (
         <Banner message="Shop recorded — this location's ordering will reflect it next time." />
@@ -870,48 +817,11 @@ function createStyles(tokens: Tokens) {
     addComposer: {
       gap: tokens.space.sm,
     },
-    itemGroup: {
-      gap: tokens.space.xs,
-    },
-    tagRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingLeft: tokens.minTouchTargetLarge,
-    },
-    tagComposer: {
-      gap: tokens.space.sm,
-    },
-    tagPrompt: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: tokens.space.xs,
-      minHeight: tokens.minTouchTarget,
-      paddingHorizontal: tokens.space.sm,
-      borderRadius: tokens.radius.pill,
-      borderWidth: 1,
-      borderColor: tokens.color.border,
-    },
-    tagPromptPressed: {
-      backgroundColor: tokens.color.surfaceSunken,
-    },
-    tagPromptGlyph: {
-      color: tokens.color.accent,
-      fontSize: tokens.fontSize.body,
-      fontWeight: '700',
-      lineHeight: tokens.fontSize.body,
-    },
-    tagPromptLabel: {
-      color: tokens.color.accent,
-      fontSize: tokens.fontSize.caption,
-      fontWeight: '600',
-    },
-    tagBadgeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: tokens.space.sm,
-    },
+    // Inset to the text edge of a `CompactItemRow` (circle 24 + gap 16). Slice 2 (#78)
+    // replaces this block with a compact line.
     pendingCorrections: {
-      paddingLeft: tokens.minTouchTargetLarge,
+      paddingLeft: tokens.space.lg + tokens.space.md,
+      paddingBottom: tokens.space.sm,
       gap: tokens.space.xs,
     },
     pendingCorrectionRow: {
