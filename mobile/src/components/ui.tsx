@@ -112,6 +112,12 @@ export function Card({ children }: { children: ReactNode }) {
 /**
  * There is one accent in this app, so there is one primary button. A screen with two
  * of them has no primary action, which is a design problem rather than a styling one.
+ *
+ * `compact` is the composer-plus shape: a fixed 44x44 square carrying a single glyph
+ * (e.g. "+") that sits beside a one-line field. The width is fixed so swapping the
+ * glyph for the busy spinner never shifts the row's layout. Pair it with
+ * `accessibilityLabel`, since a bare glyph has no useful spoken name. Reusable by
+ * any screen that wants the same one-line add composer.
  */
 export function PrimaryButton({
   label,
@@ -119,11 +125,15 @@ export function PrimaryButton({
   busy = false,
   disabled = false,
   keepFocus = false,
+  accessibilityLabel,
+  compact = false,
 }: {
   label: string;
   onPress: () => void;
   busy?: boolean;
   disabled?: boolean;
+  accessibilityLabel?: string;
+  compact?: boolean;
   /**
    * For a button sitting next to a "keep typing to add the next one" composer field
    * (add an item, create a list/location) — a plain tap on this button would
@@ -150,6 +160,7 @@ export function PrimaryButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: inactive, busy }}
       disabled={inactive}
       onPress={onPress}
@@ -158,6 +169,7 @@ export function PrimaryButton({
         : null)}
       style={({ pressed }) => [
         styles.primaryButton,
+        compact && styles.primaryButtonCompact,
         pressed && styles.primaryButtonPressed,
         inactive && styles.buttonInactive,
       ]}
@@ -165,7 +177,9 @@ export function PrimaryButton({
       {busy ? (
         <ActivityIndicator color={tokens.color.accentContrast} />
       ) : (
-        <Text style={styles.primaryButtonLabel}>{label}</Text>
+        <Text style={[styles.primaryButtonLabel, compact && styles.primaryButtonLabelCompact]}>
+          {label}
+        </Text>
       )}
     </Pressable>
   );
@@ -213,22 +227,29 @@ export function SecondaryButton({
  * prop in JSX wins outright rather than merging. Pulling it out and combining
  * both into one array (`[styles.input, style]`) is what lets a caller like a
  * multiline textarea add `minHeight` without losing its box.
+ *
+ * `label` is optional for a slim, label-less field (e.g. a one-line composer whose
+ * placeholder carries the prompt). A field with no visible label must supply its
+ * own `accessibilityLabel` — the type pair below enforces that.
  */
 export function Field({
   label,
   required = false,
   style,
   ...inputProps
-}: { label: string; required?: boolean } & TextInputProps) {
+}: { required?: boolean } & TextInputProps &
+  ({ label: string } | { label?: undefined; accessibilityLabel: string })) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>
-        {label}
-        {required ? <Text style={styles.requiredMark}> *</Text> : null}
-      </Text>
+      {label ? (
+        <Text style={styles.fieldLabel}>
+          {label}
+          {required ? <Text style={styles.requiredMark}> *</Text> : null}
+        </Text>
+      ) : null}
       <TextInput
         accessibilityLabel={label}
         placeholderTextColor={tokens.color.textSecondary}
@@ -1003,6 +1024,10 @@ function createStyles(tokens: Tokens) {
       justifyContent: 'center',
       paddingHorizontal: tokens.space.lg,
     },
+    primaryButtonCompact: {
+      width: tokens.minTouchTarget,
+      paddingHorizontal: 0,
+    },
     primaryButtonPressed: {
       backgroundColor: tokens.color.accentPressed,
     },
@@ -1010,6 +1035,10 @@ function createStyles(tokens: Tokens) {
       color: tokens.color.accentContrast,
       fontSize: tokens.fontSize.body,
       fontWeight: '600',
+    },
+    primaryButtonLabelCompact: {
+      fontSize: tokens.fontSize.title,
+      lineHeight: tokens.fontSize.title,
     },
     secondaryButton: {
       borderRadius: tokens.radius.md,

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -153,7 +153,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  *
  * Issue #63 adds a persistent "Add an item" composer, always rendered (not
  * tap-to-reveal) at the **top** of the item list — above every row, below the
- * "N of M checked" header — rather than at the bottom. This was a deliberate
+ * checked-count caption — rather than at the bottom. This was a deliberate
  * correction after an initial bottom placement: while shopping, the top of
  * the screen is where a user's attention already is (the next item to grab),
  * so a bottom-anchored composer would sit out of sight, disconnected from the
@@ -181,7 +181,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * writes an optimistic entry into `optimisticChecked` (a `Map<string, boolean>`
  * of item id to the checked state the user just asked for) at the moment it's
  * pressed, rather than waiting for the round trip — both the checked-count
- * header and each row's `checked` prop read through a small `isChecked()`
+ * caption and each row's `checked` prop read through a small `isChecked()`
  * helper that consults this overlay before falling back to `item.checkedAt`.
  * A failed write deletes its own overlay entry and surfaces the error exactly
  * as before; a successful write leaves the overlay entry in place rather than
@@ -223,8 +223,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * the editor's ✓ calls — `submitTag` (first-write-wins) or `submitCorrection` (quorum
  * proposal); neither write changed.
  *
- * Issue #78 (which also supersedes the Slice 8 paragraph's Body-plus-PrimaryButton
- * description): each pending correction is one `PendingCorrectionLine` in the row's
+ * Issue #78: each pending correction is one `PendingCorrectionLine` in the row's
  * `footer` slot (muted "Proposed: X" + a text-style Confirm), only on rows that have
  * a proposal. `confirmCorrection` and the quorum RPC behind it are unchanged, so a
  * same-proposer confirm still comes back `already_voted` through `ErrorNote`.
@@ -235,6 +234,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * `writingRef` does for these three writes what `addBusyRef` does for adds: `pending`
  * is batched state, so it alone can't stop a same-tick double submit. A new `error`
  * scrolls the list to the top, where `ErrorNote` renders, so it can't stay off-screen.
+ *
+ * Issue #79 (one-line add-item composer, parent #76): the #63 composer is now a single
+ * row — a label-less `Field` (placeholder "Add an item", in a `flex: 1` wrapper because
+ * `Field`'s `style` only reaches the TextInput) plus a compact "+" `PrimaryButton`.
+ * `addNewItem`, `addBusyRef`/`addBusy`, `keepFocus` and `blurOnSubmit={false}` are
+ * unchanged, so #63's behaviour is too. "N of M checked" is now a small muted caption
+ * above it rather than a body-size header line.
  */
 export function ShoppingScreen({ client, lists, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -348,7 +354,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   // Effective checked state for a row: the optimistic overlay above wins while a
   // value is present, otherwise falls back to whatever the database last reported.
   // Used everywhere a row's checked state matters — the row's own `checked` prop,
-  // the header's `checkedCount`, and nowhere else (`computeRouteOrder` stays reading
+  // the caption's `checkedCount`, and nowhere else (`computeRouteOrder` stays reading
   // `checkoffs`/`locationItems`, unrelated to this per-item toggle state).
   function isChecked(item: ListItemRow): boolean {
     return optimisticChecked.has(item.id) ? optimisticChecked.get(item.id)! : item.checkedAt !== null;
@@ -743,26 +749,30 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
 
   return (
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll scrollRef={scrollRef}>
-      <Body>{`${checkedCount} of ${items.length} checked`}</Body>
+      <Text style={styles.caption}>{`${checkedCount} of ${items.length} checked`}</Text>
 
       {error ? <ErrorNote message={error} /> : null}
 
       <View style={styles.addComposer}>
-        <Field
-          label="Add an item"
-          value={addDraft}
-          onChangeText={setAddDraft}
-          placeholder="Milk"
-          autoCapitalize="sentences"
-          maxLength={120}
-          onSubmitEditing={() => void addNewItem()}
-          returnKeyType="done"
-          submitBehavior="submit"
-          blurOnSubmit={false}
-          editable={list.archivedAt === null}
-        />
+        <View style={styles.addField}>
+          <Field
+            accessibilityLabel="Add an item"
+            value={addDraft}
+            onChangeText={setAddDraft}
+            placeholder="Add an item"
+            autoCapitalize="sentences"
+            maxLength={120}
+            onSubmitEditing={() => void addNewItem()}
+            returnKeyType="done"
+            submitBehavior="submit"
+            blurOnSubmit={false}
+            editable={list.archivedAt === null}
+          />
+        </View>
         <PrimaryButton
-          label="Add"
+          label="+"
+          accessibilityLabel="Add item"
+          compact
           onPress={() => void addNewItem()}
           busy={addBusy}
           disabled={addDraft.trim().length === 0 || list.archivedAt !== null}
@@ -861,7 +871,17 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     addComposer: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: tokens.space.sm,
+    },
+    addField: {
+      flex: 1,
+    },
+    caption: {
+      fontSize: tokens.fontSize.caption,
+      lineHeight: tokens.fontSize.caption * 1.5,
+      color: tokens.color.textSecondary,
     },
   });
 }
