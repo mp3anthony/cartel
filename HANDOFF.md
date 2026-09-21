@@ -5,9 +5,14 @@
 
 ## Last active
 
-- **2026-09-21 (second) session — #78 built (compact pending-correction line),
-  PR open on branch `78-compact-pending-correction`, not merged. Next: #79, then
-  #80 (still unblocked).**
+- **2026-09-21 (second) session — [PR #82](https://github.com/mp3anthony/cartel/pull/82)
+  merged, closing #78 (compact pending-correction line). Next: #79, then #80 (both
+  unblocked). Parent spec #76's "Agreed design" is still the source of truth.**
+  - **Process note**: the user asked why no subagents were used. Honest answer:
+    a small one-component slice seemed cheaper inline, but that repeated the
+    no-Code-Reviewer deviation from #77. Next slices should run the Protocol
+    pipeline (Planner → Code Writer → separate Code Reviewer) unless the user says
+    otherwise; the orchestrator still does live-browser verification itself.
   - **Built**: new `PendingCorrectionLine` in `ui.tsx` (muted "Proposed: X" +
     text-style accent Confirm, `hitSlop` for the 44pt target), passed through
     `CompactItemRow`'s `footer` from `ShoppingScreen`. `confirmCorrection`/quorum
