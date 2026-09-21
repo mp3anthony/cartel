@@ -612,6 +612,53 @@ export function InlineRowEditor({
 }
 
 /**
+ * The second line a `CompactItemRow` shows (via its `footer` slot) when someone has
+ * proposed a new location for the item: small muted "Proposed: X" and a compact
+ * text-style Confirm on its right (#78). Only rendered on affected rows, so everyday
+ * rows stay one line. Inset to the row's text edge, like the divider.
+ *
+ * Confirm is text-styled rather than a `PrimaryButton`: it's a per-row secondary
+ * action, and accent colour is what marks it as tappable. The visible box is small; the
+ * touch target is widened to the standard minimum with `hitSlop` so the line doesn't
+ * grow to 44pt for it.
+ */
+export function PendingCorrectionLine({
+  proposedSection,
+  onConfirm,
+  busy = false,
+}: {
+  proposedSection: string;
+  onConfirm: () => void;
+  busy?: boolean;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <View style={styles.pendingLine}>
+      <Text numberOfLines={2} style={styles.pendingLabel}>
+        {`Proposed: ${proposedSection}`}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Confirm new location ${proposedSection}`}
+        accessibilityState={{ disabled: busy }}
+        disabled={busy}
+        onPress={onConfirm}
+        hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+        style={({ pressed }) => [
+          styles.pendingConfirm,
+          pressed && styles.rowPressed,
+          busy && styles.buttonInactive,
+        ]}
+      >
+        <Text style={styles.pendingConfirmLabel}>Confirm</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/**
  * What a list shows before it has anything in it.
  *
  * The action is typed as a pair: either both `actionLabel` and `onAction` or neither.
@@ -1141,6 +1188,28 @@ function createStyles(tokens: Tokens) {
     compactPillLabel: {
       fontSize: tokens.fontSize.caption,
       color: tokens.color.textSecondary,
+    },
+    pendingLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.sm,
+      // Text edge of a CompactItemRow (circle 24 + gap 16), matching compactDivider.
+      paddingLeft: tokens.space.lg + tokens.space.md,
+      paddingBottom: tokens.space.sm,
+    },
+    pendingLabel: {
+      flex: 1,
+      fontSize: tokens.fontSize.caption,
+      color: tokens.color.textSecondary,
+    },
+    pendingConfirm: {
+      paddingHorizontal: tokens.space.sm,
+      paddingVertical: tokens.space.xs,
+    },
+    pendingConfirmLabel: {
+      fontSize: tokens.fontSize.caption,
+      fontWeight: '600',
+      color: tokens.color.accent,
     },
     inlineInput: {
       flex: 1,

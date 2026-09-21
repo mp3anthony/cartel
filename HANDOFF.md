@@ -5,6 +5,25 @@
 
 ## Last active
 
+- **2026-09-21 (second) session — #78 built (compact pending-correction line),
+  PR open on branch `78-compact-pending-correction`, not merged. Next: #79, then
+  #80 (still unblocked).**
+  - **Built**: new `PendingCorrectionLine` in `ui.tsx` (muted "Proposed: X" +
+    text-style accent Confirm, `hitSlop` for the 44pt target), passed through
+    `CompactItemRow`'s `footer` from `ShoppingScreen`. `confirmCorrection`/quorum
+    untouched; the old `pendingCorrections*` styles are gone. Rows without a
+    proposal stay 52px.
+  - **Verified live** (local dev, 375px, dark + light): pending row shows the line,
+    second-user Confirm applies the correction (pill updates, line disappears),
+    same-proposer Confirm shows the `already_voted` message via `ErrorNote`, Confirm
+    never toggles check-off. Long proposal wraps to two lines. Not verified: native.
+  - Deviation, same as last session: implemented inline, no separate Code Reviewer.
+  - Test tip: `location_item_votes.voter_id` FKs `auth.users`, so seeding a
+    pending proposal from "someone else" needs a throwaway `auth.users` row (deleted
+    afterwards). Also a stale `localStorage` session whose user was deleted makes
+    inserts FK-fail — `localStorage.clear()` + reload to get a fresh anon user.
+  - `mobile/app.json`/`package.json` bumped to `0.0.31`.
+
 - **2026-09-21 session — [PR #81](https://github.com/mp3anthony/cartel/pull/81)
   merged, closing #77 (slice 1 of the compact list redesign). #78, #79 and #80
   are all unblocked now — next session picks up [#78](https://github.com/mp3anthony/cartel/issues/78)

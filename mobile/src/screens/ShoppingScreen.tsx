@@ -13,6 +13,7 @@ import {
   Field,
   InlineRowEditor,
   NAVIGATOR_EDGES,
+  PendingCorrectionLine,
   PrimaryButton,
   Screen,
   SecondaryButton,
@@ -226,6 +227,11 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * the editor's ✓ calls — `submitTag` (first-write-wins) or `submitCorrection` (quorum
  * proposal); neither write changed. The pending-corrections block still renders as
  * before, passed through the row's `footer` slot until #78 compacts it.
+ *
+ * Issue #78 did that: each pending correction is now one `PendingCorrectionLine` in
+ * the footer (muted "Proposed: X" + a text-style Confirm), only on rows that have a
+ * proposal. `confirmCorrection` and the quorum RPC behind it are unchanged, so a
+ * same-proposer confirm still comes back `already_voted` through `ErrorNote`.
  */
 export function ShoppingScreen({ client, lists, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -764,17 +770,14 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
               }
               footer={
                 corrections.length > 0 ? (
-                  <View style={styles.pendingCorrections}>
+                  <View>
                     {corrections.map((correction) => (
-                      <View key={correction.proposedSection} style={styles.pendingCorrectionRow}>
-                        <Body>{`Proposed new location: "${correction.proposedSection}"`}</Body>
-                        <PrimaryButton
-                          label="Confirm"
-                          onPress={() => void confirmCorrection(item, correction.proposedSection)}
-                          busy={pending.has(item.id)}
-                          disabled={pending.has(item.id)}
-                        />
-                      </View>
+                      <PendingCorrectionLine
+                        key={correction.proposedSection}
+                        proposedSection={correction.proposedSection}
+                        onConfirm={() => void confirmCorrection(item, correction.proposedSection)}
+                        busy={pending.has(item.id)}
+                      />
                     ))}
                   </View>
                 ) : undefined
@@ -815,18 +818,6 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     addComposer: {
-      gap: tokens.space.sm,
-    },
-    // Inset to the text edge of a `CompactItemRow` (circle 24 + gap 16). Slice 2 (#78)
-    // replaces this block with a compact line.
-    pendingCorrections: {
-      paddingLeft: tokens.space.lg + tokens.space.md,
-      paddingBottom: tokens.space.sm,
-      gap: tokens.space.xs,
-    },
-    pendingCorrectionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
       gap: tokens.space.sm,
     },
   });
