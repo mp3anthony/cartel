@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -74,10 +74,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * item beneath its `CheckTarget` row rather than folded into it — `CheckTarget`'s
  * own doc comment already names the "two nested Pressables reacting to one tap"
  * anti-pattern this avoids by keeping the two controls as siblings. A tagged item
- * shows its section as a `Badge`; an untagged one shows a `+` that opens a small
- * inline composer for this row only (`composingItemId`) rather than a modal or a
- * second screen, matching the low-friction, walking-through-the-store spirit the
- * rest of this screen already has.
+ * shows its section; an untagged one opens a small inline editor for this row only
+ * (`editingItemId`, see the #77 paragraph below) rather than a modal or a second
+ * screen, matching the low-friction, walking-through-the-store spirit the rest of
+ * this screen already has.
  *
  * Slice 7 adds both reordering and a "Finish shopping" button. Items render via
  * `computeRouteOrder` (`../lib/locationCheckoffs`) rather than in whatever order
@@ -92,9 +92,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * building ahead of the slice (9) that actually needs that.
  *
  * Slice 8 adds correction voting on top of an already-tagged item. A tagged
- * item's `Badge` gains a sibling pencil `IconButton` that opens a second inline
- * composer (`correctingItemId`, the same one-row-at-a-time shape
- * `composingItemId` already established) for proposing a new section. Any
+ * item gains a pencil that opens the same inline editor, there to propose a new
+ * section rather than tag one. Any
  * pending corrections for that item — one row per distinct proposed value,
  * computed client-side from `useLocationItemVotes` via
  * `pendingCorrectionsForItemName` — render beneath the tag row as a plain
@@ -175,11 +174,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * read-only from that point on, consistent with the "already recorded"
  * messaging a returning visit to the same screen shows.
  *
- * Batch E (#32) makes the untagged affordance self-explanatory: the bare `+`
- * `IconButton` is replaced with a small labeled `Pressable` ("+ Tag aisle")
- * in the accent color, so it reads as an action rather than stray
- * punctuation. Presentational only — `beginTagging`, `composingItemId`, and
- * the inline composer it opens are unchanged.
+ * Batch E (#32) briefly gave untagged items a labeled "+ Tag aisle" affordance;
+ * #77 (below) replaced it with the pencil.
  *
  * Batch F (#39) addresses check-off latency two ways. First, `toggle()`
  * writes an optimistic entry into `optimisticChecked` (a `Map<string, boolean>`
@@ -225,13 +221,20 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * one editor is ever open (previously the tag and correction composers had separate
  * ids and could both be open). Tagged vs. untagged only decides which existing write
  * the editor's ✓ calls — `submitTag` (first-write-wins) or `submitCorrection` (quorum
- * proposal); neither write changed. The pending-corrections block still renders as
- * before, passed through the row's `footer` slot until #78 compacts it.
+ * proposal); neither write changed.
  *
- * Issue #78 did that: each pending correction is now one `PendingCorrectionLine` in
- * the footer (muted "Proposed: X" + a text-style Confirm), only on rows that have a
- * proposal. `confirmCorrection` and the quorum RPC behind it are unchanged, so a
+ * Issue #78 (which also supersedes the Slice 8 paragraph's Body-plus-PrimaryButton
+ * description): each pending correction is one `PendingCorrectionLine` in the row's
+ * `footer` slot (muted "Proposed: X" + a text-style Confirm), only on rows that have
+ * a proposal. `confirmCorrection` and the quorum RPC behind it are unchanged, so a
  * same-proposer confirm still comes back `already_voted` through `ErrorNote`.
+ *
+ * `beginEditing`/`cancelEditing` also write `editingItemIdRef`, and a finished write
+ * only closes the editor if the ref still names its own row (`finishEditing`), so a
+ * slow write for row A can't close, or wipe the draft of, an editor since opened on B.
+ * `writingRef` does for these three writes what `addBusyRef` does for adds: `pending`
+ * is batched state, so it alone can't stop a same-tick double submit. A new `error`
+ * scrolls the list to the top, where `ErrorNote` renders, so it can't stay off-screen.
  */
 export function ShoppingScreen({ client, lists, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -317,11 +320,24 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   }, [view]);
 
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    if (error) {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    }
+  }, [error]);
+
   // One inline location editor at a time (#77). Whether it tags an untagged item or
   // proposes a correction to a tagged one is derived from the item's current section
   // at render time, not stored — so the two flows can't drift apart.
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [locationDraft, setLocationDraft] = useState('');
+  // Mirrors `editingItemId` synchronously so a write that resolves later can tell
+  // whether its own row's editor is still the open one (see `finishEditing`).
+  const editingItemIdRef = useRef<string | null>(null);
+  // Item ids with a tag/correction/confirm write in flight. Synchronous, unlike
+  // `pending` (batched state) — see `addBusyRef` for the same idiom.
+  const writingRef = useRef<Set<string>>(new Set());
   const [confirmingFinish, setConfirmingFinish] = useState(false);
   const [finishingShopping, setFinishingShopping] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
@@ -393,23 +409,40 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
 
   function beginEditing(itemId: string) {
     setError(null);
+    editingItemIdRef.current = itemId;
     setEditingItemId(itemId);
     setLocationDraft('');
   }
 
   function cancelEditing() {
+    editingItemIdRef.current = null;
     setEditingItemId(null);
     setLocationDraft('');
+  }
+
+  // Closes the editor only if it is still the one for `itemId`: the user may have
+  // opened another row's editor while this row's write was in flight, and closing
+  // (or wiping the draft of) that one would lose their typing. Same idiom as
+  // `LocationsScreen`'s chain editor.
+  function finishEditing(itemId: string) {
+    if (editingItemIdRef.current === itemId) {
+      cancelEditing();
+    }
   }
 
   async function submitTag(item: ListItemRow) {
     if (!list || list.locationId === null) {
       return;
     }
-    if (locationDraft.trim().length === 0 || pending.has(item.id)) {
+    if (
+      locationDraft.trim().length === 0 ||
+      pending.has(item.id) ||
+      writingRef.current.has(item.id)
+    ) {
       return;
     }
 
+    writingRef.current.add(item.id);
     setPending((current) => new Set(current).add(item.id));
     setError(null);
 
@@ -427,8 +460,9 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
       }
 
       await refreshLocationItems();
-      cancelEditing();
+      finishEditing(item.id);
     } finally {
+      writingRef.current.delete(item.id);
       setPending((current) => {
         const next = new Set(current);
         next.delete(item.id);
@@ -441,10 +475,15 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     if (!list || list.locationId === null) {
       return;
     }
-    if (locationDraft.trim().length === 0 || pending.has(item.id)) {
+    if (
+      locationDraft.trim().length === 0 ||
+      pending.has(item.id) ||
+      writingRef.current.has(item.id)
+    ) {
       return;
     }
 
+    writingRef.current.add(item.id);
     setPending((current) => new Set(current).add(item.id));
     setError(null);
 
@@ -463,8 +502,9 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
 
       await refreshLocationItems();
       await refreshLocationItemVotes();
-      cancelEditing();
+      finishEditing(item.id);
     } finally {
+      writingRef.current.delete(item.id);
       setPending((current) => {
         const next = new Set(current);
         next.delete(item.id);
@@ -477,10 +517,11 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     if (!list || list.locationId === null) {
       return;
     }
-    if (pending.has(item.id)) {
+    if (pending.has(item.id) || writingRef.current.has(item.id)) {
       return;
     }
 
+    writingRef.current.add(item.id);
     setPending((current) => new Set(current).add(item.id));
     setError(null);
 
@@ -500,6 +541,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
       await refreshLocationItems();
       await refreshLocationItemVotes();
     } finally {
+      writingRef.current.delete(item.id);
       setPending((current) => {
         const next = new Set(current);
         next.delete(item.id);
@@ -699,7 +741,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   const checkedCount = items.filter((item) => isChecked(item)).length;
 
   return (
-    <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
+    <Screen edges={NAVIGATOR_EDGES} align="top" scroll scrollRef={scrollRef}>
       <Body>{`${checkedCount} of ${items.length} checked`}</Body>
 
       {error ? <ErrorNote message={error} /> : null}

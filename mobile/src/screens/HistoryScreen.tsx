@@ -55,7 +55,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'History'> & {
  * already got"), and attaches it to the same location the shop happened at.
  * One inline composer at a time (`copyingSessionId`), matching this
  * codebase's established one-row-at-a-time shape
- * (`ShoppingScreen`'s `composingItemId`/`correctingItemId`,
+ * (`ShoppingScreen`'s `editingItemId`,
  * `ListDetailScreen`'s new copy composer below its own action cluster) —
  * deliberately not a shared component with either of those, see
  * `ListDetailScreen.tsx`'s own copy-composer comment for why.
