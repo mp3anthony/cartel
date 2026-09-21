@@ -5,6 +5,60 @@
 
 ## Last active
 
+- **2026-09-21 (third) — START HERE. #77 and #78 were merged with no separate
+  Code Review (protocol deviation, the user was rightly angry). A retroactive
+  Code Reviewer has now run; its findings are below and NOTHING has been fixed yet.
+  Next session must run them through the protocol pipeline: Code Writer (fixes) →
+  separate Code Reviewer re-verify → orchestrator live-browser check → PR. Then
+  #79, then #80, each through the full pipeline (Planner → Code Writer → separate
+  Code Reviewer). No inline implementation, don't offer it — see memory note
+  `follow-protocol-subagents`. This session's context was bloated; start fresh.**
+  - Reviewer verdict: `tsc` clean, **no blocking issues**, #77/#78 acceptance
+    criteria met at code level (reviewer did not run the app).
+  - **Fix these (should-fix), one small PR:**
+    1. **Stale-write closes another row's editor** —
+       [ShoppingScreen.tsx](mobile/src/screens/ShoppingScreen.tsx) `cancelEditing()`
+       (~:400) is called unconditionally at the end of `submitTag` (~:430) and
+       `submitCorrection` (~:466). If the user taps pencil on row B while row A's
+       write is in flight, A resolving sets `editingItemId = null` and wipes
+       `locationDraft`, closing B's editor and losing typed text. Same bug class
+       as PR #55 (`LocationsScreen`). Fix: only clear when `editingItemId` still
+       equals the saved item's id (functional `setEditingItemId`), and clear the
+       draft only in that case.
+    2. **`hitSlop` is a no-op on react-native-web 0.21**, so the Confirm text button
+       in `PendingCorrectionLine` ([ui.tsx](mobile/src/components/ui.tsx) ~:620-648)
+       is only ~24px tall on web (the verified surface) and the comment claiming a
+       44pt target is false there. Fix with real padding/`minHeight: 44` (e.g. with
+       a negative vertical margin so the line doesn't grow), or accept the smaller
+       target and correct the comment. This was my own #78 code. If hitSlop ever
+       applies (native) its 10px top slop would overlap the pencil above.
+  - **Nice-to-have (fold in if cheap, else ticket):**
+    3. Errors (`ErrorNote`) render at the top of the scroll view, so on a long list
+       a rejected Confirm/✓ (e.g. `already_voted`) is off-screen. Scroll-to-top or a
+       row-level error.
+    4. Dead code, deliberately left since #77, safe to remove after #80 lands
+       (re-grep first): `CheckTarget` `size="large"`/`label` props + branch, styles
+       `touchTargetLarge`/`checkCircleLarge`/`checkGlyphLarge`/`checkRow`/
+       `checkRowLabel`, `fontSize.large`, `minTouchTargetLarge`. Keep
+       `checkRowLabelChecked` (live).
+    5. Stale comments naming removed state (`composingItemId`, `correctingItemId`,
+       `beginTagging`, "+ Tag aisle"): `HistoryScreen.tsx:58`,
+       `ShoppingScreen.tsx` ~:78, :96-97, :179-181, and the #77 paragraph (~:219-234)
+       still says the pending block renders "as before … until #78", contradicting
+       the #78 paragraph right after it.
+    6. `submitTag`/`submitCorrection`/`confirmCorrection` guard re-entry with
+       batched `pending.has()` rather than a ref (the `addBusyRef` pattern). Not a
+       regression; a synthetic same-tick double submit could send two votes.
+  - **State of the repo**: `main` is at the #78 merge + this handoff; #78 closed;
+    #79 and #80 open and unblocked. Version is `0.0.31`. #52 still parked on the
+    user's GCP billing.
+  - **Live-verification recipe used for #78** (orchestrator does this, subagents
+    can't reach the Browser pane): `localStorage.clear()` + reload for a fresh anon
+    user, seed a location/list/items/tags via `execute_sql` scoped to that uid,
+    seed a pending vote from a throwaway `auth.users` row (`voter_id` FKs
+    `auth.users`), open `/shop/<listId>`, then delete every seeded row and the
+    throwaway users and re-count at zero.
+
 - **2026-09-21 (second) session — [PR #82](https://github.com/mp3anthony/cartel/pull/82)
   merged, closing #78 (compact pending-correction line). Next: #79, then #80 (both
   unblocked). Parent spec #76's "Agreed design" is still the source of truth.**
