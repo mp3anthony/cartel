@@ -5,6 +5,68 @@
 
 ## Last active
 
+- **2026-09-21 session — [PR #81](https://github.com/mp3anthony/cartel/pull/81)
+  merged, closing #77 (slice 1 of the compact list redesign). #78, #79 and #80
+  are all unblocked now — next session picks up [#78](https://github.com/mp3anthony/cartel/issues/78)
+  (compact pending-correction line), then #79, then #80. Parent spec #76's
+  "Agreed design" is still the source of truth.**
+  - **Built**: `CompactItemRow` and `InlineRowEditor` in `ui.tsx` (the shared
+    components #78/#80 reuse), and `ShoppingScreen` rendering one ~52px row per
+    item. `CompactItemRow` has an `editor` slot (replaces the whole line while
+    editing) and a `footer` slot (renders inside the row above its divider).
+    **#78 should fill `footer`** — the old pending-corrections block (`Body` +
+    `PrimaryButton` Confirm, `styles.pendingCorrections` in `ShoppingScreen`)
+    is deliberately still there, passed through `footer`, left as-is for #78 to
+    replace. **#80 should reuse `CompactItemRow`/`InlineRowEditor`**; its editor
+    needs more than a single field (name + ✓/✕ + reorder arrows + remove), so
+    expect to extend `InlineRowEditor` or pass its own `editor` node.
+  - `ShoppingScreen`'s two composers (tag/correct) were merged into one
+    `editingItemId` + `locationDraft`; tagged vs. untagged is derived from
+    `sectionForItemName()` at render time, which picks `submitCorrection` vs
+    `submitTag`. So only one editor is open at a time (previously two could be).
+  - **Verified live** (local dev, 375px, dark + light, seeded-then-cleaned-up
+    data): 53px rows, 44px pencil, long name wraps, long pill ellipsises, tag
+    saves, correction proposed via Enter, second editor closes the first, rapid
+    triple-tap on a row toggles once, pencil never toggles. **Not verified**:
+    native, and a second real user confirming a correction (code untouched).
+  - Did this session's implementation inline rather than through the subagent
+    pipeline, and no separate Code Reviewer looked at it — flagging that
+    deviation, same as earlier sessions did.
+  - **Now-dead code, left on purpose to keep the diff to the slice**:
+    `CheckTarget`'s `size="large"`/`label` props, the `checkRow*`/
+    `touchTargetLarge`/`checkCircleLarge`/`checkGlyphLarge` styles,
+    `fontSize.large` and `minTouchTargetLarge` in `tokens.ts` — no screen uses
+    them any more. Remove once #80 lands, after re-grepping.
+  - Pencil glyph (`✏`) renders as a dense black pen icon rather than a light
+    outline; unchanged `IconButton` behaviour, not part of this slice, but it
+    looked heavy in the compact row — worth a look if the user mentions it.
+  - Tooling: the Browser pane composited fine this session (screenshots
+    worked). `computer{action:"type"}` still didn't land text into inputs — the
+    native-value-setter + `input` event trick from the Traps section worked.
+    `mobile/app.json`/`package.json` bumped to `0.0.30`.
+  - #52 still parked on the user's GCP billing, unchanged.
+
+- **2026-09-20 session — compact list-view redesign grilled and ticketed, zero
+  code written. (Superseded by the entry above: #77 is now done.) Parent spec:
+  [#76](https://github.com/mp3anthony/cartel/issues/76) — its "Agreed design"
+  section is the source of truth; don't re-grill it.**
+  - Slices: #77 shared compact row + Shopping Mode inline location editor;
+    #78 compact pending-correction line (blocked by #77); #79 one-line
+    add-item composer (independent, same file as #77); #80 add-to-list
+    screen compact rows + single pencil editor (blocked by #77). All
+    `ready-for-agent`, presentational only, no schema change.
+  - Every fork was the user's own call (A each time) except a few defaults
+    the user delegated to me — hairline divider between every row, neutral
+    ellipsis-truncated pill, checked items unchanged (stay in place) — all
+    recorded in #76.
+  - The user explicitly approved moving ↑ ↓ × behind the pencil on
+    `ListDetailScreen` (one extra tap for reorder/remove).
+  - Research: `docs/research/todoist-list-ui.md` (uncommitted, written by a
+    background agent). Todoist's own docs don't give row height/divider
+    specifics — those come from the user's screenshots (a Groceries-style app
+    and Todoist), not a primary source.
+  - #52 still parked on the user's GCP billing, unchanged.
+
 - **2026-09-14 (fifth) session — [PR #75](https://github.com/mp3anthony/cartel/pull/75)
   merged, closing #70 (screenshot attachment for feedback reports). #68 (the
   parent spec issue) closed too — both its child tickets (#69, #70) are now
