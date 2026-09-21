@@ -5,17 +5,39 @@
 
 ## Last active
 
-- **2026-09-21 (third) — START HERE. #77 and #78 were merged with no separate
-  Code Review (protocol deviation, the user was rightly angry). A retroactive
-  Code Reviewer has now run; its findings are below and NOTHING has been fixed yet.
-  Next session must run them through the protocol pipeline: Code Writer (fixes) →
-  separate Code Reviewer re-verify → orchestrator live-browser check → PR. Then
-  #79, then #80, each through the full pipeline (Planner → Code Writer → separate
-  Code Reviewer). No inline implementation, don't offer it — see memory note
-  `follow-protocol-subagents`. This session's context was bloated; start fresh.**
-  - Reviewer verdict: `tsc` clean, **no blocking issues**, #77/#78 acceptance
-    criteria met at code level (reviewer did not run the app).
-  - **Fix these (should-fix), one small PR:**
+- **2026-09-21 (fourth) — START HERE. [PR #83](https://github.com/mp3anthony/cartel/pull/83)
+  merged: the #77/#78 review findings are fixed (full pipeline this time: Code
+  Writer → separate Code Reviewer → same Reviewer re-verified clean →
+  orchestrator live check). Next: [#79](https://github.com/mp3anthony/cartel/issues/79)
+  (one-line add-item composer), then [#80](https://github.com/mp3anthony/cartel/issues/80)
+  (add-to-list screen compact rows + single pencil editor), each through
+  Planner → Code Writer → separate Code Reviewer → orchestrator live-browser
+  check → PR. No inline implementation, don't offer it (memory note
+  `follow-protocol-subagents`). Parent spec #76's "Agreed design" is the source of
+  truth. `main` is at the #83 merge, version `0.0.32`. #52 still parked on GCP
+  billing.**
+  - **Fixed in #83**: stale-write editor close (`editingItemIdRef` +
+    `finishEditing(itemId)` in `ShoppingScreen`), Confirm target now a real 44px
+    box with negative margins (effective hit area ≈36px where another row follows,
+    because it overhangs ~7px into the next row — documented in the code),
+    opacity press feedback on Confirm, scroll-to-top when `error` is set
+    (`Screen` takes optional `scrollRef`), per-item `writingRef` re-entry guard on
+    `submitTag`/`submitCorrection`/`confirmCorrection`, stale comments.
+  - **Still open, do in/after #80**: item 4 below (dead code — re-grep first);
+    tiny nit: `ShoppingScreen.tsx` ~:226 says #78 "supersedes the Slice 8
+    paragraph's Body-plus-PrimaryButton description" but that text was removed —
+    drop the parenthetical. Accepted edge (not fixed): scroll-to-top on error can
+    push a focused editor in another row off-screen.
+  - **Live-check recipe worked cleanly again** (below): fresh anon user via
+    `localStorage.clear()` + reload, seed location/list/items/tags + a pending vote
+    from a throwaway `auth.users` row (`is_anonymous=true`, only `id/aud/role`
+    needed) in one CTE `execute_sql`, then delete list/location/both users and
+    re-count at zero. To test an in-flight race, wrap `window.fetch` to delay the
+    POST to `location_items` by a few seconds. **`computer{action:"screenshot"}`
+    can return a stale frame** — once it showed pre-action state while DOM and DB
+    agreed on the new state; trust DOM/DB reads and re-screenshot.
+  - Reviewer's original findings, now resolved except #4 (kept for #80):
+  - **Fix these (should-fix), one small PR — DONE in #83:**
     1. **Stale-write closes another row's editor** —
        [ShoppingScreen.tsx](mobile/src/screens/ShoppingScreen.tsx) `cancelEditing()`
        (~:400) is called unconditionally at the end of `submitTag` (~:430) and
