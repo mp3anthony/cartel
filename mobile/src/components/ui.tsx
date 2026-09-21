@@ -457,6 +457,161 @@ export function IconButton({
 }
 
 /**
+ * The compact list-item row shared by Shopping Mode and (issue #80) the add-to-list
+ * screen: leading check circle, name, an optional right-aligned neutral pill, and a
+ * pencil, on one ~52pt line with a hairline divider inset to the text edge — the
+ * density redesign of #76, replacing a 100pt-per-item stack of a check row plus a
+ * separate tag row.
+ *
+ * Circle + name are one `Pressable` (the check-off target) and the pill and pencil are
+ * its *siblings*, never nested inside it — `CheckTarget`'s own doc comment names the
+ * two-touchables-react-to-one-tap anti-pattern this avoids. The pill is display only.
+ * It ellipsis-truncates at 40% of the row so a long section name can't crowd out the
+ * item name, and it is right-aligned (next to the pencil, which is always present)
+ * so pills of different widths still end at the same edge and aisle changes read as a
+ * column. Neutral on purpose: `accent` stays reserved for actions.
+ *
+ * `editor` replaces the whole line while a row is being edited (see `InlineRowEditor`)
+ * so the row *becomes* the editor rather than growing a stacked form beneath it.
+ * `footer` renders inside the row above its divider, for per-row detail lines.
+ */
+export function CompactItemRow({
+  name,
+  checked,
+  onToggle,
+  disabled = false,
+  pill,
+  onEdit,
+  editLabel,
+  editDisabled = false,
+  editor,
+  footer,
+}: {
+  name: string;
+  checked: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+  pill?: string | null;
+  onEdit: () => void;
+  editLabel: string;
+  editDisabled?: boolean;
+  editor?: ReactNode;
+  footer?: ReactNode;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <View>
+      {editor ? (
+        <View style={styles.compactLine}>{editor}</View>
+      ) : (
+        <View style={styles.compactLine}>
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityLabel={name}
+            // Both spellings — see CheckTarget for why react-native-web 0.21 needs both.
+            aria-checked={checked}
+            accessibilityState={{ checked, disabled }}
+            disabled={disabled}
+            onPress={onToggle}
+            style={({ pressed }) => [
+              styles.compactCheck,
+              pressed && styles.rowPressed,
+              disabled && styles.buttonInactive,
+            ]}
+          >
+            <View style={[styles.checkCircle, checked && styles.checkCircleChecked]}>
+              {checked ? <Text style={styles.checkGlyph}>✓</Text> : null}
+            </View>
+            <Text
+              numberOfLines={2}
+              style={[styles.compactName, checked && styles.checkRowLabelChecked]}
+            >
+              {name}
+            </Text>
+          </Pressable>
+
+          {pill ? (
+            <View style={styles.compactPill}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.compactPillLabel}>
+                {pill}
+              </Text>
+            </View>
+          ) : null}
+
+          <IconButton
+            glyph="✏"
+            accessibilityLabel={editLabel}
+            onPress={onEdit}
+            disabled={editDisabled}
+          />
+        </View>
+      )}
+      {footer}
+      <View style={styles.compactDivider} />
+    </View>
+  );
+}
+
+/**
+ * The one-line editor a `CompactItemRow` turns into: a small field with ✓ and ✕
+ * beside it, replacing the stacked Field + Save + Cancel blocks. `busy` freezes the
+ * whole line while a write is in flight, so neither button can double-submit.
+ */
+export function InlineRowEditor({
+  value,
+  onChangeText,
+  placeholder,
+  accessibilityLabel,
+  onSubmit,
+  onCancel,
+  busy = false,
+  submitDisabled = false,
+  maxLength,
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  accessibilityLabel: string;
+  onSubmit: () => void;
+  onCancel: () => void;
+  busy?: boolean;
+  submitDisabled?: boolean;
+  maxLength?: number;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <>
+      <TextInput
+        accessibilityLabel={accessibilityLabel}
+        placeholder={placeholder}
+        placeholderTextColor={tokens.color.textSecondary}
+        value={value}
+        onChangeText={onChangeText}
+        autoCapitalize="sentences"
+        autoFocus
+        maxLength={maxLength}
+        editable={!busy}
+        onSubmitEditing={onSubmit}
+        returnKeyType="done"
+        blurOnSubmit={false}
+        style={styles.inlineInput}
+      />
+      <IconButton
+        glyph="✓"
+        accessibilityLabel="Save"
+        onPress={onSubmit}
+        disabled={busy || submitDisabled}
+      />
+      <IconButton glyph="✕" accessibilityLabel="Cancel" onPress={onCancel} disabled={busy} />
+    </>
+  );
+}
+
+/**
  * What a list shows before it has anything in it.
  *
  * The action is typed as a pair: either both `actionLabel` and `onAction` or neither.
@@ -946,6 +1101,57 @@ function createStyles(tokens: Tokens) {
     checkRowLabelChecked: {
       color: tokens.color.textSecondary,
       textDecorationLine: 'line-through',
+    },
+    // Compact item row (#77). Shared by Shopping Mode and the add-to-list screen.
+    // `compactDivider` is inset past the circle (24) and its gap (16) so the hairline
+    // starts at the text edge, not the screen edge.
+    compactDivider: {
+      height: StyleSheet.hairlineWidth,
+      marginLeft: tokens.space.lg + tokens.space.md,
+      backgroundColor: tokens.color.border,
+    },
+    compactLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.xs,
+      minHeight: 52,
+    },
+    compactCheck: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.md,
+      minHeight: 52,
+      paddingVertical: tokens.space.sm,
+    },
+    compactName: {
+      flex: 1,
+      fontSize: tokens.fontSize.body,
+      lineHeight: tokens.fontSize.body * 1.35,
+      color: tokens.color.textPrimary,
+    },
+    compactPill: {
+      maxWidth: '40%',
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      borderColor: tokens.color.border,
+      paddingHorizontal: tokens.space.sm,
+      paddingVertical: 2,
+    },
+    compactPillLabel: {
+      fontSize: tokens.fontSize.caption,
+      color: tokens.color.textSecondary,
+    },
+    inlineInput: {
+      flex: 1,
+      backgroundColor: tokens.color.surface,
+      borderRadius: tokens.radius.md,
+      borderWidth: 1,
+      borderColor: tokens.color.border,
+      minHeight: tokens.minTouchTarget,
+      paddingHorizontal: tokens.space.md,
+      fontSize: tokens.fontSize.body,
+      color: tokens.color.textPrimary,
     },
     iconGlyph: {
       color: tokens.color.textPrimary,
