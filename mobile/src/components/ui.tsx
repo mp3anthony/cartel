@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode, type Ref } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -46,11 +46,14 @@ export function Screen({
   edges = ['top', 'bottom', 'left', 'right'],
   align = 'center',
   scroll = false,
+  scrollRef,
 }: {
   children: ReactNode;
   edges?: readonly Edge[];
   align?: 'center' | 'top';
   scroll?: boolean;
+  /** Handle on the ScrollView (only used when `scroll`), e.g. to scroll to an error. */
+  scrollRef?: Ref<ScrollView>;
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -60,6 +63,7 @@ export function Screen({
     return (
       <SafeAreaView edges={edges} style={styles.ground}>
         <ScrollView
+          ref={scrollRef}
           style={styles.scrollFrame}
           contentContainerStyle={[
             styles.scrollContent,
@@ -618,9 +622,13 @@ export function InlineRowEditor({
  * rows stay one line. Inset to the row's text edge, like the divider.
  *
  * Confirm is text-styled rather than a `PrimaryButton`: it's a per-row secondary
- * action, and accent colour is what marks it as tappable. The visible box is small; the
- * touch target is widened to the standard minimum with `hitSlop` so the line doesn't
- * grow to 44pt for it.
+ * action, and accent colour is what marks it as tappable. The Pressable is a real
+ * `minTouchTarget` tall (not `hitSlop`, which react-native-web 0.21 ignores) and
+ * cancelled out with negative margins so the line keeps its compact height — see
+ * `pendingConfirm` for why the extra height leans downward. Honest caveat: the box
+ * overhangs ~7px into the next row, whose own controls paint later and win hit-testing
+ * there, so the effective target is ~36px where a row follows and the full 44px only on
+ * the last row.
  */
 export function PendingCorrectionLine({
   proposedSection,
@@ -645,10 +653,9 @@ export function PendingCorrectionLine({
         accessibilityState={{ disabled: busy }}
         disabled={busy}
         onPress={onConfirm}
-        hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
         style={({ pressed }) => [
           styles.pendingConfirm,
-          pressed && styles.rowPressed,
+          pressed && styles.pendingConfirmPressed,
           busy && styles.buttonInactive,
         ]}
       >
@@ -929,6 +936,10 @@ export function Select<T extends string>({
   );
 }
 
+// Height the `PendingCorrectionLine` row occupied before its Confirm target was
+// enlarged (13px caption + 2 * space.xs vertical padding, rounded).
+const PENDING_LINE_HEIGHT = 24;
+
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     ground: {
@@ -1202,9 +1213,23 @@ function createStyles(tokens: Tokens) {
       fontSize: tokens.fontSize.caption,
       color: tokens.color.textSecondary,
     },
+    // 44pt touch target inside a ~24pt line. The extra height mostly goes *below* the
+    // line (into its bottom padding, the divider, and the next row, whose own controls
+    // paint later and win any overlap). Only `space.xs` extends upward — that is the
+    // gap under the pencil in the row above, so Confirm can't steal its taps.
+    // `paddingBottom` re-centres the label on the 24pt line despite the lopsided box.
     pendingConfirm: {
+      minHeight: tokens.minTouchTarget,
+      justifyContent: 'center',
       paddingHorizontal: tokens.space.sm,
-      paddingVertical: tokens.space.xs,
+      marginTop: -tokens.space.xs,
+      marginBottom: -(tokens.minTouchTarget - PENDING_LINE_HEIGHT - tokens.space.xs),
+      paddingBottom: tokens.minTouchTarget - PENDING_LINE_HEIGHT - 2 * tokens.space.xs,
+    },
+    // Opacity, not `rowPressed`'s background: the lopsided 44pt box would paint that
+    // over the divider and into the next row.
+    pendingConfirmPressed: {
+      opacity: 0.5,
     },
     pendingConfirmLabel: {
       fontSize: tokens.fontSize.caption,
