@@ -625,7 +625,10 @@ export function InlineRowEditor({
  * action, and accent colour is what marks it as tappable. The Pressable is a real
  * `minTouchTarget` tall (not `hitSlop`, which react-native-web 0.21 ignores) and
  * cancelled out with negative margins so the line keeps its compact height — see
- * `pendingConfirm` for why the extra height leans downward.
+ * `pendingConfirm` for why the extra height leans downward. Honest caveat: the box
+ * overhangs ~7px into the next row, whose own controls paint later and win hit-testing
+ * there, so the effective target is ~36px where a row follows and the full 44px only on
+ * the last row.
  */
 export function PendingCorrectionLine({
   proposedSection,
@@ -652,7 +655,7 @@ export function PendingCorrectionLine({
         onPress={onConfirm}
         style={({ pressed }) => [
           styles.pendingConfirm,
-          pressed && styles.rowPressed,
+          pressed && styles.pendingConfirmPressed,
           busy && styles.buttonInactive,
         ]}
       >
@@ -1222,6 +1225,11 @@ function createStyles(tokens: Tokens) {
       marginTop: -tokens.space.xs,
       marginBottom: -(tokens.minTouchTarget - PENDING_LINE_HEIGHT - tokens.space.xs),
       paddingBottom: tokens.minTouchTarget - PENDING_LINE_HEIGHT - 2 * tokens.space.xs,
+    },
+    // Opacity, not `rowPressed`'s background: the lopsided 44pt box would paint that
+    // over the divider and into the next row.
+    pendingConfirmPressed: {
+      opacity: 0.5,
     },
     pendingConfirmLabel: {
       fontSize: tokens.fontSize.caption,

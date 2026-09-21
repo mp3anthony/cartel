@@ -70,8 +70,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * items stay in place rather than sinking to the bottom, and there is no session
  * row to finalize beyond the one Slice 7 adds below.
  *
- * Slice 6 adds crowdsourced section tagging alongside check-off, one control per
- * item beneath its `CheckTarget` row rather than folded into it — `CheckTarget`'s
+ * Slice 6 adds crowdsourced section tagging alongside check-off, as a control
+ * separate from the check-off target rather than folded into it — `CheckTarget`'s
  * own doc comment already names the "two nested Pressables reacting to one tap"
  * anti-pattern this avoids by keeping the two controls as siblings. A tagged item
  * shows its section; an untagged one opens a small inline editor for this row only
@@ -96,8 +96,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * section rather than tag one. Any
  * pending corrections for that item — one row per distinct proposed value,
  * computed client-side from `useLocationItemVotes` via
- * `pendingCorrectionsForItemName` — render beneath the tag row as a plain
- * `Body` line plus a single-tap `PrimaryButton` labelled "Confirm", not gated
+ * `pendingCorrectionsForItemName` — render under the item as a proposal line
+ * with a single-tap "Confirm" (see #78 below), not gated
  * behind the `Confirm` in-place-card primitive: there is no reject/veto verb in
  * this system (a user who disagrees with a proposed correction simply never
  * taps it), so borrowing a component whose contract requires an `onCancel`
@@ -422,8 +422,9 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
 
   // Closes the editor only if it is still the one for `itemId`: the user may have
   // opened another row's editor while this row's write was in flight, and closing
-  // (or wiping the draft of) that one would lose their typing. Same idiom as
-  // `LocationsScreen`'s chain editor.
+  // (or wiping the draft of) that one would lose their typing. Same
+  // guard-on-still-matching idea as `LocationsScreen`'s chain editor, though that one
+  // compares in a functional state update rather than a ref.
   function finishEditing(itemId: string) {
     if (editingItemIdRef.current === itemId) {
       cancelEditing();
