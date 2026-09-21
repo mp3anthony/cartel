@@ -5,7 +5,33 @@
 
 ## Last active
 
-- **2026-09-22 — START HERE. #79 (one-line add-item composer) built through the
+- **2026-09-22 (second) — START HERE. #79 merged ([PR #84](https://github.com/mp3anthony/cartel/pull/84),
+  `0.0.33`). #80 (add-to-list compact rows + pencil editor) built through the full
+  pipeline (Planner → Code Writer → separate Code Reviewer, zero blocking findings →
+  orchestrator live check) and opened as a PR from `80-add-to-list-compact-rows`,
+  version `0.0.34`. Next: merge it if the user approves; that completes the #76
+  compact-list redesign. #52 still parked on GCP billing.**
+  - **Built**: `ListDetailScreen` rows are `CompactItemRow`s; ↑ ↓ × live in a second
+    line of `InlineRowEditor` (new optional `children`; Shopping passes none and is
+    unchanged, 44px single line). Composer matches #79. `mutate` gained a separate
+    `mutatingRef` sync guard (rapid double-tap on ✓/arrow can't fire two writes;
+    later calls are dropped, not queued). Editor stays open after a move; remove
+    closes it; `editingIdRef`/`finishEditing(id)` stale-write guard as in Shopping.
+  - **Decision**: archived lists still allow rename/move/remove (only check-off is
+    disabled) — "read-only as today" read literally, not tightened. Flag if the user
+    wants editing blocked too.
+  - **Dead code removed** (HANDOFF's old item 4): `CheckTarget` `size`/`label`,
+    `touchTargetLarge`/`checkCircleLarge`/`checkGlyphLarge`/`checkRow`/`checkRowLabel`
+    styles, `fontSize.large`, `minTouchTargetLarge`. Item 5 (stale comments) was
+    already fixed.
+  - **Live-verified** (local dev, 375px, dark): rows 52px (59 for a wrapped name),
+    pencil/arrows/× 44px, no overflow; move up/down persist (DB-checked, first-row ↑
+    disabled), rename, remove, second pencil replaces the first editor, pencil never
+    toggles check, archived list disables check-off, composer triple-Enter → one row
+    with focus kept, Shopping location editor unchanged. Light theme and native not
+    re-checked; screenshots timed out (DOM/DB reads only). Test data cleaned to zero.
+
+- **2026-09-22 — #79 (one-line add-item composer) built through the
   full pipeline (Planner → Code Writer → separate Code Reviewer, zero findings →
   orchestrator live check) and opened as a PR from branch
   `79-one-line-add-item-composer`, version `0.0.33`. Next: merge it if the user

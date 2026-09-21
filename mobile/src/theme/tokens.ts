@@ -82,9 +82,8 @@ const darkPalette: Palette = {
 
 const space = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 } as const;
 const radius = { sm: 8, md: 14, lg: 20, pill: 999 } as const;
-const fontSize = { caption: 13, body: 16, title: 22, display: 30, large: 26 } as const;
+const fontSize = { caption: 13, body: 16, title: 22, display: 30 } as const;
 const minTouchTarget = 44;
-const minTouchTargetLarge = 64;
 
 type Elevation = {
   card: {
@@ -120,7 +119,6 @@ export type Tokens = {
   fontSize: typeof fontSize;
   elevation: Elevation;
   minTouchTarget: number;
-  minTouchTargetLarge: number;
 };
 
 export const lightTokens: Tokens = {
@@ -130,7 +128,6 @@ export const lightTokens: Tokens = {
   fontSize,
   elevation: buildElevation('#2B2320'),
   minTouchTarget,
-  minTouchTargetLarge,
 };
 
 export const darkTokens: Tokens = {
@@ -140,7 +137,6 @@ export const darkTokens: Tokens = {
   fontSize,
   elevation: buildElevation('#000000'),
   minTouchTarget,
-  minTouchTargetLarge,
 };
 
 /** The hamburger popover's full-screen dim (`NavMenu.tsx`). Deliberately

@@ -7,11 +7,13 @@ import {
   Badge,
   Body,
   CheckTarget,
+  CompactItemRow,
   Confirm,
   EmptyState,
   ErrorNote,
   Field,
   IconButton,
+  InlineRowEditor,
   NAVIGATOR_EDGES,
   PrimaryButton,
   Row,
@@ -56,6 +58,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ListDetail'> & {
  * row for a list the caller cannot see, so a stale deep link, a foreign id and a
  * removed list are the same absence, and none of them can be told apart by asking
  * again.
+ *
+ * Items render as `CompactItemRow`s (#80, under #76), the same density as Shopping
+ * Mode. The row's ↑ ↓ × controls live behind its pencil: tapping it turns that one row
+ * into an `InlineRowEditor` (rename field, ✓/✕) with the move and remove buttons on a
+ * second line, so reorder and remove cost one extra tap. Only one row is edited at a
+ * time; moving an item keeps its editor open, since the row keeps its key.
  */
 export function ListDetailScreen({
   client,
@@ -94,6 +102,14 @@ export function ListDetailScreen({
   // before anything async happens, purely for that re-entrancy guard — `busy` state
   // stays the source of truth for everything UI-facing (button disabling, spinners).
   const busyRef = useRef(false);
+  // Same idea for `mutate()` itself: the row editor's arrows and ✓ stay tappable
+  // between a tap and the next render, so a fast double-tap on ↓ would otherwise fire
+  // two moves computed from the same stale neighbours. Separate from `busyRef` so
+  // `add()`, which holds that one across its own `mutate()` call, doesn't block itself.
+  const mutatingRef = useRef(false);
+  // Mirrors `editingId` synchronously so a write that resolves later can tell whether
+  // its own row's editor is still the open one (see `finishEditing`).
+  const editingIdRef = useRef<string | null>(null);
 
   const list =
     lists.status === 'loaded'
@@ -112,7 +128,7 @@ export function ListDetailScreen({
   /**
    * Every write on this screen is the same four steps — mark busy, clear the last
    * error, write, reload — differing only in the write itself and in what gets
-   * cleared afterwards. Spelled out seven times, the plumbing is what you read and
+   * cleared afterwards. Spelled out this many times, the plumbing is what you read and
    * the write is what you skim past. `after` runs only on success, which is why the
    * caller's cleanup belongs there rather than below the await.
    */
@@ -120,20 +136,52 @@ export function ListDetailScreen({
     write: () => Promise<Outcome<unknown>>,
     after?: () => void | Promise<void>,
   ) {
-    setBusy(true);
-    setError(null);
-
-    const outcome = await write();
-
-    if (!outcome.ok) {
-      setBusy(false);
-      setError(outcome.message);
+    if (mutatingRef.current) {
       return;
     }
 
-    await refresh();
-    await after?.();
-    setBusy(false);
+    mutatingRef.current = true;
+
+    try {
+      setBusy(true);
+      setError(null);
+
+      const outcome = await write();
+
+      if (!outcome.ok) {
+        setBusy(false);
+        setError(outcome.message);
+        return;
+      }
+
+      await refresh();
+      await after?.();
+      setBusy(false);
+    } finally {
+      mutatingRef.current = false;
+    }
+  }
+
+  function beginEditing(item: ListItemRow) {
+    setError(null);
+    editingIdRef.current = item.id;
+    setEditingName(item.name);
+    setEditingId(item.id);
+  }
+
+  function cancelEditing() {
+    editingIdRef.current = null;
+    setEditingId(null);
+    setEditingName('');
+  }
+
+  // Closes the editor only if it is still the one for `itemId`: the user may have
+  // opened another row's editor while this row's write was in flight, and closing it
+  // would lose their typing.
+  function finishEditing(itemId: string) {
+    if (editingIdRef.current === itemId) {
+      cancelEditing();
+    }
   }
 
   function add(items: ListItemRow[]) {
@@ -170,7 +218,7 @@ export function ListDetailScreen({
 
     void mutate(
       () => renameItem(client, id, editingName),
-      () => setEditingId(null),
+      () => finishEditing(id),
     );
   }
 
@@ -416,25 +464,31 @@ export function ListDetailScreen({
         />
       )}
 
-      <Field
-        label="Add an item"
-        value={draft}
-        onChangeText={setDraft}
-        placeholder="Milk"
-        autoCapitalize="sentences"
-        maxLength={120}
-        onSubmitEditing={() => add(items)}
-        returnKeyType="done"
-        submitBehavior="submit"
-        blurOnSubmit={false}
-      />
-      <PrimaryButton
-        label="Add"
-        onPress={() => add(items)}
-        busy={busy}
-        disabled={draft.trim().length === 0}
-        keepFocus
-      />
+      <View style={styles.addComposer}>
+        <View style={styles.addField}>
+          <Field
+            accessibilityLabel="Add an item"
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="Add an item"
+            autoCapitalize="sentences"
+            maxLength={120}
+            onSubmitEditing={() => add(items)}
+            returnKeyType="done"
+            submitBehavior="submit"
+            blurOnSubmit={false}
+          />
+        </View>
+        <PrimaryButton
+          label="+"
+          accessibilityLabel="Add item"
+          compact
+          onPress={() => add(items)}
+          busy={busy}
+          disabled={draft.trim().length === 0}
+          keepFocus
+        />
+      </View>
 
       {error ? <ErrorNote message={error} /> : null}
 
@@ -451,85 +505,71 @@ export function ListDetailScreen({
         />
       ) : null}
 
-      {items.map((item, index) =>
-        item.id === editingId ? (
-          <View key={item.id} style={styles.editor}>
-            <Field
-              label="Item name"
-              value={editingName}
-              onChangeText={setEditingName}
-              autoFocus
-              maxLength={120}
-              editable={!busy}
-              onSubmitEditing={commitRename}
-              returnKeyType="done"
-            />
-            <SecondaryButton
-              label="Save"
-              onPress={commitRename}
-              disabled={busy || editingName.trim().length === 0}
-            />
-            <SecondaryButton
-              label="Cancel"
-              onPress={() => setEditingId(null)}
-              disabled={busy}
-            />
-          </View>
-        ) : (
-          <Row
+      <View>
+        {items.map((item, index) => (
+          <CompactItemRow
             key={item.id}
-            label={item.name}
-            onPress={() => {
-              setError(null);
-              setEditingName(item.name);
-              setEditingId(item.id);
+            name={item.name}
+            checked={item.checkedAt !== null}
+            onToggle={() => {
+              // A finished shop (Batch C, #33) is read-only from here on —
+              // this screen can still be reached for an archived list (a
+              // deep link, or ShoppingScreen staying mounted underneath it
+              // in the native-stack navigator per useListItems' own doc
+              // comment), and its check state shouldn't drift after
+              // finishShopping() already recorded it.
+              if (list.archivedAt !== null) {
+                return;
+              }
+              void mutate(() => setChecked(client, item.id, item.checkedAt === null));
             }}
-            leading={
-              <CheckTarget
-                checked={item.checkedAt !== null}
-                onToggle={() => {
-                  // A finished shop (Batch C, #33) is read-only from here on —
-                  // this screen can still be reached for an archived list (a
-                  // deep link, or ShoppingScreen staying mounted underneath it
-                  // in the native-stack navigator per useListItems' own doc
-                  // comment), and its check state shouldn't drift after
-                  // finishShopping() already recorded it.
-                  if (list.archivedAt !== null) {
-                    return;
-                  }
-                  void mutate(() =>
-                    setChecked(client, item.id, item.checkedAt === null),
-                  );
-                }}
-                accessibilityLabel={item.name}
-                disabled={busy || list.archivedAt !== null}
-              />
-            }
-            trailing={
-              <View style={styles.rowActions}>
-                <IconButton
-                  glyph="↑"
-                  accessibilityLabel={`Move ${item.name} up`}
-                  onPress={() => moveUp(index, items)}
-                  disabled={busy || index === 0}
-                />
-                <IconButton
-                  glyph="↓"
-                  accessibilityLabel={`Move ${item.name} down`}
-                  onPress={() => moveDown(index, items)}
-                  disabled={busy || index === items.length - 1}
-                />
-                <IconButton
-                  glyph="×"
-                  accessibilityLabel={`Remove ${item.name}`}
-                  onPress={() => void mutate(() => removeItem(client, item.id))}
-                  disabled={busy}
-                />
-              </View>
+            disabled={busy || list.archivedAt !== null}
+            onEdit={() => beginEditing(item)}
+            editLabel={`Edit ${item.name}`}
+            editDisabled={busy}
+            editor={
+              item.id === editingId ? (
+                <InlineRowEditor
+                  value={editingName}
+                  onChangeText={setEditingName}
+                  accessibilityLabel={`Name for ${item.name}`}
+                  onSubmit={commitRename}
+                  onCancel={cancelEditing}
+                  busy={busy}
+                  submitDisabled={editingName.trim().length === 0}
+                  maxLength={120}
+                >
+                  <IconButton
+                    glyph="↑"
+                    accessibilityLabel={`Move ${item.name} up`}
+                    onPress={() => moveUp(index, items)}
+                    disabled={busy || index === 0}
+                  />
+                  <IconButton
+                    glyph="↓"
+                    accessibilityLabel={`Move ${item.name} down`}
+                    onPress={() => moveDown(index, items)}
+                    disabled={busy || index === items.length - 1}
+                  />
+                  <View style={styles.removeAction}>
+                    <IconButton
+                      glyph="×"
+                      accessibilityLabel={`Remove ${item.name}`}
+                      onPress={() =>
+                        void mutate(
+                          () => removeItem(client, item.id),
+                          () => finishEditing(item.id),
+                        )
+                      }
+                      disabled={busy}
+                    />
+                  </View>
+                </InlineRowEditor>
+              ) : undefined
             }
           />
-        ),
-      )}
+        ))}
+      </View>
 
       {renamingList ? (
         <View style={styles.editor}>
@@ -652,11 +692,18 @@ function createStyles(tokens: Tokens) {
     editor: {
       gap: tokens.space.sm,
     },
-    // No gap: each of these controls already carries the 44pt box around its glyph,
-    // and spacing them further pushes the item's name off the end of a phone row.
-    rowActions: {
+    addComposer: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: tokens.space.sm,
+    },
+    addField: {
+      flex: 1,
+    },
+    // Pushes × to the far end of the editor's second line, away from the reorder
+    // arrows, so a slip on ↓ can't land on remove.
+    removeAction: {
+      marginLeft: 'auto',
     },
   });
 }
