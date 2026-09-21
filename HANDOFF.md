@@ -5,12 +5,13 @@
 
 ## Last active
 
-- **2026-09-22 (second) — START HERE. #79 merged ([PR #84](https://github.com/mp3anthony/cartel/pull/84),
-  `0.0.33`). #80 (add-to-list compact rows + pencil editor) built through the full
-  pipeline (Planner → Code Writer → separate Code Reviewer, zero blocking findings →
-  orchestrator live check) and opened as a PR from `80-add-to-list-compact-rows`,
-  version `0.0.34`. Next: merge it if the user approves; that completes the #76
-  compact-list redesign. #52 still parked on GCP billing.**
+- **2026-09-22 (second) — START HERE. #80 (add-to-list compact rows + pencil editor)
+  merged ([PR #85](https://github.com/mp3anthony/cartel/pull/85), `0.0.34`), completing
+  the #76 compact-list redesign (#77–#80 all shipped; #79 was
+  [PR #84](https://github.com/mp3anthony/cartel/pull/84)). Full pipeline ran (Planner →
+  Code Writer → separate Code Reviewer, zero blocking findings → orchestrator live
+  check). Only [#52](https://github.com/mp3anthony/cartel/issues/52) is open, parked on
+  GCP billing — nothing queued, next session starts with the user.**
   - **Built**: `ListDetailScreen` rows are `CompactItemRow`s; ↑ ↓ × live in a second
     line of `InlineRowEditor` (new optional `children`; Shopping passes none and is
     unchanged, 44px single line). Composer matches #79. `mutate` gained a separate
