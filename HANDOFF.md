@@ -5,7 +5,13 @@
 
 ## Last active
 
-- **2026-09-22 (second) — START HERE. #80 (add-to-list compact rows + pencil editor)
+- **2026-09-22 (third) — checked #76, confirmed all four slices (#77-#80) were
+  already shipped/merged, closed #76 itself (was just the open parent tracking
+  issue, nothing left to do). Only [#52](https://github.com/mp3anthony/cartel/issues/52)
+  remains open, still parked on GCP billing. Nothing queued — next session
+  starts with the user.**
+
+- **2026-09-22 (second) — #80 (add-to-list compact rows + pencil editor)
   merged ([PR #85](https://github.com/mp3anthony/cartel/pull/85), `0.0.34`), completing
   the #76 compact-list redesign (#77–#80 all shipped; #79 was
   [PR #84](https://github.com/mp3anthony/cartel/pull/84)). Full pipeline ran (Planner →
