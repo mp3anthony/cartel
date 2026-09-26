@@ -2,7 +2,8 @@
 #   powershell -NoProfile -File scripts/agy-delegate.ps1 -Task plan|review|design|quick -PromptFile <f> [-Files a,b] [-Model x]
 #   powershell -NoProfile -File scripts/agy-delegate.ps1 -Probe        (is agy available again?)
 # Exit codes: 0 ok | 3 UNAVAILABLE (quota/outage/empty answer): caller must do the task with Claude subagents
-#             4 bad input (sensitive/outside-repo file, bad task).
+#             4 refused input (sensitive/outside-repo/missing file, missing prompt file).
+#             (An invalid -Task value makes PowerShell itself exit 1 before the script runs.)
 # agy runs inside an isolated workspace folder holding only copies of the named files, never the repo.
 param(
   [ValidateSet("plan", "review", "design", "quick")][string]$Task = "quick",
@@ -30,7 +31,7 @@ $models = @{
   quick  = "gemini-3.8-flash-low"       # trivial lookups
 }
 if (-not $Model) { $Model = $models[$Task] }
-$quotaPattern = 'quota|rate.?limit|exhaust|429|too many requests|limit (reached|exceeded)|try again later|unavailable'
+$quotaPattern = 'quota|rate.?limit|exhausted|RESOURCE_EXHAUSTED|too many requests|limit (reached|exceeded)|(error|status|code)\W{0,3}429|429\W{0,3}(error|too many)|service unavailable'
 
 function Set-Unavailable($why) {
   @{ since = (Get-Date).ToString("o"); until = (Get-Date).AddMinutes($CooldownMin).ToString("o"); why = $why } |
@@ -40,39 +41,56 @@ function Set-Unavailable($why) {
 }
 function Invoke-Agy($prompt, $mdl, $mins) {
   Push-Location $ws
-  try { $out = & $agy --print $prompt --mode plan --model $mdl --print-timeout "$($mins)m" 2>&1 | Out-String }
+  $ErrorActionPreference = "Continue"   # agy's stderr must not become a terminating error
+  $script:agyOk = $true
+  try {
+    $out = & $agy --print $prompt --mode plan --model $mdl --print-timeout "$($mins)m" 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { $script:agyOk = $false; $out = "agy exited with code ${LASTEXITCODE}: $out" }
+  }
+  catch { $script:agyOk = $false; $out = "agy failed to run: $($_.Exception.Message)" }
   finally { Pop-Location }
-  return $out.Trim()
+  return "$out".Trim()
 }
 
 if ($Probe) {
   $out = Invoke-Agy "Reply with the single word OK." $models.quick 2
-  if ($out -and $out -notmatch $quotaPattern -and $out -match 'OK') {
+  if ($script:agyOk -and $out -and $out -notmatch $quotaPattern -and $out -match '\bOK\b') {
     Remove-Item -LiteralPath $state -ErrorAction SilentlyContinue
     Write-Output "AGY_AVAILABLE"; exit 0
   }
   Set-Unavailable "probe failed: $($out.Substring(0, [Math]::Min(200, $out.Length)))"
 }
 
-if (-not $PromptFile) { Write-Output "PromptFile required"; exit 4 }
+if (-not $PromptFile -or -not (Test-Path -LiteralPath $PromptFile)) { Write-Output "PromptFile missing or not found"; exit 4 }
 # Still cooling down from a recent failure? Skip the call (a -Probe or the cooldown expiring clears it).
 if (Test-Path $state) {
-  $s = Get-Content -Raw $state | ConvertFrom-Json
-  if ((Get-Date) -lt [datetime]$s.until) {
-    Write-Output "AGY_UNAVAILABLE: cooling down until $(([datetime]$s.until).ToString('HH:mm')) ($($s.why)). Use Claude subagents, or run -Probe to re-check."
+  try { $s = Get-Content -Raw $state | ConvertFrom-Json; $until = [datetime]$s.until } catch { $until = $null }  # unreadable state = no cooldown
+  if ($until -and (Get-Date) -lt $until) {
+    Write-Output "AGY_UNAVAILABLE: cooling down until $($until.ToString('HH:mm')) ($($s.why)). Use Claude subagents, or run -Probe to re-check."
     exit 3
   }
 }
 
 # Fresh workspace holding only copies of the files this task needs.
+if (-not $ws.StartsWith($base + "\", [StringComparison]::OrdinalIgnoreCase)) { Write-Output "Workspace path outside base: $ws"; exit 4 }
 Get-ChildItem -LiteralPath $ws -Force | Where-Object { $_.Name -ne "outputs" } | Remove-Item -Recurse -Force
 $listing = @()
 foreach ($f in $Files) {
   $full = if ([IO.Path]::IsPathRooted($f)) { $f } else { Join-Path $root $f }
+  if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { Write-Output "File not found: $f"; exit 4 }
   $full = (Resolve-Path -LiteralPath $full).Path
-  if ($full -notlike "$root*") { Write-Output "Refusing file outside the repo: $full"; exit 4 }
-  if ($full -match '(^|[\\/])\.env|[\\/]db[\\/]|secret|credential|\.pem$|\.key$') { Write-Output "Refusing sensitive-looking file: $full"; exit 4 }
+  if (-not $full.StartsWith($root + "\", [StringComparison]::OrdinalIgnoreCase)) { Write-Output "Refusing file outside the repo: $full"; exit 4 }
   $rel = $full.Substring($root.Length + 1)
+  # Allowlist of plain source/doc types, plus a denylist of secret-bearing places and names. Both must pass.
+  $ext = [IO.Path]::GetExtension($full).ToLower()
+  if ($ext -notin @(".md", ".txt", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".css", ".json", ".html", ".svg", ".yml", ".yaml", ".ps1", ".toml")) { Write-Output "Refusing file type '$ext' (not on the allowlist): $rel"; exit 4 }
+  if ($rel -match '(^|[\\/])(\.git|\.vercel|\.next|\.claude|design|node_modules|db)([\\/]|$)|\.env|secret|credential|\.npmrc|\.mcp\.json|settings\.local|id_rsa|\.pem$|\.key$|\.pfx$|\.p12$') { Write-Output "Refusing sensitive-looking file: $rel"; exit 4 }
+  # No symlink/junction on the file or on ANY folder between it and the repo root.
+  $node = Get-Item -LiteralPath $full -Force
+  while ($node -and $node.FullName.Length -gt $root.Length) {
+    if ($node.Attributes -band [IO.FileAttributes]::ReparsePoint) { Write-Output "Refusing symlink/junction in path: $rel"; exit 4 }
+    $node = if ($node.PSIsContainer) { $node.Parent } else { $node.Directory }
+  }
   $dest = Join-Path $ws $rel
   New-Item -ItemType Directory -Force (Split-Path -Parent $dest) | Out-Null
   Copy-Item -LiteralPath $full -Destination $dest
@@ -83,6 +101,7 @@ $rules = "You are a read-only assistant for the software project named $repoName
 $prompt = (($rules + (Get-Content -Raw -LiteralPath $PromptFile)) -replace '"', "'")
 
 $out = Invoke-Agy $prompt $Model $TimeoutMin
+if (-not $script:agyOk) { Set-Unavailable "agy failed on ${Model}: $out" }
 if (-not $out) { Set-Unavailable "empty answer from $Model" }
 if ($out -match $quotaPattern -and $out.Length -lt 600) { Set-Unavailable "limit/outage from ${Model}: $out" }
 

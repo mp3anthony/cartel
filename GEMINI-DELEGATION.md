@@ -37,7 +37,10 @@ result is his to judge (design output, anything visual or taste-driven).
 2. agy's `--print` mode ignores `permissions.allow` (google-antigravity/antigravity-cli#548), so it can't
    approve shell commands headless; it is told to use only its file-read tool inside the workspace.
 3. **Never** `--dangerously-skip-permissions`, `--mode accept-edits`, or the gemini-cli MCP.
-4. Secrets never go out: the script refuses `.env*`, `db/`, keys and anything outside the repo (exit 4).
+4. Secrets never go out (exit 4 on refusal): only allowlisted plain source/doc types are copied (`.md .txt .ts .tsx
+   .js .jsx .mjs .css .json .html .svg .yml .yaml .ps1 .toml`); anything under `.git`, `.vercel`, `.next`,
+   `node_modules`, `db/`, any `.env*`, `.npmrc`, key/cert files, names containing secret/credential, symlinks, and
+   anything outside the repo is refused. It is a filter, not a guarantee: never name a file you suspect holds secrets.
 5. **Suited to:** planning, review (agy is the independent reviewer, never the writer of the same code), audits
    against `02-DESIGN-REFERENCE.md`, design and copy ideas, large-context reading.
    **Never:** Git/GitHub, migrations, env, production. Those stay with the orchestrator.
