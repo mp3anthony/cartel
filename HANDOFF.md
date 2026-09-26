@@ -10,6 +10,8 @@
   (byte-identical to `agy-delegation-kit`), `GEMINI-DELEGATION.md`, and a Rules line in
   `CLAUDE.md`. Reviewed clean by a separate Claude agent. Images are not sent to agy.
   Only [#52](https://github.com/mp3anthony/cartel/issues/52) remains open. Nothing queued.**
+  Same day, [PR #87](https://github.com/mp3anthony/cartel/pull/87) re-synced the script and doc
+  passages with the newer kit (reviewed clean, merged).
 
 - **2026-09-26 — GitHub repo `mp3anthony/cartel` was flipped to private and
   then back to public the same session (user changed their mind; verified via
