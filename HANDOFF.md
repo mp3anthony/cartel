@@ -5,6 +5,12 @@
 
 ## Last active
 
+- **2026-09-27 — Antigravity (agy) delegation added and merged
+  ([PR #86](https://github.com/mp3anthony/cartel/pull/86)): `scripts/agy-delegate.ps1`
+  (byte-identical to `agy-delegation-kit`), `GEMINI-DELEGATION.md`, and a Rules line in
+  `CLAUDE.md`. Reviewed clean by a separate Claude agent. Images are not sent to agy.
+  Only [#52](https://github.com/mp3anthony/cartel/issues/52) remains open. Nothing queued.**
+
 - **2026-09-26 — GitHub repo `mp3anthony/cartel` was flipped to private and
   then back to public the same session (user changed their mind; verified via
   `gh repo view`, currently PUBLIC). No code changes. Only
