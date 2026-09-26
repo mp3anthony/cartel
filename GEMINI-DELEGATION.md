@@ -8,9 +8,9 @@ result is his to judge (design output, anything visual or taste-driven).
 `powershell -NoProfile -File scripts/agy-delegate.ps1 -Task plan|review|design|quick -PromptFile <f> -Files <repo paths>`
 - Write the prompt file in the scratchpad, never in the repo.
 - agy runs in `D:\Anthonys-HQ\business\hazardous-schematics\agy-workspace\<repo-folder-name>\`, one workspace per
-  repo, holding only fresh copies of the named files. It never sees the repo, `.env`, `db/` or Git. The script wipes
-  that folder each run (except `outputs\`).
-- Every answer is also saved to `agy-workspace\<repo>\outputs\<timestamp>-<task>.md`.
+  repo, holding only fresh copies of the named files. It is instructed not to read outside that folder; that is an
+  instruction, not a sandbox. The script wipes that folder on each delegated run (except `outputs\`).
+- Each successful answer is also saved to `agy-workspace\<repo>\outputs\<timestamp>-<task>.md`.
 - The cooldown file `agy-workspace\_state.json` is **shared by all repos** on purpose: the Google quota belongs to
   Ant's account, so one repo hitting the limit tells every repo.
 - The reusable kit for new repos lives in `D:\Anthonys-HQ\business\hazardous-schematics\agy-delegation-kit\`.
@@ -38,9 +38,11 @@ result is his to judge (design output, anything visual or taste-driven).
    approve shell commands headless; it is told to use only its file-read tool inside the workspace.
 3. **Never** `--dangerously-skip-permissions`, `--mode accept-edits`, or the gemini-cli MCP.
 4. Secrets never go out (exit 4 on refusal): only allowlisted plain source/doc types are copied (`.md .txt .ts .tsx
-   .js .jsx .mjs .css .json .html .svg .yml .yaml .ps1 .toml`); anything under `.git`, `.vercel`, `.next`,
-   `node_modules`, `db/`, any `.env*`, `.npmrc`, key/cert files, names containing secret/credential, symlinks, and
-   anything outside the repo is refused. It is a filter, not a guarantee: never name a file you suspect holds secrets.
+   .js .jsx .mjs .css .json .html .svg .yml .yaml .ps1 .toml`, so no images); anything under `.git`, `.vercel`,
+   `.next`, `.claude`, `design`, `node_modules`, `db` (generic kit denylist), any `.env*`, `.npmrc`, `.mcp.json`,
+   `settings.local*`, `id_rsa`, key/cert files, names containing secret/credential, symlinks/junctions anywhere in
+   the path, and anything outside the repo is refused. If a file that legitimately needs to go is refused, tell Ant
+   rather than loosening the filter. It is a filter, not a guarantee: never name a file you suspect holds secrets.
 5. **Suited to:** planning, review (agy is the independent reviewer, never the writer of the same code), audits
    against `02-DESIGN-REFERENCE.md`, design and copy ideas, large-context reading.
    **Never:** Git/GitHub, migrations, env, production. Those stay with the orchestrator.
