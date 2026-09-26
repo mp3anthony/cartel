@@ -5,11 +5,11 @@
 
 ## Last active
 
-- **2026-09-26 — GitHub repo `mp3anthony/cartel` flipped to private at the
-  user's request (verified via `gh repo view`). No code changes. Not yet
-  confirmed: that Vercel's GitHub integration still builds from the private
-  repo — check on the next push. Only [#52](https://github.com/mp3anthony/cartel/issues/52)
-  remains open, still parked on GCP billing. Nothing queued.**
+- **2026-09-26 — GitHub repo `mp3anthony/cartel` was flipped to private and
+  then back to public the same session (user changed their mind; verified via
+  `gh repo view`, currently PUBLIC). No code changes. Only
+  [#52](https://github.com/mp3anthony/cartel/issues/52) remains open, still
+  parked on GCP billing. Nothing queued.**
 
 - **2026-09-22 (third) — checked #76, confirmed all four slices (#77-#80) were
   already shipped/merged, closed #76 itself (was just the open parent tracking
