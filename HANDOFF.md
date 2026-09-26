@@ -12,6 +12,13 @@
   Only [#52](https://github.com/mp3anthony/cartel/issues/52) remains open. Nothing queued.**
   Same day, [PR #87](https://github.com/mp3anthony/cartel/pull/87) re-synced the script and doc
   passages with the newer kit (reviewed clean, merged).
+  - **Next session**: agy is live — delegate Investigator/Planner/Reviewer work per
+    `GEMINI-DELEGATION.md` without asking; `-Probe` first if `agy-workspace\_state.json`
+    shows a cooldown. A real quota hit (exit 3 fallback) is still untested.
+  - If the kit changes again, re-sync the script unchanged (check SHA-256) and keep this
+    repo's rule 6 plus the "tell Ant rather than loosening the filter" line in rule 4.
+  - Kit-level wording suggestion given to Ant, not a repo task: the 24,000-char limit
+    includes the script's ~500-char preamble and file list.
 
 - **2026-09-26 — GitHub repo `mp3anthony/cartel` was flipped to private and
   then back to public the same session (user changed their mind; verified via
