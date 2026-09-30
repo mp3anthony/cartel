@@ -140,7 +140,7 @@ export function PrimaryButton({
    * otherwise shift DOM focus to it first, blurring that field and, on a real
    * device, dismissing the on-screen keyboard before `onPress` ever runs. The
    * `blurOnSubmit={false}`/`editable`-always-true fix on those fields (see
-   * HANDOFF) only keeps the keyboard open across a *Return-key* submit — it does
+   * the keyboard-close lesson in docs/lessons.md) only keeps the keyboard open across a *Return-key* submit — it does
    * nothing for a tap on this button, a separate code path with the same visible
    * symptom. `onMouseDown`'s preventDefault stops that browser default focus
    * shift while it's still the same event dispatch, so the field never blurs in

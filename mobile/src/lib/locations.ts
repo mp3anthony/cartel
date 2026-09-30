@@ -42,7 +42,7 @@ type NearbyLocationRecord = {
 /**
  * The one locked radius value in the app — every caller imports this rather than
  * re-writing 100. Locked at the tight end of 03-SPEC.md's ~100-150m range for the
- * merge prompt (see HANDOFF.md, Slice 4 Step 2).
+ * merge prompt (see 02-DESIGN-REFERENCE.md, Slice 4 merge prompt).
  */
 export const MERGE_RADIUS_M = 100;
 

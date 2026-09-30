@@ -64,8 +64,10 @@ jobs, and Shopping Mode's job is legibility at arm's length while distracted.
     lost to reference 1 being the stated tie-breaker. Burnt orange is also the
     loudest of the three, which suits Shopping Mode more than list-building — worth
     re-checking when Slice 5 lands.
-  - Ground `#FAF6F1`, warm neutrals, one accent carrying all emphasis. Light-only:
-    `userInterfaceStyle` is `light` and there is no dark palette.
+  - Ground `#FAF6F1`, warm neutrals, one accent carrying all emphasis. Light is the
+    default; a Light/Dark/System toggle is live (#26, PR #30) with a dark palette
+    whose accent is gold. Values live in `mobile/src/theme/tokens.ts`;
+    `userInterfaceStyle` is `automatic`.
   - Original directional constraints, all met: light ground, single saturated
     accent, warm rather than cool neutrals, nothing in the neon register.
   *(Amended 2026-08-09, after Slice 0 was split out:* the theme provider and token
@@ -79,7 +81,7 @@ jobs, and Shopping Mode's job is legibility at arm's length while distracted.
   mattering because drag-to-reorder and animated transitions are v1 requirements
   per `01-CRD.md`.
 
-## Slice 4 — location merge prompt (LOCKED 2026-08-10, during Step 2)
+## Slice 4 — location merge prompt (LOCKED 2026-08-10, during Problem Agreement)
 
 Agreed at Problem Agreement, ahead of Planner, so the merge behaviour isn't
 improvised mid-build:
@@ -103,13 +105,15 @@ improvised mid-build:
   - Confirm button: `Use this location`
   - Cancel: the component's fixed "Cancel" — creates nothing, same as every other
     Cancel in the app.
+- **The merge radius is locked at 100m** (`MERGE_RADIUS_M` in code), the lower end
+  of the ~100-150m range above.
 - **The merge-check-then-create race window is accepted, not engineered against.**
   The check and the eventual write are necessarily two separate round-trips with a
   person deciding in between (unlike this app's other RPCs, which enforce their
   invariants atomically in one round-trip) — so two users creating near-duplicate
   locations seconds apart, each having seen "nothing nearby," is possible. Decided
   during Slice 4 build (2026-08-10, surfaced by the Investigator, not anticipated
-  at the original Step 2 pass above) to accept this rather than add a serialized
+  at the original Problem Agreement pass above) to accept this rather than add a serialized
   guard: it mirrors the invite-code collision risk Slice 1 already accepted as
   "rare, not never" (`03-SPEC.md` § 1), the harm is a duplicate row a later slice's
   dedup tooling can clean up, and no acceptance test asks for a stronger guarantee.

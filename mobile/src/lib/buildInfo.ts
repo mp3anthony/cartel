@@ -17,7 +17,7 @@
  * without forwarding. mobile/vercel.json's buildCommand does that forwarding
  * (`EXPO_PUBLIC_VERCEL_ENV=$VERCEL_ENV npx expo export ...`); nothing here talks to
  * Vercel directly. Confirmed live against a real preview+production deploy pair —
- * see HANDOFF.md's version-footer entry for the verification record.
+ * see docs/environment.md (Version footer) for the verification record.
  *
  * Local dev (`npx expo start --web`) never sets VERCEL_ENV at all, so the unset case
  * is a named branch below rather than a value falling through to "undefined" on
