@@ -7,7 +7,7 @@ later one.
 
 ## 0. Locked Architecture Decisions
 
-These are hard invariants per `PROTOCOL.md` Step 3 — changing any of them mid-build
+These are hard invariants per `CLAUDE.md` (Escalation triggers) — changing any of them mid-build
 is a mandatory escalation back to you, not something a subagent decides on its own.
 
 - **Platform:** React Native (Expo, managed workflow). Chosen over a mobile-web/PWA
@@ -86,7 +86,7 @@ distinction anywhere in permissions.
 shares an invite code, the second redeems it, both now see themselves as members of
 the same household with identical permissions.
 
-*Agreed 2026-08-10, at Protocol Step 2 — none of this was settled by the CRD, and
+*Agreed 2026-08-10, at Problem Agreement — none of this was settled by the CRD, and
 each one shapes the schema:*
 - **One household per user.** Matches the CRD's framing of a household as a couple.
   Redeeming a second invite is not a silent join — it is an explicit move, or it
@@ -115,7 +115,7 @@ member, a household list is visible to them (sync arrives in Slice 3 — visibil
 after manual reload is enough to pass this slice). A user who has never joined a
 household can build a personal list, and two such users cannot see each other's.
 
-*Agreed 2026-08-10, at Protocol Step 2 — the issue was labelled "no open questions"
+*Agreed 2026-08-10, at Problem Agreement — the issue was labelled "no open questions"
 and had nine. Each of these shapes the schema or the acceptance test:*
 
 - **Scope is `household_id` alone; there is no `type` column.** § 1 above lists both,
@@ -215,7 +215,7 @@ and had nine. Each of these shapes the schema or the acceptance test:*
 - **A navigation library is adopted before any feature work in this slice** — see
   the note below.
 
-*Navigation, revisited at Protocol Step 2 as planned:* Slice 1's branches were
+*Navigation, revisited at Problem Agreement as planned:* Slice 1's branches were
 states (booting, signed out, in a household, not). Slice 2 adds a list index and a
 list detail, and detail is the first screen taking a parameter and the first with a
 real back relationship — places, not states. Hand-rolling that is genuinely small,
@@ -279,7 +279,7 @@ more tags/history — no fixed accuracy target, but the ordering must visibly ch
 entry/arbitrary order; the same location after several shops with location tags
 present produces a stable, repeatable non-arbitrary order for the same item set.
 
-*Agreed 2026-08-11, at Protocol Step 2 — the issue's own `ready-for-human` label
+*Agreed 2026-08-11, at Problem Agreement — the issue's own `ready-for-human` label
 was correct: neither `01-CRD.md` nor `02-DESIGN-REFERENCE.md` says how tags and
 observed check-off order combine into a route, and none of it was inferable from
 existing code or convention:*

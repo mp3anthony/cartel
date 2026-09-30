@@ -16,7 +16,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
  * environment; they don't need to be set as secrets here.
  *
  * Modelled on `funded`'s shipped `src/app/api/bug-report/route.ts` (see this
- * project's own HANDOFF.md for why that file was read directly rather than
+ * project's #68/#69 and docs/lessons.md (Supabase) for why that file was read directly rather than
  * re-derived) — same auth-re-derivation shape, same idempotent-label-create
  * reasoning, adapted to Deno/Edge Functions and this issue's own field set.
  */

@@ -12,7 +12,7 @@
 -- function, following `vote_location_item_correction()`'s precedent
 -- (20260811000002) rather than `rls_lists_archived_at.sql`'s now-retired
 -- conditional-UPDATE claim (see that file's own deletion, noted in this
--- session's HANDOFF entry, since `revoke update (archived_at)` below makes its
+-- session's PR history (issue #58), since `revoke update (archived_at)` below makes its
 -- assertions fail against the new grants). Assertion 1 is the core positive
 -- case: a partial finish records both history rows, soft-deletes exactly the
 -- checked items, and leaves the list active. Assertion 2 is this project's

@@ -12,7 +12,7 @@ type State = { error: Error | null };
  * throw surfacing from Supabase internals) and shows a real recovery screen instead
  * of the blank page #42 reports. Matches the visual pattern Bootstrapped's own
  * session.status==='error' branch already uses (Screen/Heading/Body/ErrorNote).
- * Not a root-cause fix — see #42 / HANDOFF.md.
+ * Not a root-cause fix — see #42 / docs/lessons.md (Known non-blocking).
  */
 export class AppErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
