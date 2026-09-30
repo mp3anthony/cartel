@@ -11,7 +11,7 @@ A store, global and shared across all households, created from "New location" on
 _Avoid_: Shop, store (in code), place
 
 **Chain**:
-The brand a location belongs to: New World, PAK'nSAVE, Four Square, Woolworths, FreshChoice, or Other. An explicit choice by the user, never inferred from the name. Any household member can change it at any time. "Other" is a real value, distinct from no chain set; both look the same. FreshChoice is a Woolworths NZ franchise, not part of the Foodstuffs brands. SuperValue is deliberately not offered.
+The brand a location belongs to: New World, PAK'nSAVE, Four Square, Woolworths, FreshChoice, or Other. An explicit choice by the user, never inferred from the name. Any household member can change it at any time. "Other" is a real value, distinct from no chain set; both look the same. SuperValue is deliberately not offered.
 _Avoid_: Brand, banner, franchise
 
 **Merge prompt**:

@@ -5,15 +5,17 @@
 ## Current state (2026-09-30)
 
 - `main` is at the version in `mobile/app.json` (`expo.version`, 0.0.34 at last check). Production holds real user data.
-- The only open ticket is #52 (Places search-assist), parked on Ant's Google Cloud billing prepayment (`ready-for-human`). Nothing else is in flight.
+- The context migration is merged and the `/grill-with-docs` session on it is done: all ten open questions are answered and the glossaries updated (Shared list / Share with household, Theme wording, History cap, and others). Last active `03-SPEC.md` section: none, this was a docs-only session.
+- Open tickets, none in flight:
+  - #89 Rework Lists (reusable lists, no archiving, History shows 5 shops). `needs-triage`, `ready-for-human`. Starts with a `/grill-with-docs` session on the Lists screen; touches list state and possibly schema, so it stops for Ant before any migration or build.
+  - #90 Add a way to leave a household. `needs-triage`, `ready-for-human`. Touches household membership and RLS.
+  - #52 Places search-assist, parked on Ant's Google Cloud billing prepayment (`ready-for-human`).
 - Delegation to agy is live (`GEMINI-DELEGATION.md`, `scripts/agy-delegate.ps1`). The exit-3 fallback after a real quota hit is untested.
-- This context migration (CONTEXT-MAP, `docs/context/`, ADRs, conventions, lessons, environment, rewritten CLAUDE.md, this HANDOFF) is on branch `docs/context-structure`, open as a PR, awaiting review and merge.
 
 ## Next session
 
-1. Starts with Ant. Run `/grill-with-docs` once in Cartel so the new `docs/context/` layout is exercised and aligned with him.
-2. The open questions from the migration (app-shell terms grouping, whether comment-only code edits need a version bump, and similar) are listed in the PR description. Settle them with Ant first.
-3. #52 stays parked until Ant says otherwise. Start no new work unprompted.
+1. Starts with Ant. Suggested first move: triage #89, beginning with the Lists grill.
+2. #90 and #52 wait for Ant's call. Start no new work unprompted.
 
 ## Where things live
 

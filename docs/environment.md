@@ -6,12 +6,12 @@ Names only; never put secret values in this repo. The repository is public and p
 
 - Repo: `mp3anthony/cartel` (public; it was flipped private and back to public on 2026-09-26). Never commit to `main`; work on branches. The repo was recreated fresh and the old sync-engine history was left behind; `origin/main` is the real main if a stale local branch disagrees.
 - Vercel project `cartel` (Hobby). Production builds from `main`; every other pushed branch gets a preview. Root Directory is `mobile`; build and output come from `mobile/vercel.json`.
-- Production is public at the stable alias `cartel-kappa.vercel.app`. Previews sit behind Vercel SSO: use the Vercel MCP `get_access_to_vercel_url` for a 23-hour shareable link (also the way to test on a phone).
+- Production is public at the stable alias `cartel-kappa.vercel.app` and the custom domain `cartel.hazardousschematics.com`. Previews sit behind Vercel SSO: use the Vercel MCP `get_access_to_vercel_url` for a 23-hour shareable link (also the way to test on a phone).
 - Deployment Protection is a Vercel project setting (`preview` only), not code: see `docs/adr/0004-vercel-protection-preview-only.md`.
 
 ## Supabase
 
-- One project, free tier, region ap-southeast-2, shared by local dev, previews and production: there is no dev or staging copy. It pauses after about 7 idle days; the first call back times out until the project is woken from the dashboard.
+- One project, free tier, region ap-southeast-2, shared by local dev, previews and production: there is no dev or staging copy. It pauses after about 7 idle days (unverified); the first call back times out until the project is woken from the dashboard.
 - Anonymous sign-ins are enabled (`docs/adr/0003-anonymous-auth-no-login-wall.md`).
 - Edge Function `report-feedback` creates GitHub issues from in-app feedback. Its secret is `GITHUB_BUG_REPORT_TOKEN` (set by Ant in the dashboard or CLI); `SUPABASE_URL` and `SUPABASE_ANON_KEY` are injected automatically. The token is never an `EXPO_PUBLIC_` variable.
 - Storage bucket `feedback-screenshots` is public-read (see `docs/lessons.md`).
