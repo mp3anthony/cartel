@@ -14,13 +14,13 @@ _Avoid_: Basket, cart
 A list visible only to its owner. The UI badge reads "Personal".
 _Avoid_: Private list, my list
 
-**Household list**:
-A list visible to every member of the owner's household. The UI badge reads "Shared"; the spec calls it a household list. A new list can be created shared via the "Share with {household name}" checkbox.
-_Avoid_: Shared list (as a separate kind), team list
+**Shared list**:
+A list visible to every member of the owner's household. The UI badge reads "Shared". A new list can be created shared via the "Share with {household name}" checkbox.
+_Avoid_: Household list (older spec wording), team list
 
-**Promote**:
-Turning a personal list into a household list. One-way: there is no demotion. The button reads "Share with household". To get a personal version again, copy the list instead (`docs/adr/0006-no-demotion-of-household-lists.md`).
-_Avoid_: Publish, unshare, demote
+**Share with household**:
+Turning a personal list into a shared list. One-way: a shared list can never be made personal again. To get a personal version, copy the list instead (`docs/adr/0006-no-demotion-of-household-lists.md`).
+_Avoid_: Promote (older spec wording), publish, unshare, demote
 
 **Start new list from this** (copy):
 Copies a finished shop or a current list into a new, unchecked list, with a prefilled name and the same "Share with" choice. From History it copies the full original snapshot of the shop and always attaches that shop's location; from list detail it copies current items and attaches a location only if the source has one. The source is never changed.

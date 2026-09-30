@@ -41,7 +41,7 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - `mobile/.env` can be corrupted by repeated appends (UTF-16, a BOM, leftover placeholders); read it back after any rewrite.
 - Never set worktree isolation on an Agent call that continues a subagent via `SendMessage`; the worktree can vanish mid-session. After a merge, if `git push` is not a fast-forward, look for an unpushed commit that predates the session.
 - Subagents cannot reach the Browser pane (it reads 0x0, screenshots fail); do not spawn a Verifier expecting it to.
-- iOS PWA status bar: `expo-status-bar` is a no-op on web; chrome colour comes from the `theme-color` meta, the manifest `theme_color` and the top element's background. Its icon colour is one static choice.
+- iOS PWA status bar: `expo-status-bar` is a no-op on web; chrome colour comes from the `theme-color` meta, the manifest `theme_color` and the top element's background. Its icon colour is one static choice (unverified).
 - Generating icons: use resvg-js rather than sharp's librsvg for SVG with a data-URI `@font-face`.
 
 ## Process
@@ -63,6 +63,7 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - A denied location permission is sticky until remount, with no retry button or settings link; a "check settings" flow would be new scope.
 - `SHOP_SESSION_HISTORY_CAP` (10) was not live-stress-tested (bulk insert to production was blocked); it rests on code review. The 8 MB screenshot cap is unconfirmed with Ant.
 - Unverified or cosmetic: the iOS status-bar icon colour (one static choice), a full remount of an archived list (no deep link), and nested-button hydration warnings from `ListDetailScreen` rows.
-- #52 Places search-assist is parked on Ant's Google Cloud billing prepayment (`ready-for-human`). Enabling a Google API project can require a refundable prepayment even in the free tier.
+- #52 Places search-assist is parked on Ant's Google Cloud billing prepayment (`ready-for-human`). Enabling a Google API project can require a refundable prepayment even in the free tier. The local branch `52-google-places-search-assist` predates recent `main` changes; rebase it or start a fresh branch when #52 resumes.
 - Captcha on anonymous sign-in, orphaned households after a member leaves, and item quantities are not built; see `CHANGE-LOG.md`.
 - `docs/research/todoist-list-ui.md` draws on Ant's screenshots, not a primary source.
+- No leave-household action exists. The join error tells users to "Leave it before joining another", which they cannot do. Tracked in #90.

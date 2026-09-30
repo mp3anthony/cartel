@@ -25,7 +25,7 @@ A code a member generates ("Invite someone", then "Generate another code") and a
 _Avoid_: Invite link, join key, token
 
 **Joining or moving household**:
-Redeeming a code when you are already in a household is not a silent join: it fails ("You are already in a household. Leave it before joining another.") rather than merging two households.
+Redeeming a code when you are already in a household is not a silent join: it fails ("You are already in a household. Leave it before joining another.") rather than merging two households. There is currently no leave action, so the message points to something that does not exist (#90).
 _Avoid_: Switch household, merge households
 
 ### Identity

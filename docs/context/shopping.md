@@ -31,7 +31,7 @@ _Avoid_: Complete, checkout, done
 ### Looking back
 
 **Shop history**:
-The household's record of finished shops, on the History screen (menu item "History"). Shows the most recent ones, each with every item of that shop, unbought items marked "(not in this shop)", plus "Start new list from this" and "Delete"; "Clear all history" removes every entry. Empty state: "No shops recorded yet".
+The household's record of finished shops, on the History screen (menu item "History"). Shows the 10 most recent (the intended cap is 5, see #89), each with every item of that shop, unbought items marked "(not in this shop)", plus "Start new list from this" and "Delete"; "Clear all history" removes every entry. Empty state: "No shops recorded yet".
 _Avoid_: Receipts, past lists, trips
 
 **Dashboard**:

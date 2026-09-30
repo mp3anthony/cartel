@@ -19,7 +19,7 @@ The page background colour of each theme. The dark ground is locked to the app i
 _Avoid_: Background colour, canvas
 
 **Theme**:
-The Light, Dark or System choice, labelled "Appearance" on the Household screen. System follows the device live. Dark mode is live; the installed-PWA status bar follows the resolved theme.
+The Light, Dark or System choice, labelled "Appearance" on the Household screen. System follows the device live. Light is the default and the design baseline; Dark is a user option, never the starting point for design (the design reference rejects neon, dark-first looks, not dark mode itself). The installed-PWA status bar follows the resolved theme.
 _Avoid_: Mode, skin, night mode
 
 **Chain colours**:
