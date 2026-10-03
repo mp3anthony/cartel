@@ -2,20 +2,21 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-04)
+## Current state (2026-10-04, end of session 2)
 
-- `main` is at the version in `mobile/app.json` (`expo.version`, 0.0.34 at last check). Production holds real user data.
-- The #89 `/grill-with-docs` session is done (docs-only, PR #92 merged). Last active `03-SPEC.md` section: none.
-  - #89 now carries the full agreed scope and an iPhone testing checklist; labelled `ready-for-agent`, no longer `needs-triage`.
-  - The glossaries (`docs/context/lists.md`, `shopping.md`) describe the post-#89 behaviour, with a note saying the app still archives until #89 ships.
-- `CHANGE-LOG.md` has a new `pending` out-of-spec item awaiting Ant's triage: the UI rename of "Location" to "Store" and "Section" to "location" (code and schema names unchanged). `docs/context/locations.md` carries a pending-rename note.
-- Other open tickets: #90 Add a way to leave a household (`needs-triage`, `ready-for-human`, touches membership and RLS); #52 Places search-assist, parked on Ant's Google Cloud billing prepayment.
-- Delegation to agy is live (`GEMINI-DELEGATION.md`, `scripts/agy-delegate.ps1`). The exit-3 fallback after a real quota hit is untested.
+- `main` is at 0.0.35 (`mobile/app.json`). Production holds real user data. Last active `03-SPEC.md` section: none (#89 is post-spec work scoped on its issue).
+- Shipped this session: #95 join-error copy fix (PR #96, 0.0.35); docs PR #97 (planning always goes to the Opus `planner` agent, never agy; agy keeps review, design and large reads).
+- Triage done: the Store / in-store location rename is ticketed as #94, to build **after** #89. #90 (leave a household) is to be grilled after #89; its interim message fix shipped.
+- **#89 plan is written and decided, not yet built.** The full plan and Amendment 1 are the last two comments on #89; the amendment overrides the plan. Ant's decisions are in the comment before them (Reset list ending, keep `archived_at` as the reversal key, History actions only when expanded, hide archived lists in the first migration). #89 is labelled `needs-info` because the build stops for Ant before each migration.
+- Amendment 1 has **not** been independently re-reviewed yet (the original plan was reviewed; its findings are folded in).
+- The STOP-B read-only query ran on 2026-10-04: 7 archived lists would be hidden (names are in Amendment 1, A0). Re-run it before applying.
 
 ## Next session
 
-1. Starts with Ant: triage. Ant decides on the pending Store / in-store location rename in `CHANGE-LOG.md` (file a ticket or not, and whether it lands before or after #89), and on #90.
-2. Then plan #89 (agy or the `planner` agent). It changes `finish_shopping()`, list state and production data, and likely needs a migration to track "checked since the last finish", so the build stops for Ant before any migration or data change.
+1. Have a reviewer check Amendment 1 against the code (not the planner, not the Code Writer).
+2. Branch, then a Code Writer builds #89 per plan + amendment: both migration files written but **not applied**, the SQL test rewrite, all app changes, version 0.0.36.
+3. Code review, then **stop for Ant**: re-run STOP-B, show him the STOP-A migration; apply only on his yes. Then the preview, manual test on iPhone (`needs-manual-test`), merge, confirm `v0.0.36 · Live`, then STOP-C again only on his yes.
+4. Afterwards: Docs agent per plan section 8 + A9; then #94, then the #90 grill.
 
 ## Where things live
 
