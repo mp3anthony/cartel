@@ -2,20 +2,22 @@
 
 The shopping lists and what you do on them: who can see a list, how items are added, checked, ordered and removed, and the reusable row and editor primitives.
 
+> The List entry and the icon wording describe the agreed behaviour once #89 ships; until then the app still archives fully finished lists and shows text badges.
+
 ## Language
 
 ### Lists
 
 **List**:
-A named, ordered set of items. Created on the Lists screen; opened to a detail screen.
-_Avoid_: Basket, cart
+A named, ordered set of items. Created on the Lists screen; opened to a detail screen. Every list lasts until it is removed and can be shopped from again and again: Finish shopping resets its checks rather than ending it. There is no separate kind of "reusable" list and no finished or archived state.
+_Avoid_: Basket, cart, reusable list, archived list, completed list
 
 **Personal list**:
-A list visible only to its owner. The UI badge reads "Personal".
+A list visible only to its owner. Marked everywhere by the person icon (spoken label "Personal"), never a text badge.
 _Avoid_: Private list, my list
 
 **Shared list**:
-A list visible to every member of the owner's household. The UI badge reads "Shared". A new list can be created shared via the "Share with {household name}" checkbox.
+A list visible to every member of the owner's household. Marked everywhere by the house icon (spoken label "Shared with {household name}"), never a text badge. A new list can be created shared via the "Share with {household name}" checkbox.
 _Avoid_: Household list (older spec wording), team list
 
 **Share with household**:
@@ -29,10 +31,6 @@ _Avoid_: Duplicate, clone, template, re-shop
 **Remove list**:
 Removes a list from view. The row is hidden, not destroyed.
 _Avoid_: Delete list (the list is not erased)
-
-**Archived list**:
-A list finished with everything checked via Finish shopping. Hidden from the active Lists view and dashboard; check-off and Finish are disabled, though it can still be opened; rename, move and remove still work. A partial finish does not archive (see Shopping).
-_Avoid_: Completed list, closed list
 
 ### Items
 
