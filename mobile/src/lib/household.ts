@@ -28,7 +28,7 @@ export type Outcome<T> = { ok: true; value: T } | { ok: false; message: string }
 const MESSAGES: Record<string, string> = {
   not_authenticated: 'Your session expired. Restart the app to continue.',
   already_in_household:
-    'You are already in a household. Leave it before joining another.',
+    "You're already in a household. You can only be in one at a time.",
   not_in_household: 'You need to be in a household first.',
   invalid_or_expired_code:
     "That code isn't valid. Codes are single-use and expire after 24 hours.",

@@ -66,4 +66,4 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - #52 Places search-assist is parked on Ant's Google Cloud billing prepayment (`ready-for-human`). Enabling a Google API project can require a refundable prepayment even in the free tier. The local branch `52-google-places-search-assist` predates recent `main` changes; rebase it or start a fresh branch when #52 resumes.
 - Captcha on anonymous sign-in, orphaned households after a member leaves, and item quantities are not built; see `CHANGE-LOG.md`.
 - `docs/research/todoist-list-ui.md` draws on Ant's screenshots, not a primary source.
-- No leave-household action exists. The join error tells users to "Leave it before joining another", which they cannot do. Tracked in #90.
+- No leave-household action exists, so someone already in a household cannot join another. Tracked in #90.
