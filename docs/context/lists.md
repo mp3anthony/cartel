@@ -2,6 +2,8 @@
 
 The shopping lists and what you do on them: who can see a list, how items are added, checked, ordered and removed, and the reusable row and editor primitives.
 
+> The List entry and the icon wording describe the agreed behaviour once #89 ships; until then the app still archives fully finished lists and shows text badges.
+
 ## Language
 
 ### Lists

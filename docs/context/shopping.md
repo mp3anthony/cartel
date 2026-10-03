@@ -2,6 +2,8 @@
 
 The act of shopping: walking a store with a list, finishing the shop, and looking back at it.
 
+> Entries marked #89 describe the agreed behaviour once #89 ships; until then the app still archives fully finished lists.
+
 ## Language
 
 ### In the store
@@ -29,13 +31,13 @@ The anonymous, global record written on Finish shopping: the ordered, normalised
 _Avoid_: Shopping log, receipt
 
 **Finish shopping**:
-The confirm-gated button that ends a shop. It records the check-off record and a Shop history entry in one atomic step. The confirm offers two endings (#89). **Done shopping** then resets the list for reuse: every item is unchecked and kept, nothing is removed. **Continue at another store** keeps the checks so bought items stay ticked; the store picker opens straight away (skippable, keeping the current store) and the user carries on, and the next finish records only the items checked since this one. Either way each store gets its own Shop history entry and check-off record. Lists are never archived. A second finish is refused ("This shop has already been recorded."). Afterwards an in-flow "Shop recorded" banner appears.
-_Avoid_: Complete, checkout, done
+The confirm-gated button that ends a shop. It records the check-off record and a Shop history entry in one atomic step. The confirm offers two endings (#89). **Done shopping** then resets the list for reuse: every item is unchecked and kept, nothing is removed. **Continue at another store** keeps the checks so bought items stay ticked; the store picker opens straight away (skippable, keeping the current store) and the user carries on, and the next finish records only the items checked since this one. Either way each store gets its own Shop history entry and check-off record. Lists are never archived. Finish is disabled when nothing has been checked since the last finish. Afterwards an in-flow "Shop recorded" banner appears.
+_Avoid_: Complete, checkout ("Done shopping" names only one of its two endings)
 
 ### Looking back
 
 **Shop history**:
-The household's record of finished shops, on the History screen (menu item "History"). Shows the 5 most recent shops (#89; the code showed 10 before). Each entry is titled by its store and date, with the list name as secondary text (the list name is the title when no store was attached). It expands to the items bought, in check-off order, followed by a collapsed "Not bought" group, expandable, holding the items left unchecked in that shop. "Start new list from this" and "Delete" sit on each entry; "Clear all history" removes every entry. Empty state: "No shops recorded yet".
+The household's record of finished shops, on the History screen (menu item "History"). Shows the 5 most recent shops (#89; the code showed 10 before). The cap limits the display only: older shops stay stored and still count toward "Where you shop". Each entry is titled by its store and date, with the list name as secondary text (the list name is the title when no store was attached). It expands to the items bought, in check-off order, followed by a collapsed "Not bought" group, expandable, holding the items left unchecked in that shop. "Start new list from this" and "Delete" sit on each entry; "Clear all history" removes every entry. Empty state: "No shops recorded yet".
 _Avoid_: Receipts, past lists, trips
 
 **Dashboard**:
