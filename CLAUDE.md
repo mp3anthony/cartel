@@ -20,11 +20,11 @@ Docs record only what the code cannot explain: decisions, reasoning, rejected al
 - Stack: Expo (managed) app in `mobile/`, React Native Web deployed on Vercel, Supabase (Postgres, RLS, Realtime, anonymous auth). See `docs/adr/0001-supabase-rls-realtime.md`, `docs/adr/0002-location-global-list-private.md` and `docs/adr/0003-anonymous-auth-no-login-wall.md`.
 - **All UI/UX work starts from `02-DESIGN-REFERENCE.md`** (the floor, not the ceiling); `mobile/src/theme/tokens.ts` is the sole palette source. Follow `docs/conventions.md`. Any subagent brief touching UI/UX must carry the foundation.
 - Testing targets iPhone / iOS Safari only. Ant owns an iPhone, not Android; never write Android steps.
-- The orchestrator delegates planning, review, design and large read-and-think work to Antigravity per
+- The orchestrator delegates review, design and large read-and-think work to Antigravity per
   `GEMINI-DELEGATION.md`, decides that itself without asking Ant, and falls back to Claude subagents on exit
-  code 3. agy may fill the Investigator, Planner or Code Reviewer role (never the Code Writer, never reviewing a plan it wrote
-  as if independent) and never writes to the repo; the Workflow Protocol below still applies.
-- **Models:** agy first, per `GEMINI-DELEGATION.md`. On exit 3 (fallback to Claude), Planner subagents use the `planner` agent (`.claude/agents/planner.md`, Opus, the most capable model, because planning benefits most). All other subagents (Investigator, Code Writer, Code Reviewer, Docs) use the session's own model and effort (soft rule, not forced).
+  code 3. agy may fill the Investigator or Code Reviewer role only (never the Planner, never the Code Writer) and never
+  writes to the repo; the Workflow Protocol below still applies.
+- **Models:** Planner subagents always use the `planner` agent (`.claude/agents/planner.md`, Opus), regardless of agy availability (decided 2026-10-04: planning benefits most from the most capable model with full repo access, and agy's file filter refuses `.sql`, so it could not plan database work). All other subagents (Investigator, Code Writer, Code Reviewer, Docs) use the session's own model and effort (soft rule, not forced), or agy where allowed.
 
 ## Workflow Protocol
 

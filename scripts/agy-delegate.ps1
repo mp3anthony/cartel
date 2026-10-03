@@ -1,12 +1,12 @@
 # Read-only hand-off to Antigravity (agy). Rules: GEMINI-DELEGATION.md.
-#   powershell -NoProfile -File scripts/agy-delegate.ps1 -Task plan|review|design|quick -PromptFile <f> [-Files a,b] [-Model x]
+#   powershell -NoProfile -File scripts/agy-delegate.ps1 -Task review|design|quick -PromptFile <f> [-Files a,b] [-Model x]
 #   powershell -NoProfile -File scripts/agy-delegate.ps1 -Probe        (is agy available again?)
 # Exit codes: 0 ok | 3 UNAVAILABLE (quota/outage/empty answer): caller must do the task with Claude subagents
 #             4 refused input (sensitive/outside-repo/missing file, missing prompt file, prompt over 24000 characters).
 #             (An invalid -Task value makes PowerShell itself exit 1 before the script runs.)
 # agy runs inside an isolated workspace folder holding only copies of the named files, never the repo.
 param(
-  [ValidateSet("plan", "review", "design", "quick")][string]$Task = "quick",
+  [ValidateSet("review", "design", "quick")][string]$Task = "quick",
   [string]$PromptFile,
   [string[]]$Files = @(),
   [string]$Model,
@@ -25,7 +25,6 @@ New-Item -ItemType Directory -Force (Join-Path $ws "outputs") | Out-Null
 
 # Model per task. Edit here to change routing (agy models lists the options).
 $models = @{
-  plan   = "claude-opus-4-6-thinking"   # most capable: plans and hard decisions
   review = "gemini-3.8-flash-medium"    # cheap: code review, audits, summaries
   design = "gemini-3.1-pro-high"        # strongest Gemini: design briefs, copy, visual direction
   quick  = "gemini-3.8-flash-low"       # trivial lookups
