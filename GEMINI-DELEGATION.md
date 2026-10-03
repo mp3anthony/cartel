@@ -5,7 +5,7 @@ Set up 2026-09-26 for Ant; kit copied per repo.
 result is his to judge (design output, anything visual or taste-driven).
 
 ## How
-`powershell -NoProfile -File scripts/agy-delegate.ps1 -Task plan|review|design|quick -PromptFile <f> -Files <repo paths>`
+`powershell -NoProfile -File scripts/agy-delegate.ps1 -Task review|design|quick -PromptFile <f> -Files <repo paths>`
 - Write the prompt file in the scratchpad, never in the repo.
 - agy runs in `D:\Anthonys-HQ\business\hazardous-schematics\agy-workspace\<repo-folder-name>\`, one workspace per
   repo, holding only fresh copies of the named files. agy is given no repo path and is told to stay inside that folder, but
@@ -19,7 +19,6 @@ result is his to judge (design output, anything visual or taste-driven).
 ## Which model (routing table lives at the top of the script; edit it there)
 | Task | Model | Why |
 |---|---|---|
-| plan | claude-opus-4-6-thinking | most capable, worth the spend on plans and hard decisions |
 | review | gemini-3.8-flash-medium | cheap, good enough for code review, audits, summaries |
 | design | gemini-3.1-pro-high | strongest Gemini for briefs, copy, visual direction (orchestrator's pick, untested) |
 | quick | gemini-3.8-flash-low | trivial lookups |
@@ -48,9 +47,11 @@ result is his to judge (design output, anything visual or taste-driven).
    files, symlinks or junctions on the file or any parent folder, and anything outside the repo. A prompt over 24,000
    characters is also refused (put the bulk in a file). If a file that legitimately needs to go is refused, tell Ant
    rather than loosening the filter. It is a filter, not a guarantee: never name a file you suspect holds secrets.
-5. **Suited to:** planning, review (agy is the independent reviewer, never the writer of the same code), audits
+5. **Suited to:** review (agy is the independent reviewer, never the writer of the same code), audits
    against `02-DESIGN-REFERENCE.md`, design and copy ideas, large-context reading.
    **Never:** Git/GitHub, migrations, env, production. Those stay with the orchestrator.
+   **Never planning** (2026-10-04): plans always go to the `planner` agent (`.claude/agents/planner.md`, Opus), because
+   the file filter refuses `.sql` (no database planning) and planning benefits most from full repo access.
 6. **Design work carries the foundation:** every UI brief includes `02-DESIGN-REFERENCE.md` via `-Files`, and
    agy's output is checked for building on it, not replacing it. The locked palette's source of truth is
    `mobile/src/theme/tokens.ts` (include it too when colour is in play).
