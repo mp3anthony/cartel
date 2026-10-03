@@ -2,6 +2,8 @@
 
 The global, anonymous store layer shared by every household. Nothing here knows about households or lists.
 
+> **Pending rename (`CHANGE-LOG.md`, 2026-10-04):** in the UI, **Location** is to become **Store**, and **Section** / **section tag** is to become **location** (an item's place within a store). Code and schema names stay. Until that ships, the terms below describe the app as it is.
+
 ## Language
 
 ### Stores
