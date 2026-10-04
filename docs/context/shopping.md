@@ -11,7 +11,7 @@ The screen opened by "Start shopping" on a list detail, where items are checked 
 _Avoid_: Trip mode, store mode
 
 **Route order**:
-The order items are shown in Shopping Mode, computed when the screen is read and never stored. Observed check-off history at that location comes first; an untagged-in-history item falls back to its section tag's place; anything else keeps entry order.
+The order items are shown in Shopping Mode, computed when the screen is read and never stored. Observed check-off history at that store comes first; an untagged-in-history item falls back to its **Item location** (section tag until #94; see `locations.md`); anything else keeps entry order.
 _Avoid_: Aisle order, smart sort
 
 **Glanceability**:
