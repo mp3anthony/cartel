@@ -15,6 +15,7 @@ import {
   NAVIGATOR_EDGES,
   PendingCorrectionLine,
   PrimaryButton,
+  RowConfirm,
   Screen,
   SecondaryButton,
 } from '../components/ui';
@@ -30,6 +31,7 @@ import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../li
 import {
   addItem,
   finishShopping,
+  removeItem,
   resetList,
   setChecked,
   type FinishEnding,
@@ -233,6 +235,15 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * `addNewItem`, `addBusyRef`/`addBusy`, `keepFocus` and `blurOnSubmit={false}` are
  * unchanged, so #63's behaviour is too. "N of M checked" is now a small muted caption
  * above it rather than a body-size header line.
+ *
+ * Issue #102: each row gets a "×" after the pencil, which swaps the row for an inline
+ * `RowConfirm` ("Remove {item}?"). `confirmingRemoveId` is one slot, mutually exclusive
+ * with `editingItemId`. `removeThisItem` uses the same `pending` Set and `writingRef` as
+ * the tag writes, and like `toggle()` it does not call `refresh()` afterwards: the
+ * Realtime echo on the soft delete reloads the list, so the row disappears from there
+ * (and the "N of M checked" count drops with it). The confirmation is cleared on
+ * success and, by an effect, if the item disappears from `view` first (another member
+ * removed it).
  */
 export function ShoppingScreen({ client, lists, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -343,6 +354,9 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   // Item ids with a tag/correction/confirm write in flight. Synchronous, unlike
   // `pending` (batched state) — see `addBusyRef` for the same idiom.
   const writingRef = useRef<Set<string>>(new Set());
+  // The one row showing "Remove {item}?" (#102), and its synchronous mirror.
+  const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null);
+  const confirmingRemoveIdRef = useRef<string | null>(null);
   const [confirmingFinish, setConfirmingFinish] = useState(false);
   const [finishingShopping, setFinishingShopping] = useState(false);
   // Synchronous twin of `finishingShopping` (batched state alone cannot stop a same-tick
@@ -371,6 +385,18 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
       setConfirmingFinish(false);
     }
   }, [anyChecked]);
+
+  // Another member removed the item this row was asking about: nothing left to confirm.
+  useEffect(() => {
+    if (
+      confirmingRemoveId !== null &&
+      view.status === 'loaded' &&
+      !view.items.some((item) => item.id === confirmingRemoveId)
+    ) {
+      confirmingRemoveIdRef.current = null;
+      setConfirmingRemoveId(null);
+    }
+  }, [view, confirmingRemoveId]);
 
   useLayoutEffect(() => {
     // Same reasoning as ListDetailScreen's header: it carries the list's name, and
@@ -425,8 +451,54 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     }
   }
 
+  function beginRemoving(itemId: string) {
+    setError(null);
+    // One slot at a time with the location editor: opening one closes the other.
+    cancelEditing();
+    confirmingRemoveIdRef.current = itemId;
+    setConfirmingRemoveId(itemId);
+  }
+
+  function cancelRemoving() {
+    confirmingRemoveIdRef.current = null;
+    setConfirmingRemoveId(null);
+  }
+
+  async function removeThisItem(item: ListItemRow) {
+    if (pending.has(item.id) || writingRef.current.has(item.id)) {
+      return;
+    }
+
+    writingRef.current.add(item.id);
+    setPending((current) => new Set(current).add(item.id));
+    setError(null);
+
+    try {
+      const outcome = await removeItem(client, item.id);
+
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+
+      // No refresh() here, as in toggle(): the Realtime echo on this soft delete reloads
+      // the list. Clear the confirmation only if it is still this row's.
+      if (confirmingRemoveIdRef.current === item.id) {
+        cancelRemoving();
+      }
+    } finally {
+      writingRef.current.delete(item.id);
+      setPending((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  }
+
   function beginEditing(itemId: string) {
     setError(null);
+    cancelRemoving();
     editingItemIdRef.current = itemId;
     setEditingItemId(itemId);
     setLocationDraft('');
@@ -851,6 +923,20 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
                   : `Tag a location for ${item.name}`
               }
               editDisabled={pending.has(item.id)}
+              onRemove={() => beginRemoving(item.id)}
+              removeLabel={`Remove ${item.name}`}
+              removeDisabled={pending.has(item.id)}
+              confirm={
+                confirmingRemoveId === item.id ? (
+                  <RowConfirm
+                    message={`Remove ${item.name}?`}
+                    confirmLabel="Remove"
+                    onConfirm={() => void removeThisItem(item)}
+                    onCancel={cancelRemoving}
+                    busy={pending.has(item.id)}
+                  />
+                ) : undefined
+              }
               editor={
                 editing ? (
                   <InlineRowEditor

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -16,6 +16,7 @@ import {
   NAVIGATOR_EDGES,
   PrimaryButton,
   Row,
+  RowConfirm,
   Screen,
   SecondaryButton,
 } from '../components/ui';
@@ -60,10 +61,19 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ListDetail'> & {
  * again.
  *
  * Items render as `CompactItemRow`s (#80, under #76), the same density as Shopping
- * Mode. The row's ↑ ↓ × controls live behind its pencil: tapping it turns that one row
- * into an `InlineRowEditor` (rename field, ✓/✕) with the move and remove buttons on a
- * second line, so reorder and remove cost one extra tap. Only one row is edited at a
- * time; moving an item keeps its editor open, since the row keeps its key.
+ * Mode. The row's ↑ ↓ controls live behind its pencil: tapping it turns that one row
+ * into an `InlineRowEditor` (rename field, ✓/✕) with the move buttons on a second line,
+ * so reorder costs one extra tap. Only one row is edited at a time; moving an item keeps
+ * its editor open, since the row keeps its key.
+ *
+ * Issue #102: "×" now sits on the row itself, after the pencil, and opens an inline
+ * `RowConfirm` ("Remove {item}?") in that row's place. It used to live on the editor's
+ * second line, whose field is `autoFocus`; the leading guess for "the x did nothing" is
+ * that a tap there closed the iOS keyboard, the layout shifted and the tap was lost
+ * (not reproduced, see docs/lessons.md). `confirmingRemoveId` is a single slot,
+ * mutually exclusive with `editingId`, and a removal confirms through the same
+ * `mutate()` as every other write. A confirm for an item that another member removed
+ * meanwhile is dropped by the effect below.
  */
 export function ListDetailScreen({
   client,
@@ -110,11 +120,28 @@ export function ListDetailScreen({
   // Mirrors `editingId` synchronously so a write that resolves later can tell whether
   // its own row's editor is still the open one (see `finishEditing`).
   const editingIdRef = useRef<string | null>(null);
+  // The one row showing "Remove {item}?", and its synchronous mirror for the same
+  // stale-write guard as `editingIdRef`.
+  const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null);
+  const confirmingRemoveIdRef = useRef<string | null>(null);
 
   const list =
     lists.status === 'loaded'
       ? lists.lists.find((candidate) => candidate.id === listId) ?? null
       : null;
+
+  // Another member removed the item this row was asking about: nothing is left to
+  // confirm. Only reacts to a loaded view, so a reload in progress cannot clear it.
+  useEffect(() => {
+    if (
+      confirmingRemoveId !== null &&
+      view.status === 'loaded' &&
+      !view.items.some((item) => item.id === confirmingRemoveId)
+    ) {
+      confirmingRemoveIdRef.current = null;
+      setConfirmingRemoveId(null);
+    }
+  }, [view, confirmingRemoveId]);
 
   useLayoutEffect(() => {
     // The header carries the list's name for the same reason it carries the
@@ -162,8 +189,29 @@ export function ListDetailScreen({
     }
   }
 
+  function beginRemoving(itemId: string) {
+    setError(null);
+    // One slot at a time with the editor: opening one closes the other.
+    cancelEditing();
+    confirmingRemoveIdRef.current = itemId;
+    setConfirmingRemoveId(itemId);
+  }
+
+  function cancelRemoving() {
+    confirmingRemoveIdRef.current = null;
+    setConfirmingRemoveId(null);
+  }
+
+  // Clears the confirmation only if it is still the one for `itemId`.
+  function finishRemoving(itemId: string) {
+    if (confirmingRemoveIdRef.current === itemId) {
+      cancelRemoving();
+    }
+  }
+
   function beginEditing(item: ListItemRow) {
     setError(null);
+    cancelRemoving();
     editingIdRef.current = item.id;
     setEditingName(item.name);
     setEditingId(item.id);
@@ -544,20 +592,26 @@ export function ListDetailScreen({
                     onPress={() => moveDown(index, items)}
                     disabled={busy || index === items.length - 1}
                   />
-                  <View style={styles.removeAction}>
-                    <IconButton
-                      glyph="×"
-                      accessibilityLabel={`Remove ${item.name}`}
-                      onPress={() =>
-                        void mutate(
-                          () => removeItem(client, item.id),
-                          () => finishEditing(item.id),
-                        )
-                      }
-                      disabled={busy}
-                    />
-                  </View>
                 </InlineRowEditor>
+              ) : undefined
+            }
+            onRemove={() => beginRemoving(item.id)}
+            removeLabel={`Remove ${item.name}`}
+            removeDisabled={busy}
+            confirm={
+              item.id === confirmingRemoveId ? (
+                <RowConfirm
+                  message={`Remove ${item.name}?`}
+                  confirmLabel="Remove"
+                  onConfirm={() =>
+                    void mutate(
+                      () => removeItem(client, item.id),
+                      () => finishRemoving(item.id),
+                    )
+                  }
+                  onCancel={cancelRemoving}
+                  busy={busy}
+                />
               ) : undefined
             }
           />
@@ -695,11 +749,6 @@ function createStyles(tokens: Tokens) {
     },
     addField: {
       flex: 1,
-    },
-    // Pushes × to the far end of the editor's second line, away from the reorder
-    // arrows, so a slip on ↓ can't land on remove.
-    removeAction: {
-      marginLeft: 'auto',
     },
   });
 }

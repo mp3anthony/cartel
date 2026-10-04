@@ -45,7 +45,7 @@ The order the user arranged with the up and down controls. Stored as a fractiona
 _Avoid_: Sort, drag order
 
 **Remove** (item):
-Removes one item from the list. The row is hidden, not destroyed.
+Removes one item from the list. A "×" on the row (list detail and Shopping Mode) swaps the row for an inline "Remove {item}?" with Cancel and Remove; nothing is removed until Remove is tapped. The row is hidden, not destroyed.
 _Avoid_: Delete (for the user-facing action)
 
 ### Editing and rows
@@ -55,9 +55,9 @@ The one-line field at the top of a list: "Add an item" with a "+" button. Enter 
 _Avoid_: Quick add, input bar
 
 **Pencil editor**:
-The per-row edit affordance. One editor is open at a time; in list detail it holds rename plus up, down and remove on a second line.
+The per-row edit affordance. One editor is open at a time; in list detail it holds rename plus up and down on a second line.
 _Avoid_: Edit mode, inline edit sheet
 
 **Compact row**:
-The one-line item row shared by Shopping Mode and list detail: check circle, name, a right-aligned neutral section pill and the pencil. Checked items stay in place.
+The one-line item row shared by Shopping Mode and list detail: check circle, name, a right-aligned neutral section pill, the pencil and the "×". Checked items stay in place.
 _Avoid_: Item card, list cell

@@ -489,6 +489,11 @@ export function IconButton({
  * `editor` replaces the whole line while a row is being edited (see `InlineRowEditor`)
  * so the row *becomes* the editor rather than growing a stacked form beneath it.
  * `footer` renders inside the row above its divider, for per-row detail lines.
+ *
+ * `onRemove` (#102) adds a "×" as the last sibling, after the pencil, so it sits on the
+ * main row instead of behind the editor. It is never inside the tick `Pressable`. `confirm`
+ * (see `RowConfirm`) replaces the whole line the same way `editor` does; `editor` wins if
+ * a caller ever passes both, though the screens keep the two mutually exclusive.
  */
 export function CompactItemRow({
   name,
@@ -499,7 +504,11 @@ export function CompactItemRow({
   onEdit,
   editLabel,
   editDisabled = false,
+  onRemove,
+  removeLabel,
+  removeDisabled = false,
   editor,
+  confirm,
   footer,
 }: {
   name: string;
@@ -510,7 +519,11 @@ export function CompactItemRow({
   onEdit: () => void;
   editLabel: string;
   editDisabled?: boolean;
+  onRemove?: () => void;
+  removeLabel?: string;
+  removeDisabled?: boolean;
   editor?: ReactNode;
+  confirm?: ReactNode;
   footer?: ReactNode;
 }) {
   const tokens = useTheme();
@@ -518,8 +531,8 @@ export function CompactItemRow({
 
   return (
     <View>
-      {editor ? (
-        <View style={styles.compactLine}>{editor}</View>
+      {editor || confirm ? (
+        <View style={styles.compactLine}>{editor ?? confirm}</View>
       ) : (
         <View style={styles.compactLine}>
           <Pressable
@@ -561,6 +574,15 @@ export function CompactItemRow({
             onPress={onEdit}
             disabled={editDisabled}
           />
+
+          {onRemove && removeLabel ? (
+            <IconButton
+              glyph="×"
+              accessibilityLabel={removeLabel}
+              onPress={onRemove}
+              disabled={removeDisabled}
+            />
+          ) : null}
         </View>
       )}
       {footer}
@@ -570,11 +592,79 @@ export function CompactItemRow({
 }
 
 /**
+ * The line a `CompactItemRow` shows (via its `confirm` slot) after "×" is tapped (#102):
+ * "Remove {item}?" in muted text, Cancel on the left, Remove on the far right where the
+ * "×" was, so the second tap lands under the first. In-flow, one row tall, no field and
+ * no `autoFocus`: nothing here opens the keyboard, which is the point, because a tap
+ * that closes the keyboard and shifts the layout is the leading guess for #102.
+ *
+ * Remove is accent-filled text on a `minTouchTarget` box, and the word carries the
+ * meaning, not the colour. Its own component rather than `Confirm` (a full card) or
+ * `PrimaryButton` (a second primary on screen would break the one-accent rule).
+ */
+export function RowConfirm({
+  message,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+  busy = false,
+}: {
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  busy?: boolean;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <View accessibilityRole="alert" style={styles.rowConfirm}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Cancel"
+        accessibilityState={{ disabled: busy }}
+        disabled={busy}
+        onPress={onCancel}
+        style={({ pressed }) => [
+          styles.rowConfirmButton,
+          pressed && styles.touchTargetPressed,
+          busy && styles.buttonInactive,
+        ]}
+      >
+        <Text style={styles.rowConfirmCancel}>Cancel</Text>
+      </Pressable>
+      <Text numberOfLines={2} style={styles.rowConfirmMessage}>
+        {message}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={confirmLabel}
+        accessibilityState={{ disabled: busy, busy }}
+        disabled={busy}
+        onPress={onConfirm}
+        style={({ pressed }) => [
+          styles.rowConfirmButton,
+          pressed && styles.touchTargetPressed,
+          busy && styles.buttonInactive,
+        ]}
+      >
+        {busy ? (
+          <ActivityIndicator color={tokens.color.accent} />
+        ) : (
+          <Text style={styles.rowConfirmAction}>{confirmLabel}</Text>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
+/**
  * The editor a `CompactItemRow` turns into: a small field with ✓ and ✕ beside it,
  * replacing the stacked Field + Save + Cancel blocks. `busy` freezes the whole line
  * while a write is in flight, so neither button can double-submit. `children`, when
- * given, render on a second line beneath it (the add-to-list screen puts reorder and
- * remove there); without them it is the same single line as ever.
+ * given, render on a second line beneath it (the add-to-list screen puts reorder
+ * there); without them it is the same single line as ever.
  */
 export function InlineRowEditor({
   value,
@@ -1189,6 +1279,38 @@ function createStyles(tokens: Tokens) {
       fontSize: tokens.fontSize.body,
       lineHeight: tokens.fontSize.body * 1.35,
       color: tokens.color.textPrimary,
+    },
+    // RowConfirm (#102): one row-height line. Buttons are real `minTouchTarget` boxes.
+    rowConfirm: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.xs,
+      minHeight: 52,
+    },
+    rowConfirmMessage: {
+      flex: 1,
+      fontSize: tokens.fontSize.caption,
+      lineHeight: tokens.fontSize.caption * 1.5,
+      color: tokens.color.textSecondary,
+    },
+    rowConfirmButton: {
+      minHeight: tokens.minTouchTarget,
+      minWidth: tokens.minTouchTarget,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: tokens.space.sm,
+      borderRadius: tokens.radius.md,
+    },
+    rowConfirmCancel: {
+      fontSize: tokens.fontSize.caption,
+      fontWeight: '600',
+      color: tokens.color.textSecondary,
+    },
+    rowConfirmAction: {
+      fontSize: tokens.fontSize.body,
+      fontWeight: '600',
+      color: tokens.color.accent,
     },
     compactPill: {
       maxWidth: '40%',

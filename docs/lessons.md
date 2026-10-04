@@ -56,6 +56,7 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - Do not assume a report is a bug before checking the human context: #64 (a missing item tag) was not a bug; the user had never tagged it.
 - Live verification caught bugs static review missed (`submitBehavior`, `headerBackVisible`); keep it in the flow.
 - Diagnose identity and origin before blaming auth code: "new household every push" was a Vercel project setting, not code (`docs/adr/0004-vercel-protection-preview-only.md`).
+- #102 "the x did nothing": cause NOT confirmed and not reproduced (diagnosed from code and migrations only; production not inspected). Ranked guesses: (1, ~60%) the "×" lived on the second line of the `autoFocus` pencil editor, so a tap closed the iOS keyboard and the shifting layout lost it; (2, ~25%) the editor's cancel "✕" was tapped instead; (3, ~10%) a silent 0-row update; (4, ~5%) a double-tap dropped by `mutatingRef`. 0.0.37 moves "×" onto the row with an inline confirm (removes guess 1) and turns a 0-row result into an error (surfaces guess 3), without proving either.
 - Do not chase an unreproducible symptom (a 12 s check-off stall measured about 210 ms locally); fix perceived latency and say the cause was not reproduced.
 - Parallel PRs bumping the same version field conflict trivially; bump inside the PR, not after merge.
 
