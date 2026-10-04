@@ -2,20 +2,22 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-04, end of session 4)
+## Current state (2026-10-04, end of session 5)
 
 - `main` is at 0.0.36 (`mobile/app.json`), live. Production holds real user data. Last active `03-SPEC.md` section: none.
-- #89 (reusable lists, Reset list, History) is done and closed. Both migrations are applied in production and Ant's iPhone tests passed.
-- New open tickets, both `needs-triage`, to be grilled with Ant:
-  - #102: remove an item from a list.
-  - #103: after finishing a shop, take the user home; also from Continue at another store once the second store or "I'll choose later" is picked.
+- Session 5 was triage only, no code. #90, #102, #103 and #106 were grilled with Ant; the agreed decisions are in a comment on each ticket. They are now `ready-for-agent` and `needs-manual-test`.
+- Escalation reminders: #90 (membership, RLS, deleting a household when the last member leaves) and #106 (one-off production merge of duplicate items, optional unique index) both stop at the plan for Ant's decision. #102 starts with a diagnosis of why the "x" did nothing.
+- New `needs-triage` tickets, each to be grilled with docs: #109 (Household screen is really a settings page), #110 (Home page overhaul), #111 (quantity counter on items), #112 (default store layout order instead of auto-ordering).
+- Still `needs-triage`: #94 (Store / in-store location rename), #107 (seeded store catalog; decisions in ADR 0007).
+- Ant mentioned an unlogged lag issue (some actions are slow, others instant); he will log it himself.
 
 ## Next session
 
-1. Merge the open docs/tests PR once a different agent has reviewed it.
-2. #94 (Store / in-store location rename).
-3. Grill #90 (leave a household).
-4. Triage #102 and #103.
+1. #102: diagnosis agent, then Planner.
+2. #103: Planner (client-only navigation, small).
+3. #90 and #106: Planner, then stop at the plan for Ant.
+4. Grill #109, #110, #111, #112 with docs; #109 and #110 affect where #90 and #103 land.
+5. #94 and #107 triage.
 
 ## Where things live
 
