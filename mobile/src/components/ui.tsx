@@ -328,6 +328,53 @@ export function Row({
 }
 
 /**
+ * A list as one row (#89): the name on one line, a quieter secondary line beneath it
+ * (store and progress, see `listSecondaryText` in lists.ts), and a trailing slot (the
+ * scope icon). `Row` speaks only its `label`, so a row with a second line and an icon
+ * needs its own accessible name: `accessibilityLabel` carries the whole sentence (for
+ * example "Weekly shop, Countdown Ponsonby, 3 of 12, Shared with Smiths").
+ *
+ * Always a button: every list row opens its list. Composed beside `Row` rather than
+ * widening `Row` for two callers (conventions: shared primitives are not widened for
+ * one caller).
+ */
+export function ListSummaryRow({
+  name,
+  secondary,
+  trailing,
+  onPress,
+  accessibilityLabel,
+}: {
+  name: string;
+  secondary: string;
+  trailing?: ReactNode;
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+    >
+      <View style={styles.summaryText}>
+        <Text numberOfLines={1} style={styles.summaryName}>
+          {name}
+        </Text>
+        <Text numberOfLines={1} style={styles.summarySecondary}>
+          {secondary}
+        </Text>
+      </View>
+      {trailing}
+    </Pressable>
+  );
+}
+
+/**
  * The circular check control from the design reference's list-row anatomy.
  *
  * Checked is signalled by a glyph *and* the accent fill, never the fill alone — the
@@ -727,12 +774,11 @@ export function Confirm({
  *
  * Dismiss is local-only and never wired back to caller state: tapping the "x"
  * hides this instance for the rest of its mount but does not touch anything the
- * caller passed in. No auto-dismiss timer — the one caller today (ShoppingScreen's
- * `justFinished`) only ever flips true after the list is archived, and `toggle()`
- * early-returns once a list is archived, so nothing in that screen resets
- * `justFinished` back to false within a single mount. It persists until the
- * screen unmounts by construction, not by a timer, so this component doesn't
- * need one either.
+ * caller passed in. No auto-dismiss timer: a confirmation that must not be missed
+ * persists until the caller replaces or clears it (ShoppingScreen clears its banner
+ * when the next tick is made) or the user dismisses it. A caller that shows
+ * different messages over one mount should give each a distinct `key`, so a
+ * dismissal of the old one does not hide the new one.
  */
 export function Banner({ message }: { message: string }) {
   const tokens = useTheme();
@@ -1066,6 +1112,20 @@ function createStyles(tokens: Tokens) {
       flex: 1,
       fontSize: tokens.fontSize.body,
       color: tokens.color.textPrimary,
+    },
+    // ListSummaryRow's name-over-secondary column. `rowLabel` is `flex: 1` so it
+    // fills a plain row; the name here has its own style so it can't grow vertically.
+    summaryText: {
+      flex: 1,
+      paddingVertical: tokens.space.xs,
+    },
+    summaryName: {
+      fontSize: tokens.fontSize.body,
+      color: tokens.color.textPrimary,
+    },
+    summarySecondary: {
+      fontSize: tokens.fontSize.caption,
+      color: tokens.color.textSecondary,
     },
     // Shared by every glyph-only control here. The box is the 44pt floor; what gets
     // drawn inside it is the component's business and is always smaller.

@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
-  Badge,
   Body,
   Card,
   ErrorNote,
   Heading,
+  ListSummaryRow,
   NAVIGATOR_EDGES,
   PrimaryButton,
   Row,
@@ -17,11 +16,13 @@ import {
   SecondaryButton,
 } from '../components/ui';
 import { DonutChart, type DonutSegment } from '../components/DonutChart';
+import { ScopeIcon } from '../components/ScopeIcon';
 import type { ListsView } from '../hooks/useLists';
 import { useLocations } from '../hooks/useLocations';
 import { useShopSessions } from '../hooks/useShopSessions';
 import { requestLocation } from '../lib/geolocation';
-import { attachLocation, createList, loadInProgressListIds } from '../lib/lists';
+import type { Household } from '../lib/household';
+import { attachLocation, createList, listSecondaryText } from '../lib/lists';
 import {
   loadPendingCorrectionCounts,
   type PendingCorrectionCount,
@@ -58,6 +59,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'> & {
   client: SupabaseClient;
   listsView: ListsView;
   onListsChanged: () => Promise<void>;
+  household: Household | null;
 };
 
 /**
@@ -80,7 +82,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'> & {
  * itself has to stay visible for there to be anything to tap — what's
  * conditional is only the *result* area below it, once checked.
  *
- * `inProgressListIds`, `locationCounts` and `pendingCorrections` are `null`
+ * "Continue shopping" is every list with at least one ticked item (#89's definition of a
+ * shop in progress), read straight off `listsView`'s counts. Those stay live because
+ * the lists channel fires on item changes, so this screen no longer fetches or
+ * refreshes anything of its own for it.
+ *
+ * `locationCounts` and `pendingCorrections` are `null`
  * while loading rather than defaulting to empty — an empty *result*
  * (genuinely nothing to show) and a *not-yet-fetched* result would
  * otherwise both render as "hide this section," which very briefly hides a
@@ -91,13 +98,13 @@ export function DashboardScreen({
   navigation,
   listsView,
   onListsChanged,
+  household,
 }: Props) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const { view: locationsView } = useLocations(client);
   const { view: shopSessionsView } = useShopSessions(client);
 
-  const [inProgressListIds, setInProgressListIds] = useState<Set<string> | null>(null);
   const [locationCounts, setLocationCounts] = useState<LocationShopCount[] | null>(null);
   const [busyLocationId, setBusyLocationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -110,39 +117,12 @@ export function DashboardScreen({
   // says so outright.
   const [nearbyState, setNearbyState] = useState<NearbyState>({ status: 'idle' });
 
-  // Archived lists (Batch C, #33) are excluded here, not just in ListsScreen's
-  // own view — loadInProgressListIds's own doc comment now says as much:
-  // "in progress" is meaningless for a list finishShopping() has already
-  // archived, and without this filter an already-archived list with leftover
-  // unchecked items would still resurface in "Continue shopping" forever.
-  const listIds = useMemo(
-    () =>
-      listsView.status === 'loaded'
-        ? listsView.lists.filter((l) => l.archivedAt === null).map((l) => l.id)
-        : [],
-    [listsView],
-  );
-
-  const refreshInProgress = useCallback(async () => {
-    const outcome = await loadInProgressListIds(client, listIds);
-    if (outcome.ok) {
-      setInProgressListIds(outcome.value);
-    }
-    // A failure here just leaves "Continue shopping" hidden — the screen's
-    // other widgets don't depend on it, so there's no full-screen error
-    // worth showing over a section that already fails closed.
-  }, [client, listIds]);
-
   const refreshLocationCounts = useCallback(async () => {
     const outcome = await loadShopSessionLocationCounts(client);
     if (outcome.ok) {
       setLocationCounts(outcome.value);
     }
   }, [client]);
-
-  useEffect(() => {
-    void refreshInProgress();
-  }, [refreshInProgress]);
 
   useEffect(() => {
     void refreshLocationCounts();
@@ -191,21 +171,10 @@ export function DashboardScreen({
     // changed, which is the condition that should actually re-run this.
   }, [client, locationCounts, relevantLocationIdsKey]);
 
-  // Catches the case a user checks off the last item on some other screen and
-  // then comes back Home — `list_items` isn't subscribed here (see
-  // loadInProgressListIds's own doc comment on why this is a plain effect,
-  // not a live hook), so re-deriving on focus is what keeps "in progress"
-  // from reading stale after a screen the user didn't come back through here.
-  useFocusEffect(
-    useCallback(() => {
-      void refreshInProgress();
-    }, [refreshInProgress]),
-  );
-
+  // In progress = at least one ticked item, recorded or not (#89). `listsView` is the one
+  // source: it already carries the counts and is kept live by the lists channel.
   const inProgressLists =
-    listsView.status === 'loaded' && inProgressListIds
-      ? listsView.lists.filter((list) => inProgressListIds.has(list.id))
-      : [];
+    listsView.status === 'loaded' ? listsView.lists.filter((list) => list.checkedCount > 0) : [];
 
   const locationName = useCallback(
     (locationId: string): string =>
@@ -233,10 +202,8 @@ export function DashboardScreen({
     // Already shopping this store — go straight there rather than starting
     // a second, redundant list at the same location.
     const existing =
-      listsView.status === 'loaded' && inProgressListIds
-        ? listsView.lists.find(
-            (list) => list.locationId === locationId && inProgressListIds.has(list.id),
-          )
+      listsView.status === 'loaded'
+        ? listsView.lists.find((list) => list.locationId === locationId && list.checkedCount > 0)
         : undefined;
 
     if (existing) {
@@ -365,14 +332,31 @@ export function DashboardScreen({
       {inProgressLists.length > 0 ? (
         <View style={styles.section}>
           <Heading>Continue shopping</Heading>
-          {inProgressLists.map((list) => (
-            <Row
-              key={list.id}
-              label={list.name}
-              trailing={<Badge label={list.householdId ? 'Shared' : 'Personal'} />}
-              onPress={() => navigation.navigate('ListDetail', { listId: list.id })}
-            />
-          ))}
+          {inProgressLists.map((list) => {
+            const secondary = listSecondaryText(
+              list,
+              list.locationId ? locationName(list.locationId) : null,
+            );
+            const scope = list.householdId
+              ? `Shared with ${household?.name ?? 'your household'}`
+              : 'Personal';
+
+            return (
+              <ListSummaryRow
+                key={list.id}
+                name={list.name}
+                secondary={secondary}
+                accessibilityLabel={`${list.name}, ${secondary}, ${scope}`}
+                trailing={
+                  <ScopeIcon
+                    shared={list.householdId !== null}
+                    householdName={household?.name ?? null}
+                  />
+                }
+                onPress={() => navigation.navigate('ListDetail', { listId: list.id })}
+              />
+            );
+          })}
         </View>
       ) : null}
 

@@ -92,6 +92,9 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const { view, refresh } = useLocations(client);
   const attachToListId = route.params?.attachToListId;
+  // #89: set when the picker was opened from Shopping Mode's "Continue at another store".
+  // Finishing here goes back to the Shopping screen underneath, not on to the list.
+  const returnToShopping = route.params?.returnTo === 'Shopping';
 
   const [search, setSearch] = useState('');
   const [composing, setComposing] = useState(false);
@@ -149,7 +152,13 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
 
     await onListsChanged();
     setBusy(false);
-    navigation.navigate('ListDetail', { listId: attachToListId });
+    if (returnToShopping) {
+      // `navigate` would push a second Shopping screen in React Navigation 7; `goBack`
+      // returns to the one already underneath, whose list state has just refreshed.
+      navigation.goBack();
+    } else {
+      navigation.navigate('ListDetail', { listId: attachToListId });
+    }
   }
 
   function beginComposing() {
@@ -310,6 +319,14 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
 
   return (
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
+      {returnToShopping ? (
+        <SecondaryButton
+          label="Keep the current store"
+          onPress={() => navigation.goBack()}
+          disabled={busy}
+        />
+      ) : null}
+
       <Field
         label="Search locations"
         value={search}

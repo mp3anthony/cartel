@@ -4,20 +4,22 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
-  Badge,
   CheckTarget,
   EmptyState,
   ErrorNote,
   Field,
+  ListSummaryRow,
   NAVIGATOR_EDGES,
   PrimaryButton,
   Row,
   Screen,
   SecondaryButton,
 } from '../components/ui';
+import { ScopeIcon } from '../components/ScopeIcon';
+import { useLocations } from '../hooks/useLocations';
 import type { ListsView } from '../hooks/useLists';
 import type { Household } from '../lib/household';
-import { createList } from '../lib/lists';
+import { createList, listSecondaryText } from '../lib/lists';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -46,6 +48,7 @@ export function ListsScreen({
 }: Props) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const { view: locationsView } = useLocations(client);
   const [composing, setComposing] = useState(false);
   const [name, setName] = useState('');
   const [shared, setShared] = useState(false);
@@ -109,10 +112,19 @@ export function ListsScreen({
     navigation.navigate('ListDetail', { listId: outcome.value });
   }
 
-  // Archived lists (Batch C, #33) are done — they're `finishShopping()`'s own
-  // record of a completed shop, not an active list to keep resurfacing here.
-  const lists =
-    view.status === 'loaded' ? view.lists.filter((list) => list.archivedAt === null) : [];
+  // Lists are reusable (#89), so every loaded list shows, in `loadLists()`'s order
+  // (most recently touched first).
+  const lists = view.status === 'loaded' ? view.lists : [];
+
+  const storeNames = useMemo(
+    () =>
+      new Map(
+        locationsView.status === 'loaded'
+          ? locationsView.locations.map((location) => [location.id, location.name] as const)
+          : [],
+      ),
+    [locationsView],
+  );
 
   return (
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
@@ -122,14 +134,28 @@ export function ListsScreen({
 
       {view.status === 'error' ? <ErrorNote message={view.message} /> : null}
 
-      {lists.map((list) => (
-        <Row
-          key={list.id}
-          label={list.name}
-          trailing={<Badge label={list.householdId ? 'Shared' : 'Personal'} />}
-          onPress={() => navigation.navigate('ListDetail', { listId: list.id })}
-        />
-      ))}
+      {lists.map((list) => {
+        const secondary = listSecondaryText(
+          list,
+          list.locationId ? (storeNames.get(list.locationId) ?? null) : null,
+        );
+        const scope = list.householdId
+          ? `Shared with ${household?.name ?? 'your household'}`
+          : 'Personal';
+
+        return (
+          <ListSummaryRow
+            key={list.id}
+            name={list.name}
+            secondary={secondary}
+            accessibilityLabel={`${list.name}, ${secondary}, ${scope}`}
+            trailing={
+              <ScopeIcon shared={list.householdId !== null} householdName={household?.name ?? null} />
+            }
+            onPress={() => navigation.navigate('ListDetail', { listId: list.id })}
+          />
+        );
+      })}
 
       {error ? <ErrorNote message={error} /> : null}
 

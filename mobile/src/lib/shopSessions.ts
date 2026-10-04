@@ -13,6 +13,10 @@ export type ShopSessionRow = {
   householdId: string | null;
   locationId: string;
   listId: string | null;
+  /** The list's name when the entry was loaded, or null when the list is gone
+   * (the shop_sessions FK is `on delete set null`) or not readable. Read through
+   * an embed rather than snapshotted: a rename shows up in History. */
+  listName: string | null;
   itemNames: string[];
   checkedItemNames: string[];
   completedAt: string;
@@ -24,21 +28,19 @@ type ShopSessionRecord = {
   household_id: string | null;
   location_id: string;
   list_id: string | null;
+  list: { name: string } | null;
   item_names: string[];
   checked_item_names: string[];
   completed_at: string;
 };
 
 /**
- * The household's shop-history cap. CRD says "last 5-10 completed shops";
- * 10 is chosen as the generous end of that closed range — a household seeing
- * more history is strictly more useful, and nothing in the CRD or issue
- * frames the cap as "at most" rather than "roughly this many," so any number
- * in 5-10 satisfies the acceptance test literally. Enforced by `.limit()` in
- * the loader below, not a database constraint — same "cap is a read-time
- * concern" reasoning §Slice 2 already applied to `position`.
+ * How many shops History shows. Display-only: the donut counts every shop
+ * (`loadShopSessionLocationCounts`), not just these. Enforced by `.limit()` in the
+ * loader below, not a database constraint, the same "cap is a read-time concern"
+ * reasoning §Slice 2 applied to `position`.
  */
-export const SHOP_SESSION_HISTORY_CAP = 10;
+export const SHOP_SESSION_HISTORY_CAP = 5;
 
 /**
  * The bounded shop history, newest first. No `locationId` filter parameter,
@@ -51,7 +53,9 @@ export async function loadShopSessions(
 ): Promise<Outcome<ShopSessionRow[]>> {
   const { data, error } = await client
     .from('shop_sessions')
-    .select('id, household_id, location_id, list_id, item_names, checked_item_names, completed_at')
+    .select(
+      'id, household_id, location_id, list_id, list:lists(name), item_names, checked_item_names, completed_at',
+    )
     .order('completed_at', { ascending: false })
     .limit(SHOP_SESSION_HISTORY_CAP);
 
@@ -68,6 +72,7 @@ export async function loadShopSessions(
       householdId: row.household_id,
       locationId: row.location_id,
       listId: row.list_id,
+      listName: row.list?.name ?? null,
       itemNames: row.item_names,
       checkedItemNames: row.checked_item_names,
       completedAt: row.completed_at,
@@ -84,11 +89,10 @@ export type LocationShopCount = {
 /**
  * Every completed shop's `location_id`, uncounted and uncapped — the
  * Dashboard's (#22) store-frequency chart. Deliberately not
- * `loadShopSessions()`: that loader's own doc comment already calls out
- * `SHOP_SESSION_HISTORY_CAP` as existing for "pick one to copy," and reusing
- * it here would silently turn a lifetime percentage into a last-10 one.
+ * `loadShopSessions()`: that loader is capped at `SHOP_SESSION_HISTORY_CAP`
+ * (display-only), and reusing it here would silently turn a lifetime percentage into a capped one.
  * Selects one column and counts client-side for the same "small dataset,
- * reduce in JS" reason `loadInProgressListIds()` does (`lists.ts`) — a
+ * reduce in JS" reason `loadLists()`' item counts do (`lists.ts`) — a
  * household's full shop history is not a table `count(*) group by` needs to
  * be pushed into the database for.
  */
@@ -115,7 +119,7 @@ export async function loadShopSessionLocationCounts(
 
 /**
  * Deletes one shop_sessions row. Real, permanent delete — no soft-delete
- * concept exists here (unlike `lists`' `archived_at`/`deleted_at` idiom), per
+ * concept exists here (unlike `lists`' `deleted_at` soft-delete idiom), per
  * the issue's own explicit instruction. RLS (migration 20260823000002) scopes
  * this to rows the caller owns or shares a household with, same equal-rank
  * shape as every other write on this table — no client-side ownership check
@@ -192,4 +196,17 @@ export function sessionItemBreakdown(
     }
     return { name, bought: false };
   });
+}
+
+/**
+ * The names a shop session left unbought, in snapshot order: its `itemNames` minus
+ * its `checkedItemNames`. Under Continue a session's `itemNames` already excludes
+ * items an earlier store recorded, so this never lists another store's purchases.
+ */
+export function notBoughtNames(
+  session: Pick<ShopSessionRow, 'itemNames' | 'checkedItemNames'>,
+): string[] {
+  return sessionItemBreakdown(session)
+    .filter((entry) => !entry.bought)
+    .map((entry) => entry.name);
 }
