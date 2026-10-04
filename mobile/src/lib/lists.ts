@@ -8,8 +8,15 @@ export type ListRow = {
   name: string;
   householdId: string | null;
   locationId: string | null;
-  archivedAt: string | null;
   createdAt: string;
+  /** Server-maintained "last touched" time (a trigger bumps it; the client never
+   * writes it). The Lists screen orders by it. */
+  lastActivityAt: string;
+  /** Non-removed items on the list. */
+  itemCount: number;
+  /** Non-removed items that are ticked, recorded or not. A list with
+   * `checkedCount > 0` is a shop in progress. */
+  checkedCount: number;
 };
 
 export type ListItemRow = {
@@ -17,6 +24,10 @@ export type ListItemRow = {
   name: string;
   position: string;
   checkedAt: string | null;
+  /** Set when a Continue finish has already recorded this tick as a shop;
+   * "new since the last finish" is `checkedAt !== null && recordedAt === null`.
+   * Server-maintained: the client never writes it. */
+  recordedAt: string | null;
 };
 
 /**
@@ -29,8 +40,8 @@ type ListRecord = {
   name: string;
   household_id: string | null;
   location_id: string | null;
-  archived_at: string | null;
   created_at: string;
+  last_activity_at: string;
 };
 
 type ListItemRecord = {
@@ -38,6 +49,7 @@ type ListItemRecord = {
   name: string;
   position: string;
   checked_at: string | null;
+  recorded_at: string | null;
 };
 
 /**
@@ -65,6 +77,21 @@ function keyBetween(before: string | null, after: string | null): Outcome<string
   }
 }
 
+/**
+ * The quiet second line of a list row: "{n} item(s)" before anything is ticked,
+ * "{checked} of {total}" once a shop is under way, prefixed "{store} · " when a store is
+ * attached. `storeName` is null for a list with no store or one whose store is not
+ * loaded.
+ */
+export function listSecondaryText(list: ListRow, storeName: string | null): string {
+  const progress =
+    list.checkedCount > 0
+      ? `${list.checkedCount} of ${list.itemCount}`
+      : `${list.itemCount} ${list.itemCount === 1 ? 'item' : 'items'}`;
+
+  return storeName ? `${storeName} · ${progress}` : progress;
+}
+
 export async function loadLists(client: SupabaseClient): Promise<Outcome<ListRow[]>> {
   // RLS scopes this to lists the caller owns or shares with their household, so no
   // filter on owner or household is added here — adding one would imply the query is
@@ -75,22 +102,63 @@ export async function loadLists(client: SupabaseClient): Promise<Outcome<ListRow
   // policy saying `deleted_at is null` would suppress the very UPDATE that performs the
   // deletion. Filtering it here is the whole of the mechanism.
   //
-  // `archived_at` gets no such filter — this function still returns archived lists.
-  // Whether an archived list belongs in a given screen's view is that screen's own
-  // question (`ListsScreen` filters its active view, `HistoryScreen` still wants to
-  // reach one) — the same reasoning as `locationId` being returned unfiltered even
-  // though not every screen cares whether a list has one.
+  // Lists are reusable (#89): finishing a shop never hides a list, so there is no
+  // archived view. `lists.archived_at` survives in the database only as the reversal key
+  // for the one-off sweep that hid the lists the old behaviour had archived; nothing here
+  // reads it.
+  //
+  // Ordered by `last_activity_at`, which a trigger maintains (ticks, adds, renames, store
+  // changes, finishes), so the list touched last is on top.
   const { data, error } = await client
     .from('lists')
-    .select('id, name, household_id, location_id, archived_at, created_at')
+    .select('id, name, household_id, location_id, created_at, last_activity_at')
     .is('deleted_at', null)
-    .order('created_at', { ascending: false });
+    .order('last_activity_at', { ascending: false });
 
   if (error) {
     return { ok: false, message: humanise(error) };
   }
 
   const rows = (data ?? []) as unknown as ListRecord[];
+
+  // Counts come from one second query across every returned list, reduced in JS (a
+  // household's whole item set is the same order of magnitude as one list's items, as the
+  // app's other "small dataset" calls assume) rather than one aggregate per list.
+  const counts = new Map<string, { itemCount: number; checkedCount: number }>();
+  if (rows.length > 0) {
+    // PostgREST caps a response at 1000 rows, so the lists are queried in chunks of 10:
+    // at most 100 items per list keeps every chunk comfortably under the cap.
+    const ids = rows.map((row) => row.id);
+    const itemRows: { list_id: string; checked_at: string | null }[] = [];
+
+    for (let i = 0; i < ids.length; i += 10) {
+      const itemResult = await client
+        .from('list_items')
+        .select('list_id, checked_at')
+        .in('list_id', ids.slice(i, i + 10))
+        .is('deleted_at', null);
+
+      if (itemResult.error) {
+        return { ok: false, message: humanise(itemResult.error) };
+      }
+
+      itemRows.push(
+        ...((itemResult.data ?? []) as unknown as {
+          list_id: string;
+          checked_at: string | null;
+        }[]),
+      );
+    }
+
+    for (const item of itemRows) {
+      const entry = counts.get(item.list_id) ?? { itemCount: 0, checkedCount: 0 };
+      entry.itemCount += 1;
+      if (item.checked_at !== null) {
+        entry.checkedCount += 1;
+      }
+      counts.set(item.list_id, entry);
+    }
+  }
 
   return {
     ok: true,
@@ -99,8 +167,10 @@ export async function loadLists(client: SupabaseClient): Promise<Outcome<ListRow
       name: row.name,
       householdId: row.household_id,
       locationId: row.location_id,
-      archivedAt: row.archived_at,
       createdAt: row.created_at,
+      lastActivityAt: row.last_activity_at,
+      itemCount: counts.get(row.id)?.itemCount ?? 0,
+      checkedCount: counts.get(row.id)?.checkedCount ?? 0,
     })),
   };
 }
@@ -217,43 +287,62 @@ export async function attachLocation(
 }
 
 export type FinishShoppingResult = {
-  /** true if every item was checked and the list was archived; false if this
-   * was a partial finish (checked items removed, list stays active). */
-  archived: boolean;
+  /** Items newly recorded by this finish (ticked and not already recorded). */
   checkedCount: number;
+  /** Non-removed items on the list. */
   totalCount: number;
 };
 
+/** How a finish ends: `done` unticks every item, `continue` keeps the ticks so the
+ * next store records only what is newly ticked. Nothing is ever removed. */
+export type FinishEnding = 'done' | 'continue';
+
 /**
- * Finishes the current shop for a list: records the checked-off snapshot to
- * both location_checkoffs (route learning) and shop_sessions (household
- * history), then either archives the list (every item was checked) or
- * removes just the checked items (some were left unchecked) — one atomic
- * `security definer` RPC (migration 20260906000000), not a sequence of
- * direct-table writes. See that migration's header for why: once a partial
- * finish must leave `archived_at` null, there is no longer a single column
- * whose transition can serve as the old archiveList() claim, so the
- * atomicity moved into the function itself (row locks + a live re-check),
- * the same shape vote_location_item_correction() already established.
+ * Finishes the current shop for a list: records the items ticked since the last finish
+ * to both location_checkoffs (route learning) and shop_sessions (household history),
+ * then ends per `ending`. One atomic `security definer` RPC (migration
+ * 20261004000000), not a sequence of direct-table writes: it locks the rows, re-checks
+ * live state and writes everything in one transaction, so two members finishing at once
+ * cannot record a shop twice. The list is never hidden or removed; it stays reusable.
  */
 export async function finishShopping(
   client: SupabaseClient,
   listId: string,
+  ending: FinishEnding,
 ): Promise<Outcome<FinishShoppingResult>> {
   const { data, error } = await client
-    .rpc('finish_shopping', { p_list_id: listId })
+    .rpc('finish_shopping', { p_list_id: listId, p_ending: ending })
     .single();
 
   if (error) {
     return { ok: false, message: humanise(error) };
   }
 
-  const row = data as { archived: boolean; checked_count: number; total_count: number };
+  const row = data as { checked_count: number; total_count: number };
 
   return {
     ok: true,
-    value: { archived: row.archived, checkedCount: row.checked_count, totalCount: row.total_count },
+    value: { checkedCount: row.checked_count, totalCount: row.total_count },
   };
+}
+
+/**
+ * Unticks a list whose every tick is already recorded, recording nothing (the Reset
+ * list ending). An RPC rather than a direct update because it must check under lock that
+ * nobody has made a NEW tick (it never wipes a member's fresh tick), which RLS cannot
+ * express. Migration 20261004000000.
+ */
+export async function resetList(
+  client: SupabaseClient,
+  listId: string,
+): Promise<Outcome<void>> {
+  const { error } = await client.rpc('reset_list', { p_list_id: listId });
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  return { ok: true, value: undefined };
 }
 
 export async function loadItems(
@@ -272,7 +361,7 @@ export async function loadItems(
   // the opposite. Sorting here rather than in JS keeps that agreement in one place.
   const { data, error } = await client
     .from('list_items')
-    .select('id, name, position, checked_at')
+    .select('id, name, position, checked_at, recorded_at')
     .eq('list_id', listId)
     .is('deleted_at', null)
     .order('position')
@@ -291,6 +380,7 @@ export async function loadItems(
       name: row.name,
       position: row.position,
       checkedAt: row.checked_at,
+      recordedAt: row.recorded_at,
     })),
   };
 }
@@ -452,48 +542,6 @@ export async function setChecked(
  * Getting the off-by-one wrong here does not throw; it produces a move that appears not
  * to have happened, because the new key lands back in the gap the item came from.
  */
-/**
- * Which of the given lists have at least one unchecked item — the Dashboard's
- * (#22) working definition of "in progress," since `ListRow` carries no
- * status field of its own to ask instead. Flagged in the issue as a proxy
- * rather than real schema; this is the one place that proxy is computed.
- *
- * Pulls `list_id` for every unchecked, non-deleted item across the given
- * lists and dedupes into a `Set` client-side rather than a server-side
- * `count(*) filter (...)` aggregate — consistent with this app's existing
- * "small dataset, reduce in JS" calls (`Screen`'s own doc comment on why a
- * grocery list doesn't need a `FlatList`). A household's full list set is
- * the same order of magnitude as one list's items.
- *
- * Callers are expected to exclude already-archived lists from `listIds`
- * before calling this — "in progress" is meaningless for a list that has
- * already been finished, and this function has no `archivedAt` of its own
- * to check against (it only ever sees `list_items`, not `lists`).
- */
-export async function loadInProgressListIds(
-  client: SupabaseClient,
-  listIds: readonly string[],
-): Promise<Outcome<Set<string>>> {
-  if (listIds.length === 0) {
-    return { ok: true, value: new Set() };
-  }
-
-  const { data, error } = await client
-    .from('list_items')
-    .select('list_id')
-    .in('list_id', listIds)
-    .is('deleted_at', null)
-    .is('checked_at', null);
-
-  if (error) {
-    return { ok: false, message: humanise(error) };
-  }
-
-  const rows = (data ?? []) as unknown as { list_id: string }[];
-
-  return { ok: true, value: new Set(rows.map((row) => row.list_id)) };
-}
-
 export async function moveItem(
   client: SupabaseClient,
   itemId: string,
