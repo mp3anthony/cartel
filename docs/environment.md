@@ -22,7 +22,7 @@ Names only; never put secret values in this repo. The repository is public and p
 
 - `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: ship in the bundle by design (see `mobile/.env.example`).
 - `EXPO_PUBLIC_VERCEL_ENV`: stand-in for Vercel's `VERCEL_ENV`, because Expo inlines only `EXPO_PUBLIC_*`. `mobile/vercel.json` forwards it in the build command.
-- Parked #52 would read an optional Google Places key; its absence only hides the search-assist UI.
+- No Google Places key: #52 was closed as superseded by #107 (seeded store catalog, ADR 0007), so no maps or Places API key or billing is needed.
 
 ## Local development
 

@@ -69,7 +69,7 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - A denied location permission is sticky until remount, with no retry button or settings link; a "check settings" flow would be new scope.
 - `SHOP_SESSION_HISTORY_CAP` (5) was not live-stress-tested (bulk insert to production was blocked); it rests on code review. The 8 MB screenshot cap is unconfirmed with Ant.
 - Unverified or cosmetic: the iOS status-bar icon colour (one static choice), and nested-button hydration warnings from `ListDetailScreen` rows.
-- #52 Places search-assist is parked on Ant's Google Cloud billing prepayment (`ready-for-human`). Enabling a Google API project can require a refundable prepayment even in the free tier. The local branch `52-google-places-search-assist` predates recent `main` changes; rebase it or start a fresh branch when #52 resumes.
+- #52 Places search-assist is closed, superseded by #107 (seeded store catalog, ADR 0007). Google Places was rejected because its terms forbid caching or storing Places content, and it needs an API key and billing prepayment. The old local branch `52-google-places-search-assist` is obsolete.
 - Captcha on anonymous sign-in, orphaned households after a member leaves, and item quantities are not built; see `CHANGE-LOG.md`.
 - `docs/research/todoist-list-ui.md` draws on Ant's screenshots, not a primary source.
 - No leave-household action exists, so someone already in a household cannot join another. Tracked in #90.
