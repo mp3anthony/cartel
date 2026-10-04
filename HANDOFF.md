@@ -6,7 +6,6 @@
 
 - `main` is at 0.0.36 (`mobile/app.json`), live. Production holds real user data. Last active `03-SPEC.md` section: none.
 - #89 (reusable lists, Reset list, History) is done and closed. Both migrations are applied in production and Ant's iPhone tests passed.
-- A docs/tests PR is open until merged: #89 docs additions plus deletion of the legacy-window SQL test.
 - New open tickets, both `needs-triage`, to be grilled with Ant:
   - #102: remove an item from a list.
   - #103: after finishing a shop, take the user home; also from Continue at another store once the second store or "I'll choose later" is picked.
