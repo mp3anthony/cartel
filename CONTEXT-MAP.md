@@ -6,7 +6,7 @@ Cartel is a shared shopping-list app for households: lists that live with a hous
 
 - [Household](./docs/context/household.md) — who you shop with: the household, its members, invite codes and anonymous identity
 - [Lists](./docs/context/lists.md) — the lists themselves: personal and shared lists, items, check-off, copying and the row and editor primitives
-- [Locations](./docs/context/locations.md) — the global, anonymous store layer: locations, chains, section tags, corrections and the catalog
+- [Locations](./docs/context/locations.md) — the global, anonymous store layer: locations, chains, section tags, corrections, the Location catalog and the planned seeded Store catalog
 - [Shopping](./docs/context/shopping.md) — the act of shopping: Shopping Mode, route order, finishing a shop, history and the dashboard
 - [Brand](./docs/context/brand.md) — palettes, theme, chain colours, the app icon and voice, plus the app shell (menu, version footer, feedback)
 
