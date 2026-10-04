@@ -7,7 +7,7 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - Live-check recipe (orchestrator only): clear `localStorage` and reload for a fresh anonymous user, seed the location, list, items and tags scoped to that user's id in one CTE `execute_sql`, exercise the UI, delete, then recount at zero. A stale session whose user was deleted makes inserts fail their foreign key.
 - Cleanup must never be a blanket wipe: anonymous rows include real users. Select first, confirm every row was created this session, delete only those ids, and leave pre-existing test rows alone. Delete test GitHub issues that live tests create. The dev server reads the same Supabase project production uses; there is no disposable copy.
 - Two tabs of one browser profile are the same user. Genuine two-session checks need two profiles, and confirm the two `auth.uid()` values differ before trusting the result.
-- No test harness beyond SQL via `execute_sql` (no local CLI, config or Docker). Each call commits on its own, so chain state inside one call. `supabase/tests/realtime_lists.sql` checks publication membership only; live event delivery needs a manual two-session check.
+- No test harness beyond SQL via `execute_sql` (no local CLI, config or Docker). Each call commits on its own, so chain state inside one call. `supabase/tests/realtime_lists.sql` checks publication membership only; live event delivery needs a manual two-session check. `execute_sql` returns only the last statement's result, so a capture such as a timestamp plus rows must be one statement (subselects or `json_agg`).
 - Denied-RLS negative tests must read ground truth through the bypass role, never through the denied actor's own query (it sees nothing either way). When a change reverses a prior stance, update the older test and its header in the same PR.
 - Seed real data rather than testing empty states, and scope clicks on near-identical rows by accessibility label or `read_page` ref, never by walking parent levels (a wrong write to production data does not announce itself; verify with a direct query).
 - Code review misses same-tick races; the orchestrator's live check (three synchronous Enter keydowns on one field) found what reasoning did not. To test an in-flight race, wrap `window.fetch` to delay the POST.
@@ -23,6 +23,12 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 ## Supabase
 
 - **Shared single project, no dev or staging.** A migration that revokes a grant the deployed frontend relies on breaks production the moment it is applied (2026-09-06: "You don't have access to that"). Apply the migration and merge the frontend in one short window, or hold revokes for a fast-follow migration after the frontend is live.
+- Manual tests on a Preview: it is a separate anonymous user from the Live login, with no lists or household, so tests there must use a throwaway list made on the Preview. Manual-test checklists are iPhone-only.
+- An optional argument on a same-name PostgREST overload causes PGRST203; give the new RPC its own name (`reset_list`) rather than overloading.
+- Guards on server-maintained columns at insert time must be triggers: the table-level INSERT grant would otherwise let clients set them.
+- When retiring an RPC across a two-step deploy, redefine the old signature in step one so it stays consistent with the new schema until it is dropped (#89: the old `finish_shopping(uuid)` could otherwise double-record while the old frontend was still live).
+- Reversals work by recorded ids, never by timestamp. Read any column a later step will disturb before disturbing it (in #89, `last_activity_at` before unticking), and drop the triggers before bulk data fixes. Post-STOP-C `sessions` equals the dry run's `sessions` plus `sessions_since`; the reversal step 1 predicate is authoritative and dry-run ids are informational.
+- `finish_shopping` locks items then the list; the `last_activity_at` triggers touch the list after item writes, so keep that item-then-list order in any new function.
 - A `security definer` RPC is needed once no single column change can claim atomicity: lock the rows, re-check live state, do all writes in one transaction, so two concurrent calls serialise (`finish_shopping`, the correction vote).
 - RLS expressions run as the querying user: revoking a policy helper's `EXECUTE` from `authenticated` silently breaks every read while writes keep working.
 - `set search_path = ''` breaks bare operators too: `nearby_locations()` needs `OPERATOR(extensions.@>)` for cube and earthdistance.
@@ -61,8 +67,8 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - Scroll-to-top on error can push a focused editor in another row off-screen (accepted). Rapid double-taps in list detail are dropped, not queued.
 - `PrimaryButton` lacks `aria-busy` (react-native-web does not map `busy`). `NavMenu`'s scrim has one pre-existing hardcoded colour.
 - A denied location permission is sticky until remount, with no retry button or settings link; a "check settings" flow would be new scope.
-- `SHOP_SESSION_HISTORY_CAP` (10) was not live-stress-tested (bulk insert to production was blocked); it rests on code review. The 8 MB screenshot cap is unconfirmed with Ant.
-- Unverified or cosmetic: the iOS status-bar icon colour (one static choice), a full remount of an archived list (no deep link), and nested-button hydration warnings from `ListDetailScreen` rows.
+- `SHOP_SESSION_HISTORY_CAP` (5) was not live-stress-tested (bulk insert to production was blocked); it rests on code review. The 8 MB screenshot cap is unconfirmed with Ant.
+- Unverified or cosmetic: the iOS status-bar icon colour (one static choice), and nested-button hydration warnings from `ListDetailScreen` rows.
 - #52 Places search-assist is parked on Ant's Google Cloud billing prepayment (`ready-for-human`). Enabling a Google API project can require a refundable prepayment even in the free tier. The local branch `52-google-places-search-assist` predates recent `main` changes; rebase it or start a fresh branch when #52 resumes.
 - Captcha on anonymous sign-in, orphaned households after a member leaves, and item quantities are not built; see `CHANGE-LOG.md`.
 - `docs/research/todoist-list-ui.md` draws on Ant's screenshots, not a primary source.

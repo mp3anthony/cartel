@@ -13,7 +13,8 @@ Binding build and design-process rules. Vocabulary lives in `docs/context/`; thi
 ## Data and backend
 
 - **Direct table writes under RLS; an RPC only where atomicity demands it.** Lists, items and shop sessions are written straight to the tables. A `security definer` RPC is used when one action must check and write across rows or tables (promotion, correction quorum, `finish_shopping`). Re-derive this per slice; never copy the direct-write pattern onto a slice with an atomicity invariant.
-- **Soft delete and archive columns are filtered in the client, never in RLS.** Realtime authorises each event against the SELECT policy on the new row, so a policy mentioning `deleted_at` or `archived_at` would hide the very UPDATE that performs the change.
+- **`deleted_at`, `archived_at` and `recorded_at` never appear in RLS.** Soft delete is filtered in the client; `archived_at` stays unused as the #89 reversal key; `recorded_at` is server-maintained. Realtime authorises each event against the SELECT policy on the new row, so a policy mentioning any of them would hide the very UPDATE that changes it.
+- **`lists.last_activity_at` is server-maintained by triggers; the client never writes it.** It and `archived_at` are also null-forced or server-set on insert by trigger, because the table-level INSERT grant would otherwise let a client set them.
 - **Realtime publication membership is per table.** Only tables the client subscribes to are added; the rest load on mount and refresh after a write (see `docs/environment.md`).
 - **No schema nothing reads.** Do not add a column or table until code uses it. A stored `list_items.location_tag_id` was rejected: "is this tagged, and to what" is a live lookup by location and normalised item name.
 - **Small closed sets are text plus a check constraint**, not Postgres enums. New nullable timestamps follow the `checked_at` / `deleted_at` idiom, not status enums.

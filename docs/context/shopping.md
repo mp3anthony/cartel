@@ -2,8 +2,6 @@
 
 The act of shopping: walking a store with a list, finishing the shop, and looking back at it.
 
-> Entries marked #89 describe the agreed behaviour once #89 ships; until then the app still archives fully finished lists.
-
 ## Language
 
 ### In the store
@@ -31,15 +29,19 @@ The anonymous, global record written on Finish shopping: the ordered, normalised
 _Avoid_: Shopping log, receipt
 
 **Finish shopping**:
-The confirm-gated button that ends a shop. It records the check-off record and a Shop history entry in one atomic step. The confirm offers two endings (#89). **Done shopping** then resets the list for reuse: every item is unchecked and kept, nothing is removed. **Continue at another store** keeps the checks so bought items stay ticked; the store picker opens straight away (skippable, keeping the current store) and the user carries on, and the next finish records only the items checked since this one. Either way each store gets its own Shop history entry and check-off record. Lists are never archived. Finish is disabled when nothing has been checked since the last finish. Afterwards an in-flow "Shop recorded" banner appears.
+The confirm-gated button that ends a shop. It records the check-off record and a Shop history entry in one atomic step. The confirm offers two endings. **Done shopping** then resets the list for reuse: every item is unchecked and kept, nothing is removed. **Continue at another store** keeps the checks so bought items stay ticked; the store picker opens straight away (skippable, keeping the current store) and the user carries on, and the next finish records only the items checked since this one. Either way each store gets its own Shop history entry and check-off record. Lists are never archived. Finish is disabled when nothing is checked; when every check is already recorded it offers only **Reset list**. Afterwards an in-flow "Shop recorded" banner appears.
 _Avoid_: Complete, checkout ("Done shopping" names only one of its two endings)
+
+**Reset list**:
+Offered in place of the two endings only when everything checked was already recorded by an earlier Continue. It unticks every item and records nothing: no Shop history entry, no check-off record. It exists because recording again would double-count the same purchases. When someone else already reset or finished, it reports "Nothing is ticked anymore".
+_Avoid_: Finish, clear
 
 ### Looking back
 
 **Shop history**:
-The household's record of finished shops, on the History screen (menu item "History"). Shows the 5 most recent shops (#89; the code showed 10 before). The cap limits the display only: older shops stay stored and still count toward "Where you shop". Each entry is titled by its store and date, with the list name as secondary text (the list name is the title when no store was attached). It expands to the items bought, in check-off order, followed by a collapsed "Not bought" group, expandable, holding the items left unchecked in that shop. "Start new list from this" and "Delete" sit on each entry; "Clear all history" removes every entry. Empty state: "No shops recorded yet".
+The household's record of finished shops, on the History screen (menu item "History"). Shows the 5 most recent shops. The cap limits the display only: older shops stay stored and still count toward "Where you shop". Each entry is titled by its store and date, with the list name as secondary text (the list name is the title when no store was attached). It expands to the items bought, in check-off order, followed by a collapsed "Not bought" group, expandable, holding the items left unchecked in that shop. "Start new list from this" and "Delete" sit inside an expanded entry, not on the collapsed card; "Clear all history" removes every entry. Empty state: "No shops recorded yet".
 _Avoid_: Receipts, past lists, trips
 
 **Dashboard**:
-The home screen (menu item "Home"). Sections: Nearby stores, Continue shopping, Where you shop (store-frequency donut), Pending corrections, Recent activity. "Continue shopping" shows only lists with a shop in progress (at least one item checked, not yet finished) and is hidden when there are none (#89). Nearby stores are only checked when the user taps "Check for nearby stores".
+The home screen (menu item "Home"). Sections: Nearby stores, Continue shopping, Where you shop (store-frequency donut), Pending corrections, Recent activity. "Continue shopping" shows only lists with a shop in progress (at least one item checked, not yet finished) and is hidden when there are none. Nearby stores are only checked when the user taps "Check for nearby stores".
 _Avoid_: Overview, feed
