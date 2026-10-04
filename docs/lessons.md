@@ -23,11 +23,11 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 ## Supabase
 
 - **Shared single project, no dev or staging.** A migration that revokes a grant the deployed frontend relies on breaks production the moment it is applied (2026-09-06: "You don't have access to that"). Apply the migration and merge the frontend in one short window, or hold revokes for a fast-follow migration after the frontend is live.
-- Manual tests on a Preview: it is a separate anonymous user from the Live login, with no lists or household, so tests there must use a throwaway list made on the Preview. Manual-test checklists are iPhone-only.
+- Manual tests on a Preview: it is a separate anonymous user from the Live login, with no lists or household, so tests there must use a throwaway list made on the Preview.
 - An optional argument on a same-name PostgREST overload causes PGRST203; give the new RPC its own name (`reset_list`) rather than overloading.
 - Guards on server-maintained columns at insert time must be triggers: the table-level INSERT grant would otherwise let clients set them.
 - When retiring an RPC across a two-step deploy, redefine the old signature in step one so it stays consistent with the new schema until it is dropped (#89: the old `finish_shopping(uuid)` could otherwise double-record while the old frontend was still live).
-- Reversals work by recorded ids, never by timestamp. Read any column a later step will disturb before disturbing it (in #89, `last_activity_at` before unticking), and drop the triggers before bulk data fixes. Post-STOP-C `sessions` equals the dry run's `sessions` plus `sessions_since`; the reversal step 1 predicate is authoritative and dry-run ids are informational.
+- Reversals work by recorded ids, never by timestamp. Read any column a later step will disturb before disturbing it (in #89, `last_activity_at` before unticking), and drop the triggers before bulk data fixes.
 - `finish_shopping` locks items then the list; the `last_activity_at` triggers touch the list after item writes, so keep that item-then-list order in any new function.
 - A `security definer` RPC is needed once no single column change can claim atomicity: lock the rows, re-check live state, do all writes in one transaction, so two concurrent calls serialise (`finish_shopping`, the correction vote).
 - RLS expressions run as the querying user: revoking a policy helper's `EXECUTE` from `authenticated` silently breaks every read while writes keep working.
