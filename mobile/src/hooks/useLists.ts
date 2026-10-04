@@ -86,6 +86,12 @@ export function useLists(client: SupabaseClient, enabled: boolean) {
     // public.lists`, so it's logged to WAL and delivered like any other change — the
     // household member who didn't run the promotion still sees the list arrive.
     //
+    // Item changes fire this too, indirectly: a statement-level trigger on list_items bumps
+    // the parent list's `last_activity_at` (migration 20261004000000), which is an UPDATE on
+    // `lists`. That is what keeps the Lists and Home counts live ("2 of 7") without a
+    // second subscription, and it means every tick on a shared list triggers one refresh
+    // on each household device.
+    //
     // The fixed channel name 'lists-index' is safe to leave unparameterized because
     // this hook is mounted exactly once for the app's whole lifetime, in App.tsx's
     // `Bootstrapped` — there is no second instance it could collide with.

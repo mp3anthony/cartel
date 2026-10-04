@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
-  Body,
   Card,
   CheckTarget,
   Confirm,
@@ -17,6 +16,7 @@ import {
   Screen,
   SecondaryButton,
 } from '../components/ui';
+import { ChevronIcon } from '../components/ScopeIcon';
 import { useLocations } from '../hooks/useLocations';
 import { useShopSessions } from '../hooks/useShopSessions';
 import type { Household } from '../lib/household';
@@ -24,7 +24,7 @@ import { addItems, attachLocation, createList } from '../lib/lists';
 import {
   deleteAllShopSessions,
   deleteShopSession,
-  sessionItemBreakdown,
+  notBoughtNames,
   type ShopSessionRow,
 } from '../lib/shopSessions';
 import type { RootStackParamList } from '../navigation/types';
@@ -39,25 +39,33 @@ type Props = NativeStackScreenProps<RootStackParamList, 'History'> & {
 
 /**
  * The household's shop history — the read side of `shop_sessions`, whose
- * write side is `ShoppingScreen.finishShopping()`. Every row that appears
+ * write side is `ShoppingScreen.finishThisShop()`. Every row that appears
  * here is a snapshot "Finish shopping" recorded at the moment it was
- * pressed: the location shopped, the full list of items on it at the time,
- * and which of those were actually checked off. Nothing on this screen
+ * pressed: the location shopped, what was on the list for that round, and
+ * which of those were actually checked off. Nothing on this screen
  * changes what that snapshot says — it is read-only history, bounded to the
  * most recent `SHOP_SESSION_HISTORY_CAP` shops (`../lib/shopSessions`) and
  * scoped by the same RLS an owner-or-household-member gets everywhere else
  * in this app (migration 20260811000003).
  *
- * The one action this screen offers is "Start new list from this," a
- * template flow: it creates a brand-new list, populates it with the
- * session's full item snapshot (`itemNames`, not `checkedItemNames` —
- * templating means "give me what I shopped for," not "give me what I
- * already got"), and attaches it to the same location the shop happened at.
- * One inline composer at a time (`copyingSessionId`), matching this
- * codebase's established one-row-at-a-time shape
- * (`ShoppingScreen`'s `editingItemId`,
- * `ListDetailScreen`'s new copy composer below its own action cluster) —
- * deliberately not a shared component with either of those, see
+ * Each entry is a collapsed card (#89): a pressable header with the store as
+ * its title, a quieter "{list name} · {date}" line, and a chevron. Expanding it
+ * shows what was bought (`checkedItemNames`, in the order it was ticked), then
+ * a collapsed "Not bought (n)" group (`notBoughtNames()`), then the entry's
+ * actions, "Start new list from this" and "Delete" (with their composer and
+ * confirm), which exist only inside an expanded card. "Clear all history"
+ * stays at the top. The list name is read through an embed (`list:lists(name)`),
+ * so a rename shows up here and a removed list simply drops that part of the
+ * line.
+ *
+ * "Start new list from this" is a template flow: it creates a brand-new list,
+ * populates it with the session's `itemNames` (the round's snapshot, not
+ * `checkedItemNames` — templating means "give me what I shopped for," not "give
+ * me what I already got"), and attaches it to the same location the shop
+ * happened at. One inline composer at a time (`copyingSessionId`), matching this
+ * codebase's established one-row-at-a-time shape (`ShoppingScreen`'s
+ * `editingItemId`, `ListDetailScreen`'s new copy composer below its own action
+ * cluster) — deliberately not a shared component with either of those, see
  * `ListDetailScreen.tsx`'s own copy-composer comment for why.
  *
  * Two real, permanent-delete actions (issue #57): removing one card
@@ -69,20 +77,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'History'> & {
  * ask first, per the issue's own explicit instruction. A card's copy
  * composer, its own delete confirm, and the screen-level clear-all confirm
  * are mutually exclusive — opening one resets the others, so at most one
- * confirmation is ever on screen at a time.
- *
- * Issue #58 (partial finish) added the per-item breakdown every card now
- * shows beneath its summary line — `sessionItemBreakdown()` (`../lib/
- * shopSessions`) pairs each of `itemNames`' original entries with whether it
- * was actually checked off, marking the unbought ones "(not in this shop)".
- * This is the screen's whole answer to "does a partial shop look any
- * different in History" — deliberately no separate badge/pill on top; the
- * per-item list alone already says everything a badge would duplicate (#58's
- * explicit choice). A fully-completed shop's card simply has nothing
- * marked. `submitCopy()` is unaffected — it already copies `itemNames`, the
- * full original snapshot, not `checkedItemNames`, so "Start new list from
- * this" continues to template every original item regardless of what was
- * actually bought that trip.
+ * confirmation is ever on screen at a time. Collapsing a card resets only the
+ * composer or confirm that card owns, and never while a write is in flight (the
+ * in-flight handler resets on completion).
  */
 export function HistoryScreen({ client, household, navigation, onListsChanged }: Props) {
   const tokens = useTheme();
@@ -95,6 +92,10 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
   const [copyShared, setCopyShared] = useState(false);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [confirmingClearAll, setConfirmingClearAll] = useState(false);
+  // Cards start collapsed. Both sets hold session ids; "Not bought" has its own
+  // expansion on top of its card's.
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [notBoughtOpenIds, setNotBoughtOpenIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,6 +107,56 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
       locationsView.locations.find((location) => location.id === session.locationId)?.name ??
       'a location'
     );
+  }
+
+  // The card title: the store, falling back to the list's name when the store cannot
+  // be found (not expected, since location_id is not null).
+  function cardTitleFor(session: ShopSessionRow): string {
+    if (locationsView.status === 'loaded') {
+      const found = locationsView.locations.find((location) => location.id === session.locationId);
+      if (found) {
+        return found.name;
+      }
+    }
+    return session.listName ?? 'a location';
+  }
+
+  function toggleExpanded(session: ShopSessionRow) {
+    const wasExpanded = expandedIds.has(session.id);
+
+    if (wasExpanded && !busy) {
+      // Collapsing resets only what this card owns; another card's open composer or
+      // confirm is left alone. Skipped while busy: the in-flight handler resets on
+      // completion, and resetting now would orphan its state.
+      if (copyingSessionId === session.id) {
+        resetComposer();
+      }
+      if (confirmingDeleteId === session.id) {
+        setConfirmingDeleteId(null);
+      }
+    }
+
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (wasExpanded) {
+        next.delete(session.id);
+      } else {
+        next.add(session.id);
+      }
+      return next;
+    });
+  }
+
+  function toggleNotBought(session: ShopSessionRow) {
+    setNotBoughtOpenIds((current) => {
+      const next = new Set(current);
+      if (next.has(session.id)) {
+        next.delete(session.id);
+      } else {
+        next.add(session.id);
+      }
+      return next;
+    });
   }
 
   function beginCopy(session: ShopSessionRow) {
@@ -299,83 +350,126 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
       )}
 
       {view.sessions.map((session) => {
-        const locationName = locationNameFor(session);
+        const title = cardTitleFor(session);
+        const secondary = session.listName
+          ? `${session.listName} · ${formatCompletedAt(session.completedAt)}`
+          : formatCompletedAt(session.completedAt);
+        const expanded = expandedIds.has(session.id);
+        const notBought = notBoughtNames(session);
+        const notBoughtOpen = notBoughtOpenIds.has(session.id);
         const composing = copyingSessionId === session.id;
         const confirmingDelete = confirmingDeleteId === session.id;
 
         return (
           <Card key={session.id}>
-            <Text style={styles.locationName}>{locationName}</Text>
-            <Body>
-              {`${formatCompletedAt(session.completedAt)} · ${session.itemNames.length} ${
-                session.itemNames.length === 1 ? 'item' : 'items'
-              }`}
-            </Body>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${title}, ${secondary}`}
+              // Both spellings, same as `CheckTarget`: react-native-web 0.21 does not
+              // map `accessibilityState.expanded` to `aria-expanded`.
+              aria-expanded={expanded}
+              accessibilityState={{ expanded }}
+              onPress={() => toggleExpanded(session)}
+              style={({ pressed }) => [styles.cardHeader, pressed && styles.headerPressed]}
+            >
+              <View style={styles.cardHeaderText}>
+                <Text style={styles.locationName}>{title}</Text>
+                <Text style={styles.secondary}>{secondary}</Text>
+              </View>
+              <ChevronIcon expanded={expanded} />
+            </Pressable>
 
-            <View style={styles.itemList}>
-              {sessionItemBreakdown(session).map((entry, index) => (
-                <Text key={`${entry.name}-${index}`} style={styles.itemLine}>
-                  {entry.bought ? entry.name : `${entry.name} (not in this shop)`}
-                </Text>
-              ))}
-            </View>
+            {expanded ? (
+              <>
+                <View style={styles.itemList}>
+                  {session.checkedItemNames.map((name, index) => (
+                    <Text key={`${name}-${index}`} style={styles.itemLine}>
+                      {name}
+                    </Text>
+                  ))}
+                </View>
 
-            {composing ? (
-              <View style={styles.composer}>
-                <Field
-                  label="New list name"
-                  value={copyName}
-                  onChangeText={setCopyName}
-                  autoCapitalize="sentences"
-                  autoFocus
-                  maxLength={60}
-                  editable={!busy}
-                  onSubmitEditing={() => void submitCopy(session)}
-                  returnKeyType="done"
-                />
-                {household ? (
-                  <Row
-                    label={`Share with ${household.name}`}
-                    leading={
-                      <CheckTarget
-                        checked={copyShared}
-                        onToggle={() => setCopyShared(!copyShared)}
-                        accessibilityLabel={`Share with ${household.name}`}
-                        disabled={busy}
-                      />
-                    }
-                  />
+                {notBought.length > 0 ? (
+                  <View style={styles.itemList}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Not bought, ${notBought.length}`}
+                      aria-expanded={notBoughtOpen}
+                      accessibilityState={{ expanded: notBoughtOpen }}
+                      onPress={() => toggleNotBought(session)}
+                      style={({ pressed }) => [styles.notBoughtHeader, pressed && styles.headerPressed]}
+                    >
+                      <Text style={styles.notBoughtLabel}>{`Not bought (${notBought.length})`}</Text>
+                      <ChevronIcon expanded={notBoughtOpen} />
+                    </Pressable>
+                    {notBoughtOpen
+                      ? notBought.map((name, index) => (
+                          <Text key={`${name}-${index}`} style={styles.notBoughtLine}>
+                            {name}
+                          </Text>
+                        ))
+                      : null}
+                  </View>
                 ) : null}
-                <PrimaryButton
-                  label="Create"
-                  onPress={() => void submitCopy(session)}
-                  busy={busy}
-                  disabled={copyName.trim().length === 0}
-                />
-                <SecondaryButton label="Cancel" onPress={cancelCopy} disabled={busy} />
-              </View>
-            ) : confirmingDelete ? (
-              <Confirm
-                message="This permanently deletes this shop from your history. This can’t be undone."
-                confirmLabel="Delete"
-                onConfirm={() => void deleteSessionNow(session)}
-                onCancel={cancelDeleteSession}
-                busy={busy}
-              />
-            ) : (
-              <View style={styles.cardActions}>
-                <SecondaryButton
-                  label="Start new list from this"
-                  onPress={() => beginCopy(session)}
-                  disabled={busy}
-                />
-                <SecondaryButton
-                  label="Delete"
-                  onPress={() => beginDeleteSession(session)}
-                  disabled={busy}
-                />
-              </View>
-            )}
+
+                {composing ? (
+                  <View style={styles.composer}>
+                    <Field
+                      label="New list name"
+                      value={copyName}
+                      onChangeText={setCopyName}
+                      autoCapitalize="sentences"
+                      autoFocus
+                      maxLength={60}
+                      editable={!busy}
+                      onSubmitEditing={() => void submitCopy(session)}
+                      returnKeyType="done"
+                    />
+                    {household ? (
+                      <Row
+                        label={`Share with ${household.name}`}
+                        leading={
+                          <CheckTarget
+                            checked={copyShared}
+                            onToggle={() => setCopyShared(!copyShared)}
+                            accessibilityLabel={`Share with ${household.name}`}
+                            disabled={busy}
+                          />
+                        }
+                      />
+                    ) : null}
+                    <PrimaryButton
+                      label="Create"
+                      onPress={() => void submitCopy(session)}
+                      busy={busy}
+                      disabled={copyName.trim().length === 0}
+                    />
+                    <SecondaryButton label="Cancel" onPress={cancelCopy} disabled={busy} />
+                  </View>
+                ) : confirmingDelete ? (
+                  <Confirm
+                    message="This permanently deletes this shop from your history. This can’t be undone."
+                    confirmLabel="Delete"
+                    onConfirm={() => void deleteSessionNow(session)}
+                    onCancel={cancelDeleteSession}
+                    busy={busy}
+                  />
+                ) : (
+                  <View style={styles.cardActions}>
+                    <SecondaryButton
+                      label="Start new list from this"
+                      onPress={() => beginCopy(session)}
+                      disabled={busy}
+                    />
+                    <SecondaryButton
+                      label="Delete"
+                      onPress={() => beginDeleteSession(session)}
+                      disabled={busy}
+                    />
+                  </View>
+                )}
+              </>
+            ) : null}
           </Card>
         );
       })}
@@ -393,16 +487,51 @@ function formatCompletedAt(iso: string): string {
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
+    // The card header is a button; `minHeight` carries the 44pt floor (hitSlop does
+    // nothing on react-native-web).
+    cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.md,
+      minHeight: tokens.minTouchTarget,
+    },
+    cardHeaderText: {
+      flex: 1,
+      gap: tokens.space.xs,
+    },
+    headerPressed: {
+      opacity: 0.7,
+    },
     locationName: {
       fontSize: tokens.fontSize.title,
       fontWeight: '600',
       color: tokens.color.textPrimary,
+    },
+    secondary: {
+      fontSize: tokens.fontSize.caption,
+      color: tokens.color.textSecondary,
     },
     itemList: {
       gap: tokens.space.xs,
     },
     itemLine: {
       color: tokens.color.textPrimary,
+      fontSize: tokens.fontSize.body,
+    },
+    notBoughtHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: tokens.space.md,
+      minHeight: tokens.minTouchTarget,
+    },
+    notBoughtLabel: {
+      fontSize: tokens.fontSize.body,
+      fontWeight: '600',
+      color: tokens.color.textSecondary,
+    },
+    notBoughtLine: {
+      color: tokens.color.textSecondary,
       fontSize: tokens.fontSize.body,
     },
     composer: {

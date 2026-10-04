@@ -39,8 +39,12 @@ const MESSAGES: Record<string, string> = {
   item_not_tagged: 'This item has to be tagged with a location before it can be corrected.',
   correction_matches_current: "That's already this item's location — nothing to correct.",
   already_voted: 'You already proposed or confirmed this correction. It needs a different person to confirm it.',
-  already_finished: 'This shop was just finished on another device. Reopen the list to see what changed.',
-  nothing_checked: 'Nothing here is checked off anymore — someone else may have just finished this shop.',
+  nothing_checked:
+    'Nothing new is checked since the last finish. Someone else may have just recorded this shop.',
+  nothing_to_reset:
+    'Nothing is ticked anymore. Someone else may have just reset or finished this list.',
+  has_new_checks: 'Someone just checked something new. Finish the shop to record it.',
+  invalid_ending: 'Something went wrong finishing this shop. Try again.',
   no_location: 'Attach a location to this list before finishing a shop.',
 };
 

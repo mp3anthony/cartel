@@ -4,7 +4,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
-  Badge,
   Body,
   CheckTarget,
   CompactItemRow,
@@ -20,6 +19,7 @@ import {
   Screen,
   SecondaryButton,
 } from '../components/ui';
+import { ScopeIcon } from '../components/ScopeIcon';
 import { useListItems } from '../hooks/useListItems';
 import type { ListsView } from '../hooks/useLists';
 import { useLocations } from '../hooks/useLocations';
@@ -429,7 +429,9 @@ export function ListDetailScreen({
 
   return (
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
-      <Badge label={list.householdId ? 'Shared' : 'Personal'} />
+      <View style={styles.scope}>
+        <ScopeIcon shared={list.householdId !== null} householdName={household?.name ?? null} />
+      </View>
 
       {list.locationId ? (
         <>
@@ -512,18 +514,9 @@ export function ListDetailScreen({
             name={item.name}
             checked={item.checkedAt !== null}
             onToggle={() => {
-              // A finished shop (Batch C, #33) is read-only from here on —
-              // this screen can still be reached for an archived list (a
-              // deep link, or ShoppingScreen staying mounted underneath it
-              // in the native-stack navigator per useListItems' own doc
-              // comment), and its check state shouldn't drift after
-              // finishShopping() already recorded it.
-              if (list.archivedAt !== null) {
-                return;
-              }
               void mutate(() => setChecked(client, item.id, item.checkedAt === null));
             }}
-            disabled={busy || list.archivedAt !== null}
+            disabled={busy}
             onEdit={() => beginEditing(item)}
             editLabel={`Edit ${item.name}`}
             editDisabled={busy}
@@ -689,6 +682,9 @@ export function ListDetailScreen({
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
+    scope: {
+      alignSelf: 'flex-start',
+    },
     editor: {
       gap: tokens.space.sm,
     },

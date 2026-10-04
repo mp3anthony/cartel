@@ -29,11 +29,14 @@ export type RootStackParamList = {
    * Slice 4 left it — a plain browse/create index with an ephemeral "Selected"
    * badge. Present, a finalized selection (row tap, merge-confirm, or a
    * just-created location) writes that location onto the named list instead of
-   * merely badging it, then returns to that list. Only ever set via in-app
+   * merely badging it, then returns to that list. `returnTo: 'Shopping'` (#89, set by
+   * "Continue at another store") makes it go back to the Shopping screen underneath
+   * instead of navigating to the list, and adds a "Keep the current store" button.
+   * Only ever set via in-app
    * `navigation.navigate(...)`, never a URL — see `linking.config.screens` in
    * App.tsx for why it carries no path template of its own.
    */
-  Locations: { attachToListId?: string } | undefined;
+  Locations: { attachToListId?: string; returnTo?: 'Shopping' } | undefined;
   /**
    * #65's per-location item catalog — browse (and correct) every
    * `location_items` row ever tagged at a store. `locationId` is real and

@@ -6,8 +6,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   Banner,
   Body,
+  Card,
   CompactItemRow,
-  Confirm,
   EmptyState,
   ErrorNote,
   Field,
@@ -20,13 +20,21 @@ import {
 } from '../components/ui';
 import { useListItems } from '../hooks/useListItems';
 import type { ListsView } from '../hooks/useLists';
+import { useLocations } from '../hooks/useLocations';
 import { useLocationCheckoffs } from '../hooks/useLocationCheckoffs';
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocationItemVotes } from '../hooks/useLocationItemVotes';
 import { computeRouteOrder } from '../lib/locationCheckoffs';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
-import { addItem, finishShopping, setChecked, type ListItemRow } from '../lib/lists';
+import {
+  addItem,
+  finishShopping,
+  resetList,
+  setChecked,
+  type FinishEnding,
+  type ListItemRow,
+} from '../lib/lists';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -128,28 +136,18 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * rather than a case worth an atomic function for.
  *
  * Issue #58 replaced Batch C's (#33 + #35) `archiveList()`/`unarchiveList()`
- * client-side claim-and-compensate sequence with a single `security definer`
- * RPC, `finishShopping()` (`../lib/lists`, calling `finish_shopping()`,
- * migration 20260906000000). Batch C's mechanism relied on `archived_at`'s
- * null-to-non-null transition being the one thing every successful finish
- * did — but a *partial* finish (issue #58's whole point: some items left
- * unchecked) must never archive the list at all, so there is no longer a
- * single column whose transition can serve as that claim. The RPC moves the
- * whole "check what's true, then act on it" sequence server-side instead: it
- * locks the list row and every one of its item rows, re-reads live state
- * under those locks, records the checkoff/session snapshots, and then either
- * archives the list (everything was checked) or soft-deletes just the
- * checked items (the list stays active with only the unchecked ones left) —
- * all inside one transaction. This is why `finishThisShop()` below is a
- * single awaited call with no claim/compensate dance: a partial failure
- * anywhere inside the function rolls the whole thing back, so there is
- * nothing left for the client to undo. `onListsChanged` is still called
- * after a real (non-error) result, same reason as before: `ListsScreen`/
- * `DashboardScreen` filter `archivedAt === null` into their active views, and
- * a full finish needs to make this list disappear from those views promptly
- * rather than waiting on their own next unrelated reload. A partial finish
- * leaves `archivedAt` null, so those views keep showing the list — correctly,
- * since it is still active with items left to buy.
+ * client-side claim-and-compensate sequence with a single `security definer` RPC,
+ * `finishShopping()` (`../lib/lists`, calling `finish_shopping()`). Issue #89 made lists
+ * reusable and reshaped the RPC: nothing is archived or removed any more. A finish records
+ * the items ticked *since the last finish* (`checkedAt !== null && recordedAt === null`),
+ * then ends one of two ways. **Done shopping** unticks everything; **Continue at another
+ * store** keeps the ticks (the server stamps them `recorded_at`) so the next store records
+ * only new ticks, and opens the store picker. A third ending, **Reset list** (`resetList()`,
+ * the `reset_list()` RPC), is offered only when everything ticked is already recorded: it
+ * unticks the list and records no shop. The server locks the rows and re-checks live state,
+ * so `finishThisShop()`/`resetThisList()` stay single awaited calls with nothing for the
+ * client to compensate. `onListsChanged` is still called after a success so the Lists and
+ * Home counts reflect it promptly.
  *
  * Issue #63 adds a persistent "Add an item" composer, always rendered (not
  * tap-to-reveal) at the **top** of the item list — above every row, below the
@@ -165,14 +163,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * item needs no ordering logic of its own: `computeRouteOrder`'s tier-3
  * fallback (no check-off history, no section tag) already keeps a
  * newly-added item in its entry-order position via `Array.prototype.sort`'s
- * stability, confirmed by reading that function rather than assumed. Gated
- * on `list.archivedAt === null`, matching every other write this screen
- * already gates the same way — an archived list is read-only.
- *
- * Item check/uncheck (`toggle()`) is gated on `list.archivedAt` the same way
- * the "Finish shopping" button already is — an archived list's item state is
- * read-only from that point on, consistent with the "already recorded"
- * messaging a returning visit to the same screen shows.
+ * stability, confirmed by reading that function rather than assumed. Nothing here is
+ * gated on a list's finish state any more: a finished list is simply reusable.
  *
  * Batch E (#32) briefly gave untagged items a labeled "+ Tag aisle" affordance;
  * #77 (below) replaced it with the pencil.
@@ -254,6 +246,13 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   const list =
     lists.status === 'loaded'
       ? lists.lists.find((candidate) => candidate.id === listId) ?? null
+      : null;
+
+  // Only for the store's name in the finish card's wording.
+  const { view: locationsView } = useLocations(client);
+  const storeName =
+    list?.locationId && locationsView.status === 'loaded'
+      ? (locationsView.locations.find((location) => location.id === list.locationId)?.name ?? null)
       : null;
 
   const { view: locationItems, refresh: refreshLocationItems } = useLocationItems(
@@ -346,7 +345,11 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   const writingRef = useRef<Set<string>>(new Set());
   const [confirmingFinish, setConfirmingFinish] = useState(false);
   const [finishingShopping, setFinishingShopping] = useState(false);
-  const [justFinished, setJustFinished] = useState(false);
+  // Synchronous twin of `finishingShopping` (batched state alone cannot stop a same-tick
+  // double submit); same idiom as `addBusyRef`.
+  const finishingRef = useRef(false);
+  // The confirmation shown after a finish or reset, or null. Cleared by the next tick.
+  const [banner, setBanner] = useState<string | null>(null);
   const [addDraft, setAddDraft] = useState('');
   const [addBusy, setAddBusy] = useState(false);
   const addBusyRef = useRef(false);
@@ -369,13 +372,13 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   }, [list, navigation]);
 
   async function toggle(item: ListItemRow) {
-    if (!list || list.archivedAt !== null) {
+    if (!list) {
       return;
     }
     if (pending.has(item.id)) {
       return;
     }
-    setJustFinished(false);
+    setBanner(null);
 
     const nextChecked = !isChecked(item);
 
@@ -557,54 +560,82 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     }
   }
 
-  async function finishThisShop() {
+  async function finishThisShop(ending: FinishEnding) {
     if (!list || list.locationId === null) {
       return;
     }
-    if (list.archivedAt !== null) {
-      // Can happen if the list was archived remotely (another device) while
-      // this device's confirm dialog was already open — the "Finish shopping"
-      // button itself is disabled once archivedAt is set, so this only ever
-      // catches a dialog that opened before that. Close it rather than leaving
-      // it stuck open with no feedback; the "already recorded" messaging
-      // (reads list.archivedAt directly) explains the rest.
-      setConfirmingFinish(false);
+    if (newCheckedCount === 0) {
       return;
     }
-    if (checkedCount === 0) {
+    if (finishingRef.current || finishingShopping || pending.size > 0) {
       return;
     }
-    if (finishingShopping || pending.size > 0) {
-      return;
-    }
+    finishingRef.current = true;
     setFinishingShopping(true);
     setError(null);
     try {
-      const outcome = await finishShopping(client, list.id);
+      const outcome = await finishShopping(client, list.id, ending);
       if (!outcome.ok) {
         setError(outcome.message);
         return;
       }
 
-      // Whether this call actually claimed the finish (archived === true means
-      // full finish; false means partial — either way this call's own write
-      // succeeded) or lost a race to another device (surfaces as the
-      // already_finished/nothing_checked exceptions humanise() maps to
-      // friendly text, landing in the branch above instead), refresh so this
-      // screen reflects whatever is now true server-side — a partial finish
-      // leaves this list showing only the items still left unchecked.
+      // Refresh so this screen reflects whatever is now true server-side: after Done
+      // the items are unticked, after Continue they stay ticked and recorded.
       await refresh();
       await refreshCheckoffs();
       await onListsChanged();
       setConfirmingFinish(false);
-      setJustFinished(true);
+
+      if (ending === 'continue') {
+        setBanner('Shop recorded. Ticked items stay ticked for the next store.');
+        // `returnTo` makes the picker go back here (not push a second Shopping screen)
+        // once a store is chosen, and offers "Keep the current store".
+        navigation.navigate('Locations', { attachToListId: list.id, returnTo: 'Shopping' });
+      } else {
+        setBanner('Shop recorded. Your list is unticked and ready for next time.');
+      }
     } finally {
+      finishingRef.current = false;
+      setFinishingShopping(false);
+    }
+  }
+
+  // The Reset list ending: only reachable when everything ticked is already recorded.
+  // Records no shop; the server refuses (`has_new_checks`) if someone has ticked
+  // something new in the meantime.
+  async function resetThisList() {
+    if (!list) {
+      return;
+    }
+    if (checkedCount === 0) {
+      return;
+    }
+    if (finishingRef.current || finishingShopping || pending.size > 0) {
+      return;
+    }
+    finishingRef.current = true;
+    setFinishingShopping(true);
+    setError(null);
+    try {
+      const outcome = await resetList(client, list.id);
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+
+      await refresh();
+      await onListsChanged();
+      setConfirmingFinish(false);
+      setBanner('List reset. Everything is unticked and ready for next time.');
+    } finally {
+      finishingRef.current = false;
       setFinishingShopping(false);
     }
   }
 
   async function addNewItem() {
-    if (!list || list.archivedAt !== null) {
+    if (!list) {
       return;
     }
     if (addDraft.trim().length === 0 || addBusy || addBusyRef.current) {
@@ -746,6 +777,14 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   const items = view.items;
   const orderedItems = computeRouteOrder(items, locationItems.items, checkoffs.checkoffs);
   const checkedCount = items.filter((item) => isChecked(item)).length;
+  // Ticks not yet recorded as a shop. An item ticked just now (optimistic overlay) counts
+  // as new even if the stale `recordedAt` still shows, because untick-then-retick clears
+  // it server-side. `recordedOnly` (everything ticked is already recorded) swaps the
+  // finish card for Reset list.
+  const newCheckedCount = items.filter(
+    (item) => isChecked(item) && (optimisticChecked.has(item.id) || item.recordedAt === null),
+  ).length;
+  const recordedOnly = checkedCount > 0 && newCheckedCount === 0;
 
   return (
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll scrollRef={scrollRef}>
@@ -766,7 +805,6 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
             returnKeyType="done"
             submitBehavior="submit"
             blurOnSubmit={false}
-            editable={list.archivedAt === null}
           />
         </View>
         <PrimaryButton
@@ -775,7 +813,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
           compact
           onPress={() => void addNewItem()}
           busy={addBusy}
-          disabled={addDraft.trim().length === 0 || list.archivedAt !== null}
+          disabled={addDraft.trim().length === 0}
           keepFocus
         />
       </View>
@@ -795,7 +833,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
               name={item.name}
               checked={isChecked(item)}
               onToggle={() => void toggle(item)}
-              disabled={pending.has(item.id) || list.archivedAt !== null}
+              disabled={pending.has(item.id)}
               pill={section}
               onEdit={() => beginEditing(item.id)}
               editLabel={
@@ -840,20 +878,50 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
         })}
       </View>
 
-      {justFinished ? (
-        <Banner message="Shop recorded — this location's ordering will reflect it next time." />
-      ) : list.archivedAt !== null ? (
-        <Body>This shop has already been recorded.</Body>
-      ) : null}
+      {banner ? <Banner key={banner} message={banner} /> : null}
 
-      {confirmingFinish ? (
-        <Confirm
-          message="This records everything currently checked, in the order you checked it, as one completed shop at this location. If everything is checked, the list is done and moves out of your active lists. If some items are left unchecked, they'll stay on this list to finish later — only the checked ones are removed."
-          confirmLabel="Finish shopping"
-          onConfirm={() => void finishThisShop()}
-          onCancel={() => setConfirmingFinish(false)}
-          busy={finishingShopping}
-        />
+      {confirmingFinish && recordedOnly ? (
+        <Card>
+          <Body>
+            Everything checked has already been recorded. Reset the list to untick it all for
+            next time? No shop is recorded.
+          </Body>
+          <View style={styles.confirmActions}>
+            <PrimaryButton
+              label="Reset list"
+              onPress={() => void resetThisList()}
+              busy={finishingShopping}
+            />
+            <SecondaryButton
+              label="Cancel"
+              onPress={() => setConfirmingFinish(false)}
+              disabled={finishingShopping}
+            />
+          </View>
+        </Card>
+      ) : confirmingFinish && newCheckedCount > 0 ? (
+        <Card>
+          <Body>
+            {`This records what you've checked since the last finish, in the order you checked it, as a shop at ${storeName ?? 'this store'}.`}
+          </Body>
+          <View style={styles.confirmActions}>
+            <PrimaryButton
+              label="Done shopping"
+              onPress={() => void finishThisShop('done')}
+              busy={finishingShopping}
+            />
+            <SecondaryButton
+              label="Continue at another store"
+              onPress={() => void finishThisShop('continue')}
+              disabled={finishingShopping}
+            />
+            <SecondaryButton
+              label="Cancel"
+              onPress={() => setConfirmingFinish(false)}
+              disabled={finishingShopping}
+            />
+          </View>
+        </Card>
       ) : (
         <SecondaryButton
           label="Finish shopping"
@@ -861,7 +929,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
             setError(null);
             setConfirmingFinish(true);
           }}
-          disabled={checkedCount === 0 || pending.size > 0 || list.archivedAt !== null}
+          disabled={checkedCount === 0 || pending.size > 0}
         />
       )}
     </Screen>
@@ -877,6 +945,9 @@ function createStyles(tokens: Tokens) {
     },
     addField: {
       flex: 1,
+    },
+    confirmActions: {
+      gap: tokens.space.sm,
     },
     caption: {
       fontSize: tokens.fontSize.caption,
