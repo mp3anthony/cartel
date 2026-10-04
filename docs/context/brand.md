@@ -43,7 +43,7 @@ _Avoid_: Competitor styling
 ### App shell
 
 **Menu**:
-The hamburger (accessibility label "Menu") opening a popover of Home, Lists, Locations, History and Household. The dashboard is called "Home" here.
+The hamburger (accessibility label "Menu") opening a popover of Home, Lists, Locations, History and Household ("Locations" becomes "Stores" with #94; until then the app shows the old word, see `locations.md`). The dashboard is called "Home" here.
 _Avoid_: Drawer, sidebar
 
 **Version footer**:

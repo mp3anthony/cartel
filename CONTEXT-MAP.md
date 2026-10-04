@@ -18,6 +18,8 @@ Cartel is a shared shopping-list app for households: lists that live with a hous
 - **Locations ↔ Shopping**: Shopping Mode reads section tags to place untagged-history items, and Finish shopping writes an anonymous check-off record that teaches route order.
 - **Hard boundary**: Locations never carries household or list knowledge. Location data is global and anonymous; list data is household-private; the two never share an access-control path (`docs/adr/0002-location-global-list-private.md`, `03-SPEC.md` section 0).
 
+**Old words:** `03-SPEC.md`, the ADRs and the code use pre-#94 words: location = Store, section = Item location. Mapping in `docs/context/locations.md`; read it before the spec.
+
 Workflow and process terms (orchestrator, subagents, labels, tickets, wrap-up) live in `CLAUDE.md`. Architectural decisions live in `docs/adr/`. Docs record only what the code cannot explain.
 
 Non-glossary knowledge: binding build rules in `docs/conventions.md`, hard-won lessons and known items in `docs/lessons.md`, hosting, database and operations facts in `docs/environment.md`.

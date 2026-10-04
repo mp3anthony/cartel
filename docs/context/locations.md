@@ -2,48 +2,67 @@
 
 The global, anonymous store layer shared by every household. Nothing here knows about households or lists.
 
-> **Planned, not built (#107, ADR 0007):** locations become a seeded store catalog; users stop creating stores, and the **Chain** (brand) comes from the catalog row instead of a user choice. Until it ships, the terms below describe the app as it is. The **Store catalog**, **Canonical name** and **Store missing report** entries at the bottom describe the planned behaviour.
+> **Vocabulary ships with #94; until then the app still shows the old words.** The terms below use the new UI words. This file keeps its old name, as do the code, table names, routes and URLs.
 
-> **Pending rename (ticketed as #94, to land after #89):** in the UI, **Location** is to become **Store**, and **Section** / **section tag** is to become **location** (an item's place within a store). Code and schema names stay. Until that ships, the terms below describe the app as it is.
+> **Planned, not built (#107, ADR 0007):** stores become a seeded Store catalog; users stop creating stores, and the **Chain** (brand) comes from the catalog row instead of a user choice. The **Store catalog**, **Canonical name** and **Store missing report** entries at the bottom describe the planned behaviour.
+
+## Old-to-new mapping (#94, UI wording only)
+
+| Old UI word | New UI word |
+| --- | --- |
+| Location | **Store** (Locations menu item and screen become "Stores") |
+| Section / Section tag | **Item location** |
+| Location catalog | **Item catalog** |
+| (new) | **Store location** (where a store is on the map) |
+| bare "location" in phone permission messages | **Location Services** |
+
+`03-SPEC.md`, the ADRs, code identifiers, table names (`locations`, `location_items`, ...), routes and file names (including this file's) keep the old words as historical record (the spec has a locked section 0). A reader of the spec: "location" there means Store, "section" means Item location. The dashboard's "Sections" blocks (see `shopping.md`) are a different meaning and keep their name. The other glossaries (`lists.md`, `household.md`, `shopping.md`) still say "location" for a store and "section pill" for an item location until #94 ships; read them through this table.
 
 ## Language
 
 ### Stores
 
-**Location**:
-A store, global and shared across all households. Today users create one from "New location" on the Locations screen (name plus position); under #107 that creation is removed and locations come only from the Store catalog. No code path deletes one. Name and position cannot be edited after creation; only the Chain can. Under #107 the brand comes from the catalog, so even that edit goes away.
-_Avoid_: Shop, store (in code), place
+**Store**:
+A shop, global and shared across all households (old UI word: Location). Today users create one from "New location" on the Locations screen (name plus position); under #107 that creation is removed and stores come only from the Store catalog. No code path deletes one. Name and position cannot be edited after creation; only the Chain can. Under #107 the brand comes from the catalog, so even that edit goes away.
+_Avoid_: Shop, place. In the UI never "location" for a store after #94; the code keeps `location`.
+
+**Store location**:
+Where a store is on the map (its GPS position), used for nearby-store wording.
+_Avoid_: Address, position (in the UI)
+
+**Location Services**:
+The iPhone's own name for its GPS switch. Phone permission messages say this, never bare "location", so it cannot be confused with a Store location or an Item location. It is the phone's setting, not a Cartel concept.
 
 **Chain**:
-The brand a location belongs to: New World, PAK'nSAVE, Four Square, Woolworths, FreshChoice, or Other. An explicit choice by the user, never inferred from the name. Any household member can change it at any time. "Other" is a real value, distinct from no chain set; both look the same. SuperValue is deliberately not offered. Under #107 the brand comes from the catalog row; the user no longer chooses or edits it.
+The brand a store belongs to: New World, PAK'nSAVE, Four Square, Woolworths, FreshChoice, or Other. An explicit choice by the user, never inferred from the name. Any household member can change it at any time. "Other" is a real value, distinct from no chain set; both look the same. SuperValue is deliberately not offered. Under #107 the brand comes from the catalog row; the user no longer chooses or edits it.
 _Avoid_: Brand, banner, franchise
 
 **Merge prompt**:
-Retired by #107 along with user-created stores. Until then: when creating a location near an existing one, the app offers the existing one instead of a duplicate ("There's already a location nearby"). "Merge" means reusing the nearby row; nothing is deleted. The radius is locked at 100 m (`MERGE_RADIUS_M`), distinct from the larger nearby-stores radius used on the dashboard.
+Retired by #107 along with user-created stores. Until then: when creating a store near an existing one, the app offers the existing one instead of a duplicate (the prompt says "location" today and moves to the Store word under #94). "Merge" means reusing the nearby row; nothing is deleted. The radius is locked at 100 m (`MERGE_RADIUS_M`), distinct from the larger nearby-stores radius used on the dashboard.
 _Avoid_: Dedupe, duplicate warning
 
 **Attach**:
-Linking a list to a location ("Attach a location", "Change location", "Remove location" on list detail). Any household member may do so. Detaching is attaching nothing.
+Linking a list to a store (the list detail "Attach" / "Change" / "Remove" controls; wording per #94). Any household member may do so. Detaching is attaching nothing.
 _Avoid_: Assign, link, select
 
-### Sections
+### Item locations
 
-**Section tag**:
-The section of a store (an aisle or area) that an item belongs to at one location, matched by the item's normalised name. One per item per location, and anonymous: it records no creator. The first tag for an item is made from Shopping Mode; the catalog can only correct existing tags.
-_Avoid_: Aisle, category, label
+**Item location**:
+Where an item sits inside a store (an aisle or area, e.g. "Aisle 4"), matched by the item's normalised name (old UI words: Section, section tag; code: section tag). One per item per store, and anonymous: it records no creator. The first one for an item is made from Shopping Mode; the Item catalog can only correct existing ones.
+_Avoid_: Section (in the UI), aisle, category, label
 
 **Correction**:
-A proposal to change an item's section tag, made with "Propose" and confirmed with "Confirm". It stays pending until a second, independent user confirms; the proposer cannot confirm their own. Several different pending corrections may exist for one item; applying one clears the rest. There is no reject verb. Shown as a muted "Proposed: X" line; the dashboard lists "Pending corrections".
+A proposal to change an item's Item location, made with "Propose" and confirmed with "Confirm". It stays pending until a second, independent user confirms; the proposer cannot confirm their own. Several different pending corrections may exist for one item; applying one clears the rest. There is no reject verb. Shown as a muted "Proposed: X" line; the dashboard lists "Pending corrections".
 _Avoid_: Edit, suggestion, vote (in the UI)
 
-**Location catalog**:
-Not the planned Store catalog (the seeded list of stores). The per-location screen reached by "View catalog": every tagged item grouped by section, alphabetical within each, with "Nothing tagged here yet" when empty. Where corrections are proposed.
-_Avoid_: Store directory, item database
+**Item catalog**:
+The per-store screen reached by "View catalog" (old UI word: Location catalog): every item with an Item location, grouped by it, alphabetical within each, with "Nothing tagged here yet" when empty. Where corrections are proposed. Not the Store catalog below. Its redesign is #114.
+_Avoid_: Store directory, item database, catalog (unqualified)
 
-### Catalog (planned, #107)
+### Store catalog (planned, #107)
 
 **Store catalog**:
-Not the Location catalog (the per-location View catalog screen of tagged items). The seeded, Cartel-maintained list of supermarket and grocery chain branches (New World, PAK'nSAVE, Four Square, Woolworths, FreshChoice, SuperValue if any remain) in Christchurch and surrounding area, roughly Rangiora to Lincoln and the coast. Compiled from the brands' own store locators and OpenStreetMap, never from Google Maps; Ant spot-checks it before seeding. No independents, dairies or other shop types. Users find a store from it by nearby (dashboard radius) when location is allowed, otherwise by name search with a brand filter. Staleness is accepted; Store missing reports and corrections are the freshness mechanism.
+Not the Item catalog (the per-store screen of items). The seeded, Cartel-maintained list of supermarket and grocery chain branches (New World, PAK'nSAVE, Four Square, Woolworths, FreshChoice, SuperValue if any remain) in Christchurch and surrounding area, roughly Rangiora to Lincoln and the coast. Compiled from the brands' own store locators and OpenStreetMap, never from Google Maps; Ant spot-checks it before seeding. No independents, dairies or other shop types. Users find a store from it by nearby (dashboard radius) when Location Services is allowed, otherwise by name search with a brand filter. Staleness is accepted; Store missing reports and corrections are the freshness mechanism.
 _Avoid_: Places search, maps integration, catalog (unqualified)
 
 **Canonical name**:
