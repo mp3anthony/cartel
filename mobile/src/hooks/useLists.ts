@@ -38,10 +38,14 @@ export function useLists(client: SupabaseClient, enabled: boolean) {
     };
   }, []);
 
+  // Bumped per call so a slow, older response can never overwrite a newer one.
+  const requestSeq = useRef(0);
+
   const refresh = useCallback(async () => {
+    const seq = ++requestSeq.current;
     const outcome = await loadLists(client);
 
-    if (!active.current) {
+    if (!active.current || seq !== requestSeq.current) {
       return;
     }
 

@@ -363,6 +363,15 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     return optimisticChecked.has(item.id) ? optimisticChecked.get(item.id)! : item.checkedAt !== null;
   }
 
+  // A reset from another device can leave nothing ticked while the confirm card is armed;
+  // drop the armed state so the Finish button doesn't sit disabled and re-arm later.
+  const anyChecked = view.status === 'loaded' && view.items.some((item) => isChecked(item));
+  useEffect(() => {
+    if (!anyChecked) {
+      setConfirmingFinish(false);
+    }
+  }, [anyChecked]);
+
   useLayoutEffect(() => {
     // Same reasoning as ListDetailScreen's header: it carries the list's name, and
     // it's what carries back too.

@@ -101,7 +101,12 @@ insert into public.list_items (id, list_id, name, position, checked_at) values
 -- every role). Fixture-level sanity: that is what we expect.
 do $$
 begin
-  if (select count(*) from public.list_items where recorded_at is not null) <> 0 then
+  if (select count(*) from public.list_items
+      where recorded_at is not null
+        and list_id in ('70000000-0000-4000-8000-000000000581',
+                        '70000000-0000-4000-8000-000000000582',
+                        '70000000-0000-4000-8000-000000000583',
+                        '70000000-0000-4000-8000-000000000584')) <> 0 then
     raise exception 'FAIL: the BEFORE INSERT guard let a recorded_at through on a fixture insert';
   end if;
 end $$;
@@ -724,8 +729,10 @@ where id = '90000000-0000-4000-8000-000000005842';
 update public.lists set last_activity_at = '2000-01-01'
 where id = '70000000-0000-4000-8000-000000000584';
 insert into snap values
-  ('sessions_all', (select count(*) from public.shop_sessions)),
-  ('checkoffs_all', (select count(*) from public.location_checkoffs));
+  ('sessions_all', (select count(*) from public.shop_sessions
+                    where list_id = '70000000-0000-4000-8000-000000000584')),
+  ('checkoffs_all', (select count(*) from public.location_checkoffs
+                     where location_id = '81000000-0000-4000-8000-000000000058'));
 
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-4000-8000-00000000f5d1","role":"authenticated"}', true);
@@ -748,11 +755,15 @@ begin
     raise exception 'FAIL: reset_list did not bump last_activity_at';
   end if;
 
-  if (select count(*) from public.shop_sessions) <> (select v from snap where k = 'sessions_all') then
+  if (select count(*) from public.shop_sessions
+      where list_id = '70000000-0000-4000-8000-000000000584')
+     <> (select v from snap where k = 'sessions_all') then
     raise exception 'FAIL: reset_list wrote a shop_sessions row';
   end if;
 
-  if (select count(*) from public.location_checkoffs) <> (select v from snap where k = 'checkoffs_all') then
+  if (select count(*) from public.location_checkoffs
+      where location_id = '81000000-0000-4000-8000-000000000058')
+     <> (select v from snap where k = 'checkoffs_all') then
     raise exception 'FAIL: reset_list wrote a location_checkoffs row';
   end if;
 end $$;

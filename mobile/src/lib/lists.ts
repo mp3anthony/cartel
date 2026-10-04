@@ -126,23 +126,29 @@ export async function loadLists(client: SupabaseClient): Promise<Outcome<ListRow
   // app's other "small dataset" calls assume) rather than one aggregate per list.
   const counts = new Map<string, { itemCount: number; checkedCount: number }>();
   if (rows.length > 0) {
-    const itemResult = await client
-      .from('list_items')
-      .select('list_id, checked_at')
-      .in(
-        'list_id',
-        rows.map((row) => row.id),
-      )
-      .is('deleted_at', null);
+    // PostgREST caps a response at 1000 rows, so the lists are queried in chunks of 10:
+    // at most 100 items per list keeps every chunk comfortably under the cap.
+    const ids = rows.map((row) => row.id);
+    const itemRows: { list_id: string; checked_at: string | null }[] = [];
 
-    if (itemResult.error) {
-      return { ok: false, message: humanise(itemResult.error) };
+    for (let i = 0; i < ids.length; i += 10) {
+      const itemResult = await client
+        .from('list_items')
+        .select('list_id, checked_at')
+        .in('list_id', ids.slice(i, i + 10))
+        .is('deleted_at', null);
+
+      if (itemResult.error) {
+        return { ok: false, message: humanise(itemResult.error) };
+      }
+
+      itemRows.push(
+        ...((itemResult.data ?? []) as unknown as {
+          list_id: string;
+          checked_at: string | null;
+        }[]),
+      );
     }
-
-    const itemRows = (itemResult.data ?? []) as unknown as {
-      list_id: string;
-      checked_at: string | null;
-    }[];
 
     for (const item of itemRows) {
       const entry = counts.get(item.list_id) ?? { itemCount: 0, checkedCount: 0 };

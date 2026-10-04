@@ -362,7 +362,7 @@ export function ListSummaryRow({
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
       <View style={styles.summaryText}>
-        <Text numberOfLines={1} style={styles.rowLabel}>
+        <Text numberOfLines={1} style={styles.summaryName}>
           {name}
         </Text>
         <Text numberOfLines={1} style={styles.summarySecondary}>
@@ -1114,10 +1114,14 @@ function createStyles(tokens: Tokens) {
       color: tokens.color.textPrimary,
     },
     // ListSummaryRow's name-over-secondary column. `rowLabel` is `flex: 1` so it
-    // fills a plain row; inside this column it must not grow vertically.
+    // fills a plain row; the name here has its own style so it can't grow vertically.
     summaryText: {
       flex: 1,
       paddingVertical: tokens.space.xs,
+    },
+    summaryName: {
+      fontSize: tokens.fontSize.body,
+      color: tokens.color.textPrimary,
     },
     summarySecondary: {
       fontSize: tokens.fontSize.caption,
