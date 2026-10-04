@@ -493,13 +493,22 @@ export async function removeItem(
   // Soft delete for the same reason as removeList(): DELETE is not RLS-filtered, so it
   // is not granted on this table at all. The row keeps its `position`, which is what
   // makes an undo in a later slice a matter of clearing one column.
-  const { error } = await client
+  //
+  // `.select('id')` so a silent no-op is visible (#102): an update that RLS or a stale id
+  // turns into zero rows returns no error, and the screen would otherwise report success
+  // for a remove that never happened.
+  const { data, error } = await client
     .from('list_items')
     .update({ deleted_at: new Date().toISOString() })
-    .eq('id', itemId);
+    .eq('id', itemId)
+    .select('id');
 
   if (error) {
     return { ok: false, message: humanise(error) };
+  }
+
+  if (!data || data.length === 0) {
+    return { ok: false, message: 'That item couldn’t be removed. It may already be gone.' };
   }
 
   return { ok: true, value: undefined };
