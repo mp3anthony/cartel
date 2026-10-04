@@ -63,7 +63,7 @@ After plan approval, subagents work autonomously **except** when (a) the change 
 - A review that finds **actual issues**, or **genuine ambiguity**: surface to Ant instead of auto-approving.
 - **Docs-only PRs:** a PR changing only documentation or tooling scripts (no app code, no behaviour) never goes in front of Ant. A subagent (never the author) reviews it, the orchestrator fixes anything found, then merges. No version bump. Escalate only if the review finds a locked-invariant touch or real ambiguity.
 - `needs-manual-test`: when a change touches layout, styling or platform-native behaviour needing hands-on verification, label it and ping Ant before merge. Target iOS Safari.
-- **Manual-test checklist format:** numbered scenarios, each with (1) a short bold title, (2) exact setup steps, (3) one ✅ line with the pass condition, (4) an optional ❌ line only for a specific wrong-looking failure worth naming. Call out any step that must happen without a reload, in a single tab, or on a specific device. Separate PC and iPhone lists, in plain language, and post the test record on the issue, not only the PR description.
+- **Manual-test checklist format:** numbered scenarios, each with (1) a short bold title, (2) exact setup steps, (3) one ✅ line with the pass condition, (4) an optional ❌ line only for a specific wrong-looking failure worth naming. Call out any step that must happen without a reload, in a single tab, or on a specific device. One iPhone-only (iOS Safari) list; never write a PC or desktop list (mobile app, tested only on Ant's iPhone). Write it in plain language, and post the test record on the issue, not only the PR description.
 
 ### Token / context budget (soft guideline)
 
