@@ -5,11 +5,10 @@
 ## Current state (2026-10-04, end of session 7)
 
 - `main` is at 0.0.37 (`mobile/app.json`), live. Production holds real user data. Last active `03-SPEC.md` section: Slice 2 (reorder/remove), via #102.
-- #102 slice 1 shipped (PR #116): "×" on every row in the list screen and Shopping Mode, inline Remove/Cancel confirmation, `removeItem` reports a 0-row update. Reviewed clean by a separate agent; browser-tested (Chromium, not iOS Safari); test record is on the issue. The "keyboard up" iPhone case was skipped on purpose; Ant will flag it if it recurs. The original "x did nothing" cause is still unconfirmed.
+- #102 slice 1 shipped (0.0.37, PR #116); test record is on the issue. The "keyboard up" iPhone case was skipped on purpose; Ant will flag it if it recurs. The original "x did nothing" cause is still unconfirmed.
 - #102 slices 2 (0.0.38: tap name to rename, pin for location, pencil retired) and 3 (0.0.39: drag to reorder, spike-gated) remain; the plan is in the issue comments. Slice 2 is next.
 - New ticket #117: "JWT issued at future" error on anonymous sign-in happens often on Ant's phone (needs diagnosis first; a plain reload clears it).
 - Test data left on the shared Supabase project from this session's browser test (all anonymous, inert): one list "ZZ test 102" (`59344e62-4855-4942-acda-d3d45f8fe244`) with a recorded shop, owned by anonymous user `cef386ef-86ff-4207-942a-832f7567fc33` (plus one earlier empty anonymous user). Cleanup is by id only, never a blanket wipe.
-- Testing tip: in the in-app browser, `type`/Return does not reliably submit the add-item field; fill it with `form_input`, then click "+". Click by `ref`, or by frame coordinates (not screenshot pixels).
 - #94 grilled with docs (decisions on the ticket, vocabulary in `docs/context/locations.md`). #114 still to grill. Unlogged: Ant mentioned a lag issue (some actions slow, others instant); he will log it himself.
 
 ## Blocking order
