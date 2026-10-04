@@ -74,3 +74,4 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - Captcha on anonymous sign-in, orphaned households after a member leaves, and item quantities are not built; see `CHANGE-LOG.md`.
 - `docs/research/todoist-list-ui.md` draws on Ant's screenshots, not a primary source.
 - No leave-household action exists, so someone already in a household cannot join another. Tracked in #90.
+- Driving the app in the in-app browser: `type` plus Return does not reliably submit the add-item field; fill it with `form_input`, then click "+". Click by `ref` or by frame coordinates, never screenshot pixels. A fresh origin can show "JWT issued at future" (#117); reload once.
