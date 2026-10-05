@@ -48,7 +48,7 @@ _Avoid_: Assign, link, select
 ### Item locations
 
 **Item location**:
-Where an item sits inside a store (an aisle or area, e.g. "Aisle 4"), matched by the item's normalised name (old UI words: Section, section tag; code: section tag). One per item per store, and anonymous: it records no creator. The first one for an item is made from Shopping Mode; the Item catalog can only correct existing ones.
+Where an item sits inside a store (an aisle or area, e.g. "Aisle 4"), matched by the item's normalised name (old UI words: Section, section tag; code: section tag). One per item per store, and anonymous: it records no creator. The first one for an item is made from Shopping Mode or from the list screen's Location pin; the Item catalog can only correct existing ones.
 _Avoid_: Section (in the UI), aisle, category, label
 
 **Correction**:

@@ -37,7 +37,7 @@ One entry on a list, identified to the rest of the app by its normalised name (c
 _Avoid_: Product, entry, row (for the data)
 
 **Check off**:
-Tapping an item row toggles it checked or unchecked. The pencil and Confirm never toggle check.
+On list detail the check circle ticks an item and tapping the name renames it; in Shopping Mode tapping the name ticks it. The pin, "×" and Confirm never toggle check.
 _Avoid_: Tick, complete, mark done
 
 **Manual order**:
@@ -54,10 +54,14 @@ _Avoid_: Delete (for the user-facing action)
 The one-line field at the top of a list: "Add an item" with a "+" button. Enter or "+" adds and keeps focus for the next item. The same composer appears in Shopping Mode, at the top.
 _Avoid_: Quick add, input bar
 
-**Pencil editor**:
-The per-row edit affordance. One editor is open at a time; in list detail it holds rename plus up and down on a second line.
+**Rename**:
+Tapping the name on list detail turns that row into a small field (Return or ✓ saves, ✕ cancels). One editor is open at a time; it also holds up and down on a second line.
 _Avoid_: Edit mode, inline edit sheet
 
+**Location pin**:
+The pin on a row opens the same field for the item's location at the attached store (tag it, or propose a correction when it already has one). Shown in Shopping Mode and, only when a store is attached, on list detail.
+_Avoid_: Pencil, tag button
+
 **Compact row**:
-The one-line item row shared by Shopping Mode and list detail: check circle, name, a right-aligned neutral section pill, the pencil and the "×". Checked items stay in place.
+The one-line item row shared by Shopping Mode and list detail: check circle, name, then (all optional) a right-aligned neutral section pill (Shopping Mode only), the pin and the "×". Checked items stay in place.
 _Avoid_: Item card, list cell

@@ -15,6 +15,7 @@ import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme/ThemeProvider';
 import { scrimColor, type Tokens } from '../theme/tokens';
+import { PinIcon } from './RowIcons';
 
 /**
  * The shared surface every screen sits on. Centralising it is what keeps the ground
@@ -439,14 +440,19 @@ export function CheckTarget({
  * `disabled` exists so the ends of a list can refuse a move without the control
  * disappearing. Hiding it instead would shift every other control in the row the
  * moment an item reaches the top or bottom, which is a moving target to tap.
+ *
+ * `icon` (#102), when given, is drawn instead of `glyph` (an SVG such as `PinIcon`);
+ * the label still names the control, so the icon needs none of its own.
  */
 export function IconButton({
   glyph,
+  icon,
   accessibilityLabel,
   onPress,
   disabled = false,
 }: {
-  glyph: string;
+  glyph?: string;
+  icon?: ReactNode;
   accessibilityLabel: string;
   onPress: () => void;
   disabled?: boolean;
@@ -467,31 +473,33 @@ export function IconButton({
         disabled && styles.buttonInactive,
       ]}
     >
-      <Text style={styles.iconGlyph}>{glyph}</Text>
+      {icon ?? <Text style={styles.iconGlyph}>{glyph}</Text>}
     </Pressable>
   );
 }
 
 /**
- * The compact list-item row shared by Shopping Mode and the add-to-list screen: leading check circle, name, an optional right-aligned neutral pill, and a
- * pencil, on one ~52pt line with a hairline divider inset to the text edge — the
+ * The compact list-item row shared by Shopping Mode and the add-to-list screen: leading check circle, name, an optional right-aligned neutral pill, and
+ * optional pin and "×" controls, on one ~52pt line with a hairline divider inset to the text edge — the
  * density redesign of #76, replacing a 100pt-per-item stack of a check row plus a
  * separate tag row.
  *
- * Circle + name are one `Pressable` (the check-off target) and the pill and pencil are
- * its *siblings*, never nested inside it — `CheckTarget`'s own doc comment names the
- * two-touchables-react-to-one-tap anti-pattern this avoids. The pill is display only.
- * It ellipsis-truncates at 40% of the row so a long section name can't crowd out the
- * item name, and it is right-aligned (next to the pencil, which is always present)
- * so pills of different widths still end at the same edge and aisle changes read as a
- * column. Neutral on purpose: `accent` stays reserved for actions.
+ * Without `onRename` (Shopping Mode) circle + name are one `Pressable`, the check-off
+ * target. With it (list detail, #102) they split into two sibling targets: a 44pt
+ * checkbox circle that ticks, and the name, which opens rename. Either way the pill, pin
+ * and "×" are *siblings*, never nested inside a tick target — `CheckTarget`'s own doc
+ * comment names the two-touchables-react-to-one-tap anti-pattern this avoids. The pill is
+ * display only. It ellipsis-truncates at 40% of the row so a long section name can't
+ * crowd out the item name, and it is right-aligned so pills of different widths still
+ * end at the same edge and aisle changes read as a column. Neutral on purpose: `accent`
+ * stays reserved for actions.
  *
  * `editor` replaces the whole line while a row is being edited (see `InlineRowEditor`)
  * so the row *becomes* the editor rather than growing a stacked form beneath it.
  * `footer` renders inside the row above its divider, for per-row detail lines.
  *
- * `onRemove` (#102) adds a "×" as the last sibling, after the pencil, so it sits on the
- * main row instead of behind the editor. It is never inside the tick `Pressable`. `confirm`
+ * `onLocation` (#102) adds a pin before the "×" (it replaced the pencil). `onRemove`
+ * adds a "×" as the last sibling, so it sits on the main row instead of behind the editor. It is never inside the tick `Pressable`. `confirm`
  * (see `RowConfirm`) replaces the whole line the same way `editor` does; `editor` wins if
  * a caller ever passes both, though the screens keep the two mutually exclusive.
  */
@@ -501,9 +509,11 @@ export function CompactItemRow({
   onToggle,
   disabled = false,
   pill,
-  onEdit,
-  editLabel,
-  editDisabled = false,
+  onRename,
+  renameLabel,
+  onLocation,
+  locationLabel,
+  locationDisabled = false,
   onRemove,
   removeLabel,
   removeDisabled = false,
@@ -516,9 +526,11 @@ export function CompactItemRow({
   onToggle: () => void;
   disabled?: boolean;
   pill?: string | null;
-  onEdit: () => void;
-  editLabel: string;
-  editDisabled?: boolean;
+  onRename?: () => void;
+  renameLabel?: string;
+  onLocation?: () => void;
+  locationLabel?: string;
+  locationDisabled?: boolean;
   onRemove?: () => void;
   removeLabel?: string;
   removeDisabled?: boolean;
@@ -535,30 +547,71 @@ export function CompactItemRow({
         <View style={styles.compactLine}>{editor ?? confirm}</View>
       ) : (
         <View style={styles.compactLine}>
-          <Pressable
-            accessibilityRole="checkbox"
-            accessibilityLabel={name}
-            // Both spellings — see CheckTarget for why react-native-web 0.21 needs both.
-            aria-checked={checked}
-            accessibilityState={{ checked, disabled }}
-            disabled={disabled}
-            onPress={onToggle}
-            style={({ pressed }) => [
-              styles.compactCheck,
-              pressed && styles.rowPressed,
-              disabled && styles.buttonInactive,
-            ]}
-          >
-            <View style={[styles.checkCircle, checked && styles.checkCircleChecked]}>
-              {checked ? <Text style={styles.checkGlyph}>✓</Text> : null}
-            </View>
-            <Text
-              numberOfLines={2}
-              style={[styles.compactName, checked && styles.checkRowLabelChecked]}
+          {onRename ? (
+            <>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityLabel={name}
+                // Both spellings — see CheckTarget for why react-native-web 0.21 needs both.
+                aria-checked={checked}
+                accessibilityState={{ checked, disabled }}
+                disabled={disabled}
+                onPress={onToggle}
+                style={({ pressed }) => [
+                  styles.compactCircleTarget,
+                  pressed && styles.rowPressed,
+                  disabled && styles.buttonInactive,
+                ]}
+              >
+                <View style={[styles.checkCircle, checked && styles.checkCircleChecked]}>
+                  {checked ? <Text style={styles.checkGlyph}>✓</Text> : null}
+                </View>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={renameLabel ?? `Rename ${name}`}
+                accessibilityState={{ disabled }}
+                disabled={disabled}
+                onPress={onRename}
+                style={({ pressed }) => [
+                  styles.compactNameTarget,
+                  pressed && styles.rowPressed,
+                  disabled && styles.buttonInactive,
+                ]}
+              >
+                <Text
+                  numberOfLines={2}
+                  style={[styles.compactNameText, checked && styles.checkRowLabelChecked]}
+                >
+                  {name}
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityLabel={name}
+              aria-checked={checked}
+              accessibilityState={{ checked, disabled }}
+              disabled={disabled}
+              onPress={onToggle}
+              style={({ pressed }) => [
+                styles.compactCheck,
+                pressed && styles.rowPressed,
+                disabled && styles.buttonInactive,
+              ]}
             >
-              {name}
-            </Text>
-          </Pressable>
+              <View style={[styles.checkCircle, checked && styles.checkCircleChecked]}>
+                {checked ? <Text style={styles.checkGlyph}>✓</Text> : null}
+              </View>
+              <Text
+                numberOfLines={2}
+                style={[styles.compactName, checked && styles.checkRowLabelChecked]}
+              >
+                {name}
+              </Text>
+            </Pressable>
+          )}
 
           {pill ? (
             <View style={styles.compactPill}>
@@ -568,12 +621,14 @@ export function CompactItemRow({
             </View>
           ) : null}
 
-          <IconButton
-            glyph="✏"
-            accessibilityLabel={editLabel}
-            onPress={onEdit}
-            disabled={editDisabled}
-          />
+          {onLocation && locationLabel ? (
+            <IconButton
+              icon={<PinIcon />}
+              accessibilityLabel={locationLabel}
+              onPress={onLocation}
+              disabled={locationDisabled}
+            />
+          ) : null}
 
           {onRemove && removeLabel ? (
             <IconButton
@@ -1274,8 +1329,30 @@ function createStyles(tokens: Tokens) {
       minHeight: 52,
       paddingVertical: tokens.space.sm,
     },
+    // List detail (#102): the circle is its own 44pt target. Its left edge is the row's
+    // edge; the negative margin (net of compactLine's xs gap) pulls the name back to the
+    // divider's inset (24 + 16 = 40).
+    compactCircleTarget: {
+      width: tokens.minTouchTarget,
+      minHeight: 52,
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+      marginRight: tokens.space.lg + tokens.space.md - tokens.minTouchTarget - tokens.space.xs,
+    },
+    compactNameTarget: {
+      flex: 1,
+      minHeight: 52,
+      justifyContent: 'center',
+      paddingVertical: tokens.space.sm,
+    },
     compactName: {
       flex: 1,
+      fontSize: tokens.fontSize.body,
+      lineHeight: tokens.fontSize.body * 1.35,
+      color: tokens.color.textPrimary,
+    },
+    // Same text without `flex: 1`: inside the rename target (a column) it would collapse.
+    compactNameText: {
       fontSize: tokens.fontSize.body,
       lineHeight: tokens.fontSize.body * 1.35,
       color: tokens.color.textPrimary,
@@ -1340,7 +1417,7 @@ function createStyles(tokens: Tokens) {
     // 44pt touch target inside a ~24pt line. The extra height mostly goes *below* the
     // line (into its bottom padding, the divider, and the next row, whose own controls
     // paint later and win any overlap). Only `space.xs` extends upward — that is the
-    // gap under the pencil in the row above, so Confirm can't steal its taps.
+    // gap under the pin and × in the row above, so Confirm can't steal its taps.
     // `paddingBottom` re-centres the label on the 24pt line despite the lopsided box.
     pendingConfirm: {
       minHeight: tokens.minTouchTarget,

@@ -236,7 +236,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * unchanged, so #63's behaviour is too. "N of M checked" is now a small muted caption
  * above it rather than a body-size header line.
  *
- * Issue #102: each row gets a "×" after the pencil, which swaps the row for an inline
+ * Issue #102 slice 2 retired the pencil: the location editor (tag, or propose a correction)
+ * now opens from a pin on the row, and tapping the name still ticks. Slice 1: each row gets
+ * a "×" after the pin, which swaps the row for an inline
  * `RowConfirm` ("Remove {item}?"). `confirmingRemoveId` is one slot, mutually exclusive
  * with `editingItemId`. `removeThisItem` uses the same `pending` Set and `writingRef` as
  * the tag writes, and like `toggle()` it does not call `refresh()` afterwards: the
@@ -916,13 +918,13 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
               onToggle={() => void toggle(item)}
               disabled={pending.has(item.id)}
               pill={section}
-              onEdit={() => beginEditing(item.id)}
-              editLabel={
+              onLocation={() => beginEditing(item.id)}
+              locationLabel={
                 section !== null
                   ? `Propose a new location for ${item.name}`
                   : `Tag a location for ${item.name}`
               }
-              editDisabled={pending.has(item.id)}
+              locationDisabled={pending.has(item.id)}
               onRemove={() => beginRemoving(item.id)}
               removeLabel={`Remove ${item.name}`}
               removeDisabled={pending.has(item.id)}
