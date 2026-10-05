@@ -134,6 +134,10 @@ export function ListsScreen({
 
       {view.status === 'error' ? <ErrorNote message={view.message} /> : null}
 
+      {view.status === 'error' ? (
+        <SecondaryButton label="Try again" onPress={() => void refresh()} />
+      ) : null}
+
       {lists.map((list) => {
         const secondary = listSecondaryText(
           list,
