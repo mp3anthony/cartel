@@ -2,12 +2,12 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-05, end of session 13)
+## Current state (2026-10-05, end of session 14)
 
-- **#107 shipped (0.0.42, PR #129, closed), live.** Catalog-only Stores picker (52 Christchurch stores), Store missing report, chain badges, most-visited ordering. `report-feedback` Edge Function deployed by Ant by hand (v4). Ant's iPhone test passed, except scenario 1 (real GPS nearby) which he has not run (not near a supermarket); the nearby list was checked only with faked location in the desktop browser. Live footer confirmed 0.0.42. Scenario 8 (original three stores keep their history on Live) was not explicitly reported.
-- **#107 S4 still to do (next up):** Migration B (drop the store insert/update policies and grants, drop `other`, chain not null, unique name). Ant must approve it (G4) and applies it by hand (the classifier blocks agent production writes); Planner writes the plan first. Also: reverse `rls_locations*.sql` tests, fix fixtures that need a chain, docs (ADR 0007, `docs/context/locations.md`, ADR 0002 note, retire the Slice 4 merge-prompt section in `02-DESIGN-REFERENCE.md`, `docs/environment.md`, `docs/lessons.md` classifier note).
-- Open nits: Store missing reports are public GitHub issues (accepted); no rate limit on that path; `DonutChart.tsx:39` has a stale comment; test `store_catalog.sql` hardcodes 52 rows; the badge shape is now a circle (docs only mention it in the `StoreBadge.tsx` comment).
-- `main` is at 0.0.42 (`mobile/app.json`). Production holds real user data. Last active `03-SPEC.md` section: none.
+- **#107 fully shipped (S4 = 0.0.43, PR #132, closed).** Migration B was applied by Ant by hand and checked read-only: client policies and grants gone, `chain` is one of five brands and not null, `locations_name_key` unique, 52 stores, the three original stores keep their history. Stores are read-only to clients (ADR 0007). Earlier, 0.0.42 (PR #129) shipped the picker and Store missing report. Ant has not run scenario 1 (real GPS nearby) or a 0.0.43 iPhone smoke check (version footer, Stores picker lists, open a list on Woolworths Northlands).
+- **S4 tests never run.** The rewritten `supabase/tests/rls_locations*.sql`, the fixture updates and `store_catalog.sql` were reviewed statically (clean) but never pasted into the SQL editor. Run them (all roll back) before relying on them.
+- Open nits: Store missing reports are public GitHub issues (accepted); no rate limit on that path; comment at `supabase/tests/rls_location_items.sql:23` still names the dropped `locations_insert_own`; `LocationsScreen.tsx` header comments may still describe the old create/edit flow; the badge shape is now a circle (docs only mention it in the `StoreBadge.tsx` comment).
+- `main` is at 0.0.43 (`mobile/app.json`). Production holds real user data. Last active `03-SPEC.md` section: none.
 - #117 shipped (0.0.41); details in `docs/lessons.md`. Open follow-ups: no iPhone check was run, the household screen has no Try again of its own, and which query fails first is still unverified (the next real occurrence shows in the `[cartel:postgrest-retry]` log).
 - #94 shipped (0.0.40): the Stores / Item location vocabulary. The iOS native permission string in `mobile/app.json` (`locationWhenInUsePermission`) still says "location" (native builds only). `mobile/package-lock.json` still says 0.0.36 (never kept in step).
 - Ticket #123: drag auto-scroll near the screen edge on long lists (v1 limit; needs an iPhone check). #114 still to grill. Unlogged: Ant mentioned a lag issue (some actions slow, others instant); he will log it himself.
@@ -17,19 +17,15 @@
 
 Can start now (no blockers):
 
-1. #107 S4 (see Current state).
-2. Grill #109, #110, #111, #114; grill #112 later. #109, #110 and #111 unblock most of the rest.
-3. #123 (low priority, whenever).
+1. Grill #109, #110, #111, #114, #112. #109, #110 and #111 unblock most of the rest.
+2. #123 (low priority, whenever).
 
 Then:
 
-4. #103, blocked by #110.
-5. #90, blocked by #109 and #110. Stops at the plan for Ant (RLS, deleting a household).
-6. #106, blocked by #111. Production merge, stops at the plan for Ant.
-
-Last:
-
-7. #112, blocked by #107 S4; needs grilling first.
+3. #103, blocked by #110.
+4. #90, blocked by #109 and #110. Stops at the plan for Ant (RLS, deleting a household).
+5. #106, blocked by #111. Production merge, stops at the plan for Ant.
+6. #112, no longer blocked (#107 S4 shipped); needs grilling first.
 
 Collisions: #103 (and #111 for the row layout) touch `ListDetailScreen`; whichever lands second rebases onto the drag-handle row and the new wording.
 
