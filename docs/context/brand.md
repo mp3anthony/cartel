@@ -19,7 +19,7 @@ The page background colour of each theme. The dark ground is locked to the app i
 _Avoid_: Background colour, canvas
 
 **Theme**:
-The Light, Dark or System choice, labelled "Appearance" on the Household screen. System follows the device live. Light is the default and the design baseline; Dark is a user option, never the starting point for design. The installed-PWA status bar follows the resolved theme.
+The Light, Dark or System choice, labelled "Appearance" on the Household screen (decided in #109, not built yet: it becomes a section of Settings, see `household.md`). System follows the device live. Light is the default and the design baseline; Dark is a user option, never the starting point for design. The installed-PWA status bar follows the resolved theme.
 _Avoid_: Mode, skin, night mode
 
 **Chain colours**:
@@ -43,13 +43,13 @@ _Avoid_: Competitor styling
 ### App shell
 
 **Menu**:
-The hamburger (accessibility label "Menu") opening a popover of Home, Lists, Stores, History and Household. The dashboard is called "Home" here.
+The hamburger (accessibility label "Menu") opening a popover of Home, Lists, Stores, History and Household. The dashboard is called "Home" here. Decided in #109 (not built yet): the Household item becomes "Settings", see `household.md`.
 _Avoid_: Drawer, sidebar
 
 **Version footer**:
-A `v<version> · Live | Preview | Dev` line at the bottom of the Household screen. See `docs/environment.md`.
+A `v<version> · Live | Preview | Dev` line at the bottom of the Household screen. See `docs/environment.md`. Decided in #109 (not built yet): it moves to a two-line Settings footer, see Settings footer in `household.md`.
 _Avoid_: Build stamp, About page
 
 **Feedback**:
-The "Report a bug or idea" screen, entered from the floating "Report" pill on the Household screen only. Needs a type (Bug or Feature idea), what is happening, what should happen and the device; name and title are optional. On success a plain "thanks" banner (no issue number); on failure the form is kept.
+The "Report a bug or idea" screen, entered from the floating "Report" pill on the Household screen only. Needs a type (Bug or Feature idea), what is happening, what should happen and the device; name and title are optional. On success a plain "thanks" banner (no issue number); on failure the form is kept. Decided in #109 (not built yet): becomes a single "Report issue" control on Settings with no type choice, see `household.md`.
 _Avoid_: Support, contact us, ticket
