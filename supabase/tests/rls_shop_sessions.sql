@@ -67,9 +67,9 @@ insert into public.household_members (user_id, household_id) values
   ('00000000-0000-4000-8000-000000000901', '90000000-0000-4000-8000-000000000001'),
   ('00000000-0000-4000-8000-000000000902', '90000000-0000-4000-8000-000000000001');
 
-insert into public.locations (id, name, lat, lng, created_by) values
+insert into public.locations (id, name, lat, lng, chain, created_by) values
   ('91000000-0000-4000-8000-000000000001',
-   'Test Supermarket', -43.5321, 172.6362,
+   'Test Supermarket', -43.5321, 172.6362, 'new_world',
    '00000000-0000-4000-8000-000000000901');
 
 insert into public.lists (id, owner_id, household_id, name) values

@@ -18,4 +18,4 @@ Users find a store nearby (dashboard radius) when location is allowed, otherwise
 - The catalog goes stale as stores open and close. Accepted: Store missing reports and corrections are the freshness mechanism.
 - Coverage is deliberately narrow (no independents, dairies or other shop types) and regional; widening it is a manual compile-and-seed job.
 - Adding a store needs Ant; there is no user path to create one.
-- The #107 migration must remove or tighten client INSERT on `locations` (the `locations_insert_own` policy, `supabase/migrations/20260810000005_locations.sql`); otherwise users could still create stores directly.
+- Migration B (`20261005000001`) removed client INSERT and the #54 chain UPDATE on `locations`: clients only read stores. `chain` is not null and one of the five brands (`other` is retired), and names are unique. Adding a brand or a store is a migration that Ant applies by hand. `created_by` is kept as provenance (NULL for seeded rows) and is still withheld from SELECT.

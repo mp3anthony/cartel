@@ -514,9 +514,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
 
   // Closes the editor only if it is still the one for `itemId`: the user may have
   // opened another row's editor while this row's write was in flight, and closing
-  // (or wiping the draft of) that one would lose their typing. Same
-  // guard-on-still-matching idea as `LocationsScreen`'s chain editor, though that one
-  // compares in a functional state update rather than a ref.
+  // (or wiping the draft of) that one would lose their typing.
   function finishEditing(itemId: string) {
     if (editingItemIdRef.current === itemId) {
       cancelEditing();

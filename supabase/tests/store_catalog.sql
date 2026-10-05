@@ -10,8 +10,9 @@
 -- (docs/lessons.md): execute_sql runs as that role, so plain selects below see
 -- every row. Only the last check switches to `authenticated`.
 --
--- Run it after Migration A. It describes the catalog at seed time: the row count
--- (52) is the CSV's, so it will need updating once stores are added or retired.
+-- Run it after Migration A. It describes the catalog at seed time, so it asserts
+-- at least the 52 seeded stores (the CSV row count), never an exact count: stores
+-- added later by migration must not break it.
 
 begin;
 
@@ -20,10 +21,10 @@ declare
   n integer;
   bad text;
 begin
-  -- 1. Row count equals the CSV (supabase/seed/store-catalog-christchurch.csv).
+  -- 1. Row count is at least the CSV (supabase/seed/store-catalog-christchurch.csv).
   select count(*) into n from public.locations;
-  if n <> 52 then
-    raise exception 'FAIL: expected 52 locations (the CSV row count), found %', n;
+  if n < 52 then
+    raise exception 'FAIL: expected at least 52 locations (the CSV row count), found %', n;
   end if;
 
   -- 2. Every chain is one of the five brands (no null, no 'other').
@@ -112,14 +113,16 @@ end $$;
 insert into auth.users (id, is_anonymous) values
   ('00000000-0000-4000-8000-0000000000d1', true);
 
+select set_config('cartel.expected_locations', (select count(*) from public.locations)::text, true);
+
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated"}', true);
 set local role authenticated;
 
 do $$
 begin
-  if (select count(*) from public.locations) <> 52 then
-    raise exception 'FAIL: an authenticated user with no household does not see all 52 catalog stores';
+  if (select count(*) from public.locations) <> current_setting('cartel.expected_locations')::int then
+    raise exception 'FAIL: an authenticated user with no household does not see every catalog store';
   end if;
 end $$;
 

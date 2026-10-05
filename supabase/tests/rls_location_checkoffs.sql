@@ -39,9 +39,9 @@ insert into auth.users (id, is_anonymous) values
   ('00000000-0000-4000-8000-0000000000e1', true),  -- E
   ('00000000-0000-4000-8000-0000000000f1', true);  -- F
 
-insert into public.locations (id, name, lat, lng, created_by) values
+insert into public.locations (id, name, lat, lng, chain, created_by) values
   ('80000000-0000-4000-8000-000000000001',
-   'Test Supermarket', -36.8485, 174.7633,
+   'Test Supermarket', -36.8485, 174.7633, 'new_world',
    '00000000-0000-4000-8000-0000000000e1');
 
 -- ---------------------------------------------------------------------------
@@ -167,9 +167,9 @@ reset role;
 -- `locations`) must take the checkoff row with it.
 -- ---------------------------------------------------------------------------
 
-insert into public.locations (id, name, lat, lng, created_by) values
+insert into public.locations (id, name, lat, lng, chain, created_by) values
   ('80000000-0000-4000-8000-000000000002',
-   'Test Superette', -36.85, 174.76,
+   'Test Superette', -36.85, 174.76, 'new_world',
    '00000000-0000-4000-8000-0000000000e1');
 
 select set_config('request.jwt.claims',
