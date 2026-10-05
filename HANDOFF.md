@@ -2,8 +2,10 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-06, end of session 16)
+## Current state (2026-10-06, end of session 17)
 
+- **#109 (Household screen becomes Settings) is grilled and settled, not built.** Outcome is on the issue and recorded in `docs/context/household.md` (Settings section, marked decided-but-not-built); PR #140. Next step is the Planner, which stops at the plan for Ant because it changes the deployed `report-feedback` Edge Function. Build to-dos (stale docs to fix, deploy ordering) are in a comment on #109. No `03-SPEC.md` section was active.
+- **Logged in `CHANGE-LOG.md` as `pending` out-of-spec, for Ant to triage:** members adding a first name or nickname (new column plus RLS read policy), and renaming a household (RLS write, "who may rename" open). Filed **#139**: pull design references from the Hazardous Schematics website into `02-DESIGN-REFERENCE.md`; needs its own grill.
 - **#111 (item quantity) is fully shipped and closed.** Slice A 0.0.44 (PR #135), Slice B 0.0.45 (PR #137). Ant ran the Slice B iPhone checklist and it passed; Slice A's checklist was never run (assumed passed). Last active `03-SPEC.md` section: none.
 - **#106 relationship:** #111 has landed, so #106 is unblocked. #106 still owns location-tag lookup normalisation, merging existing duplicate rows (open: sum quantities clamped to 99? which tick state and position survive?), rename onto an existing name, and copying old History snapshots with duplicate names. If #106 changes name normalisation it must redefine `add_list_item` (it uses `lower(btrim())`).
 - Open nits, deliberately skipped. Slice B review (all cosmetic): the "already ×99" note shows the success tick (`Banner` is positive-only); on list detail the bump note can go stale after a stepper tap (spec: cleared on add or tick only); in Shopping Mode the note survives Finish and Reset. Slice A review: a narrow flicker window if a refetch lands after the last write resolves; a hung request keeps Finish disabled until reload; `writeShown` missing from an effect's deps (lint only). Each tap bumps `lists.last_activity_at`, so lists reload per tap (Ant mentioned lag elsewhere; watch it).
@@ -20,16 +22,17 @@
 Can start now (no blockers):
 
 1. **#106** (unblocked). Production merge, stops at the plan for Ant; grill its open questions first (see relationship note).
-2. Grill #109, #110, #114, #112. #109 and #110 unblock most of the rest.
-3. #123 (low priority, whenever).
+2. Grill #110 (Home overhaul; shares screens with #109), #114, #112, #139 (design reference). #110 unblocks most of the rest.
+3. Plan #109 (grilled; see above).
+4. #123 (low priority, whenever).
 
 Then:
 
-4. #103, blocked by #110.
-5. #90, blocked by #109 and #110. Stops at the plan for Ant (RLS, deleting a household).
-6. #112, no longer blocked (#107 S4 shipped); needs grilling first.
+5. #103, blocked by #110.
+6. #90, blocked by #109 (now grilled, needs building) and #110. Stops at the plan for Ant (RLS, deleting a household). Its Leave household button moves into the Settings Household section.
+7. #112, no longer blocked (#107 S4 shipped); needs grilling first.
 
-Collisions: #103 touches `ListDetailScreen`; whichever lands second rebases onto the drag-handle row, the quantity control and the new wording.
+Collisions: #103 touches `ListDetailScreen`; whichever lands second rebases onto the drag-handle row, the quantity control and the new wording. #109, #103 and #110 all touch navigation and screens; whichever lands later rebases.
 
 ## Where things live
 
