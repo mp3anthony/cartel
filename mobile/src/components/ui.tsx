@@ -629,7 +629,7 @@ export function CompactItemRow({
           )}
 
           {pill ? (
-            <View style={styles.compactPill}>
+            <View style={[styles.compactPill, stepper ? styles.compactPillWithStepper : null]}>
               <Text numberOfLines={1} ellipsizeMode="tail" style={styles.compactPillLabel}>
                 {pill}
               </Text>
@@ -705,7 +705,7 @@ export function QuantityControl({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Quantity ${quantity}, change`}
+      accessibilityLabel={`Quantity ${quantity} of ${name}, change`}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onOpenEditor}
@@ -737,6 +737,7 @@ export function QuantityEditor({
   onIncrement,
   onDecrement,
   onDone,
+  disabled = false,
 }: {
   name: string;
   quantity: number;
@@ -744,6 +745,8 @@ export function QuantityEditor({
   onIncrement: () => void;
   onDecrement: () => void;
   onDone: () => void;
+  /** Holds the steppers (not Done) while the screen is finishing a shop. */
+  disabled?: boolean;
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -757,7 +760,7 @@ export function QuantityEditor({
         glyph="−"
         accessibilityLabel={`Decrease quantity of ${name}`}
         onPress={onDecrement}
-        disabled={quantity <= 1}
+        disabled={disabled || quantity <= 1}
       />
       <Text accessibilityLabel={`Quantity ${quantity}`} style={styles.quantityEditorValue}>
         {quantity}
@@ -766,7 +769,7 @@ export function QuantityEditor({
         glyph="+"
         accessibilityLabel={`Increase quantity of ${name}`}
         onPress={onIncrement}
-        disabled={quantity >= max}
+        disabled={disabled || quantity >= max}
       />
       <Pressable
         accessibilityRole="button"
@@ -1569,6 +1572,10 @@ function createStyles(tokens: Tokens) {
       borderColor: tokens.color.border,
       paddingHorizontal: tokens.space.sm,
       paddingVertical: 2,
+    },
+    // With a quantity control on the line the pill gives up room so the name keeps it.
+    compactPillWithStepper: {
+      maxWidth: '30%',
     },
     compactPillLabel: {
       fontSize: tokens.fontSize.caption,

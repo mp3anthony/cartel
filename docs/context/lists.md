@@ -37,11 +37,11 @@ One entry on a list, identified to the rest of the app by its normalised name (c
 _Avoid_: Product, entry, row (for the data)
 
 **Quantity**:
-A whole number from 1 to 99 on an item, with no units ("2", not "2 litres"). Every item starts at 1, including all items that existed before quantities. Changed with the stepper on the Compact row. Shared lists: quantity changes are adjustments, so two people tapping "+" at the same moment both count. Kept when a list is reset, recorded in Shop history, and brought back by both copy routes (see Finish shopping and Shop history).
+A whole number from 1 to 99 on an item, with no units ("2", not "2 litres"). Every item starts at 1, including all items that existed before quantities. Changed from the Compact row: the small "+" at 1, or the "×N" chip (for example "×2") from 2 up, which opens the quantity editor. Shared lists: quantity changes are adjustments, so two people tapping "+" at the same moment both count. Kept when a list is reset, recorded in Shop history, and brought back by both copy routes (see Finish shopping and Shop history).
 _Avoid_: Count, amount, units
 
 **Check off**:
-On list detail the check circle ticks an item and tapping the name renames it; in Shopping Mode tapping the name ticks it. The pin, "×", the quantity stepper and Confirm never toggle check. One tick covers the whole quantity; there is no partial state.
+On list detail the check circle ticks an item and tapping the name renames it; in Shopping Mode tapping the name ticks it. The pin, "×", the quantity "+", the "×N" chip, the quantity editor and Confirm never toggle check. One tick covers the whole quantity; there is no partial state.
 _Avoid_: Tick, complete, mark done
 
 **Manual order**:
@@ -67,5 +67,5 @@ The pin on a row opens the same field for the item's Item location at the attach
 _Avoid_: Pencil, tag button
 
 **Compact row**:
-The one-line item row shared by Shopping Mode and list detail: check circle, name, then (all optional) a right-aligned neutral item location pill (Shopping Mode only), the quantity stepper, the pin and the "×". Checked items stay in place. The stepper shows in list detail and Shopping Mode: at quantity 1 only a small "+" shows; above 1 it reads "− 2 +", and stepping back to 1 hides the "−" and number again. "+" is disabled at 99. The "×" still removes the whole item, whatever its quantity.
+The one-line item row shared by Shopping Mode and list detail: check circle, name, then (all optional) a right-aligned neutral item location pill (Shopping Mode only), the quantity control, the pin and the "×". Checked items stay in place. The quantity control shows in list detail and Shopping Mode: at quantity 1 only a small "+" shows; at 2 or more it shows a "×N" chip (for example "×2"). Tapping the chip turns the row into the **quantity editor**, "− N + Done", the same row-becomes-editor pattern as Rename: one editor is open at a time, and dragging is off while it is open. "+" is disabled at 99 and "−" at 1. The "×" still removes the whole item, whatever its quantity.
 _Avoid_: Item card, list cell

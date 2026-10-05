@@ -965,6 +965,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
                   quantity={quantityOf(item)}
                   onIncrement={() => void step(item, 1)}
                   onOpenEditor={() => beginQuantityEditing(item.id)}
+                  disabled={finishingShopping}
                 />
               }
               onLocation={() => beginEditing(item.id)}
@@ -1011,6 +1012,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
                     onIncrement={() => void step(item, 1)}
                     onDecrement={() => void step(item, -1)}
                     onDone={() => setQuantityEditingId(null)}
+                    disabled={finishingShopping}
                   />
                 ) : undefined
               }
@@ -1046,6 +1048,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
               label="Reset list"
               onPress={() => void resetThisList()}
               busy={finishingShopping}
+              disabled={inFlightTotal > 0}
             />
             <SecondaryButton
               label="Cancel"
@@ -1064,11 +1067,12 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
               label="Done shopping"
               onPress={() => void finishThisShop('done')}
               busy={finishingShopping}
+              disabled={inFlightTotal > 0}
             />
             <SecondaryButton
               label="Continue at another store"
               onPress={() => void finishThisShop('continue')}
-              disabled={finishingShopping}
+              disabled={finishingShopping || inFlightTotal > 0}
             />
             <SecondaryButton
               label="Cancel"

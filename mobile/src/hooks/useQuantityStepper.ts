@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { humanise } from '../lib/household';
 import { adjustItemQuantity, clampQuantity, type ListItemRow } from '../lib/lists';
 import type { ItemsView } from './useListItems';
 
@@ -97,13 +98,24 @@ export function useQuantityStepper({
     setInFlightTotal((total) => total + 1);
 
     try {
-      const outcome = await adjustItemQuantity(client, item.id, delta);
+      let failure: string | null = null;
 
-      if (!outcome.ok) {
+      try {
+        const outcome = await adjustItemQuantity(client, item.id, delta);
+        if (!outcome.ok) {
+          failure = outcome.message;
+        }
+      } catch (thrown) {
+        failure = humanise({
+          message: thrown instanceof Error ? thrown.message : String(thrown),
+        });
+      }
+
+      if (failure !== null) {
         const dropped = new Map(shownRef.current);
         dropped.delete(item.id);
         writeShown(dropped);
-        setError(outcome.message);
+        setError(failure);
         void refresh();
       }
     } finally {
