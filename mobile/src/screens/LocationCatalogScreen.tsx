@@ -203,8 +203,8 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
     return (
       <Screen edges={NAVIGATOR_EDGES}>
         <EmptyState
-          heading="Nothing tagged here yet"
-          body="Items show up here as people shop and tag them."
+          heading="No item locations here yet"
+          body="Items show up here once people add their item locations while shopping."
         />
       </Screen>
     );
@@ -245,7 +245,7 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
                   {correcting ? (
                     <View style={styles.composer}>
                       <Field
-                        label="New section"
+                        label="New item location"
                         value={correctionDraft}
                         onChangeText={setCorrectionDraft}
                         placeholder={`Currently: ${item.section}`}
@@ -273,7 +273,7 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
                       <Text style={styles.itemName}>{item.name}</Text>
                       <IconButton
                         glyph="✏"
-                        accessibilityLabel={`Propose a new location for ${item.name}`}
+                        accessibilityLabel={`Propose a new item location for ${item.name}`}
                         onPress={() => beginCorrecting(item)}
                         disabled={pending.has(item.id)}
                       />
@@ -284,7 +284,7 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
                     <View style={styles.pendingCorrections}>
                       {corrections.map((correction) => (
                         <View key={correction.proposedSection} style={styles.pendingCorrectionRow}>
-                          <Body>{`Proposed new location: "${correction.proposedSection}"`}</Body>
+                          <Body>{`Proposed new item location: "${correction.proposedSection}"`}</Body>
                           <PrimaryButton
                             label="Confirm"
                             onPress={() => void confirmCorrection(item, correction.proposedSection)}

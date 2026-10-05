@@ -47,7 +47,7 @@ export async function requestLocation(): Promise<LocationPermissionOutcome> {
     return {
       status: 'error',
       message:
-        "Couldn't get your location just now. Check that location services are on, and try again.",
+        "Couldn't find where you are just now. Check that Location Services is on, and try again.",
     };
   }
 }

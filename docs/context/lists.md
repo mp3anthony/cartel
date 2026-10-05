@@ -23,7 +23,7 @@ Turning a personal list into a shared list. One-way: a shared list can never be 
 _Avoid_: Promote (older spec wording), publish, unshare, demote
 
 **Start new list from this** (copy):
-Copies a finished shop or a current list into a new, unchecked list, with a prefilled name and the same "Share with" choice. From History it copies the full original snapshot of the shop and always attaches that shop's location; from list detail it copies current items and attaches a location only if the source has one. The source is never changed.
+Copies a finished shop or a current list into a new, unchecked list, with a prefilled name and the same "Share with" choice. From History it copies the full original snapshot of the shop and always attaches that shop's store; from list detail it copies current items and attaches a store only if the source has one. The source is never changed.
 _Avoid_: Duplicate, clone, template, re-shop
 
 **Remove list**:
@@ -59,9 +59,9 @@ Tapping the name on list detail turns that row into a small field (Return or ✓
 _Avoid_: Edit mode, inline edit sheet
 
 **Location pin**:
-The pin on a row opens the same field for the item's location at the attached store (tag it, or propose a correction when it already has one). Shown in Shopping Mode and, only when a store is attached, on list detail.
+The pin on a row opens the same field for the item's Item location at the attached store (add it, or propose a correction when it already has one). Shown in Shopping Mode and, only when a store is attached, on list detail.
 _Avoid_: Pencil, tag button
 
 **Compact row**:
-The one-line item row shared by Shopping Mode and list detail: check circle, name, then (all optional) a right-aligned neutral section pill (Shopping Mode only), the pin and the "×". Checked items stay in place.
+The one-line item row shared by Shopping Mode and list detail: check circle, name, then (all optional) a right-aligned neutral item location pill (Shopping Mode only), the pin and the "×". Checked items stay in place.
 _Avoid_: Item card, list cell

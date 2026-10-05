@@ -786,8 +786,8 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     return (
       <Screen edges={NAVIGATOR_EDGES}>
         <EmptyState
-          heading="No location attached"
-          body="Attach a location to this list before you start shopping."
+          heading="No store attached"
+          body="Attach a store to this list before you start shopping."
           actionLabel="Back to list"
           onAction={() => navigation.navigate('ListDetail', { listId })}
         />
@@ -921,8 +921,8 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
               onLocation={() => beginEditing(item.id)}
               locationLabel={
                 section !== null
-                  ? `Propose a new location for ${item.name}`
-                  : `Tag a location for ${item.name}`
+                  ? `Propose a new item location for ${item.name}`
+                  : `Add an item location for ${item.name}`
               }
               locationDisabled={pending.has(item.id)}
               onRemove={() => beginRemoving(item.id)}
@@ -946,7 +946,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
                     onChangeText={setLocationDraft}
                     placeholder={section !== null ? `Currently: ${section}` : 'Aisle 4'}
                     accessibilityLabel={
-                      section !== null ? `New location for ${item.name}` : `Location for ${item.name}`
+                      section !== null ? `New item location for ${item.name}` : `Item location for ${item.name}`
                     }
                     onSubmit={() => void (section !== null ? submitCorrection(item) : submitTag(item))}
                     onCancel={cancelEditing}

@@ -814,7 +814,7 @@ export function PendingCorrectionLine({
       </Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Confirm new location ${proposedSection}`}
+        accessibilityLabel={`Confirm new item location ${proposedSection}`}
         accessibilityState={{ disabled: busy }}
         disabled={busy}
         onPress={onConfirm}

@@ -179,8 +179,8 @@ export function DashboardScreen({
   const locationName = useCallback(
     (locationId: string): string =>
       locationsView.status === 'loaded'
-        ? (locationsView.locations.find((l) => l.id === locationId)?.name ?? 'a location')
-        : 'a location',
+        ? (locationsView.locations.find((l) => l.id === locationId)?.name ?? 'a store')
+        : 'a store',
     [locationsView],
   );
 
@@ -308,7 +308,7 @@ export function DashboardScreen({
         ) : nearbyState.status === 'checking' ? (
           <ActivityIndicator color={tokens.color.accent} />
         ) : nearbyState.status === 'denied' ? (
-          <Body>Location access isn't available, so nearby stores can't be checked this session.</Body>
+          <Body>Location Services isn't available, so nearby stores can't be checked this session.</Body>
         ) : nearbyState.status === 'error' ? (
           <ErrorNote message={nearbyState.message} />
         ) : nearbyState.results.length === 0 ? (

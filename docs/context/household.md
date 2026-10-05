@@ -11,7 +11,7 @@ The small group of people who share lists, reached from the menu item "Household
 _Avoid_: Family, team, group, account
 
 **Member**:
-A person in a household. Every member has equal rank: any member can attach a location, share a list, copy from history or invite someone. There are no owners or admins of a household.
+A person in a household. Every member has equal rank: any member can attach a store, share a list, copy from history or invite someone. There are no owners or admins of a household.
 _Avoid_: Owner, admin, guest
 
 **Solo use**:

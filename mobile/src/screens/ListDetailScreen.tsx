@@ -560,7 +560,7 @@ export function ListDetailScreen({
           <Body>
             {attachedLocation
               ? `Shopping at ${attachedLocation.name}`
-              : 'Shopping at a location'}
+              : 'Shopping at a store'}
           </Body>
           <SecondaryButton
             label="Start shopping"
@@ -568,21 +568,21 @@ export function ListDetailScreen({
             disabled={busy}
           />
           <SecondaryButton
-            label="Change location"
+            label="Change store"
             onPress={() =>
               navigation.navigate('Locations', { attachToListId: listId })
             }
             disabled={busy}
           />
           <SecondaryButton
-            label="Remove location"
+            label="Remove store"
             onPress={removeLocation}
             disabled={busy}
           />
         </>
       ) : (
         <SecondaryButton
-          label="Attach a location"
+          label="Attach a store"
           onPress={() => navigation.navigate('Locations', { attachToListId: listId })}
           disabled={busy}
         />
@@ -664,8 +664,8 @@ export function ListDetailScreen({
             }
             locationLabel={
               section !== null
-                ? `Propose a new location for ${item.name}`
-                : `Tag a location for ${item.name}`
+                ? `Propose a new item location for ${item.name}`
+                : `Add an item location for ${item.name}`
             }
             locationDisabled={busy}
             editor={
@@ -683,8 +683,8 @@ export function ListDetailScreen({
                   accessibilityLabel={
                     editingMode === 'location'
                       ? section !== null
-                        ? `New location for ${item.name}`
-                        : `Location for ${item.name}`
+                        ? `New item location for ${item.name}`
+                        : `Item location for ${item.name}`
                       : `Name for ${item.name}`
                   }
                   onSubmit={() =>
