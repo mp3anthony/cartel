@@ -2,32 +2,31 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-05, end of session 10)
+## Current state (2026-10-05, end of session 11)
 
-- `main` is at 0.0.40 (`mobile/app.json`), live. Production holds real user data. Last active `03-SPEC.md` section: none (vocabulary pass, UI copy only).
-- #94 shipped (0.0.40, PR #125): Locations -> Stores, Section -> Item location, "Location Services" for the phone permission, catalog screen -> "Item catalog". Reviewed by a separate agent, no blockers; no hands-on iPhone check was run (copy only). Left as is: the iOS native permission string in `mobile/app.json` (`locationWhenInUsePermission`) still says "location" (native builds only). `mobile/package-lock.json` still says 0.0.36 (never kept in step).
-- #117 investigated (findings on the ticket, summary in `docs/lessons.md`): PostgREST PGRST303, an upstream clock bug, not auth-js or device skew. Recommended fix: bounded retry on that exact error in the household and lists read loaders, never re-sign-in. Labelled `ready-for-agent`; next step is a Planner.
+- `main` is at 0.0.41 (`mobile/app.json`), live. Production holds real user data. Last active `03-SPEC.md` section: none (bug fix).
+- #117 shipped (0.0.41, PR #127, closed): bounded retry on PostgREST `PGRST303` in the household and lists read loaders (`mobile/src/lib/postgrestRetry.ts`), friendly message after retries run out, Try again on the Lists error state. Separate-agent review clean; live fake-error check passed in the browser pane (recovers, exhausts, PGRST301 not retried, household path). No iPhone check was run (the error cannot be forced by hand). Left as is: the household screen has no Try again button on its own (the app-level error screen has one); Try again on Lists shows no loading state during a retried load. Which query fails first is still unverified: the next real occurrence will show it in the `[cartel:postgrest-retry]` log `label`. Other loaders (locations, list items) are unwrapped; widen only if PGRST303 shows up there.
+- #94 shipped earlier (0.0.40): the Stores / Item location vocabulary. The iOS native permission string in `mobile/app.json` (`locationWhenInUsePermission`) still says "location" (native builds only). `mobile/package-lock.json` still says 0.0.36 (never kept in step).
 - Ticket #123: drag auto-scroll near the screen edge on long lists (v1 limit; needs an iPhone check). #114 still to grill. Unlogged: Ant mentioned a lag issue (some actions slow, others instant); he will log it himself.
-- Test data left on the shared Supabase project from an earlier browser test (all anonymous, inert): one list "ZZ test 102" (`59344e62-4855-4942-acda-d3d45f8fe244`) with a recorded shop, owned by anonymous user `cef386ef-86ff-4207-942a-832f7567fc33` (plus one earlier empty anonymous user). Cleanup is by id only, never a blanket wipe.
+- Test data left on the shared Supabase project from earlier browser tests (all anonymous, inert): one list "ZZ test 102" (`59344e62-4855-4942-acda-d3d45f8fe244`) with a recorded shop, owned by anonymous user `cef386ef-86ff-4207-942a-832f7567fc33` (plus one earlier empty anonymous user). The "ZZ 117" list from this session was removed. Cleanup is by id only, never a blanket wipe.
 
 ## Blocking order
 
 Can start now (no blockers):
 
-1. #117 (Planner, then build; bounded retry per the ticket).
-2. #107 (unblocked by #94). Schema change, stops at the plan for Ant; write its strings in the new vocabulary (Store, Item location).
-3. Grill #109, #110, #111, #114; grill #112 later.
-4. #123 (low priority, whenever).
+1. #107. Schema change, stops at the plan for Ant; write its strings in the new vocabulary (Store, Item location).
+2. Grill #109, #110, #111, #114; grill #112 later. #109, #110 and #111 unblock most of the rest.
+3. #123 (low priority, whenever).
 
 Then:
 
-5. #103, blocked by #110.
-6. #90, blocked by #109 and #110. Stops at the plan for Ant (RLS, deleting a household).
-7. #106, blocked by #111. Production merge, stops at the plan for Ant.
+4. #103, blocked by #110.
+5. #90, blocked by #109 and #110. Stops at the plan for Ant (RLS, deleting a household).
+6. #106, blocked by #111. Production merge, stops at the plan for Ant.
 
 Last:
 
-8. #112, blocked by #107; needs grilling first (#94 is done).
+7. #112, blocked by #107; needs grilling first.
 
 Collisions: #103 (and #111 for the row layout) touch `ListDetailScreen`; whichever lands second rebases onto the drag-handle row and the new wording.
 
