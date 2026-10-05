@@ -22,6 +22,7 @@ import type { RootStackParamList } from './src/navigation/types';
 import { ConfigErrorScreen } from './src/screens/ConfigErrorScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { FeedbackScreen } from './src/screens/FeedbackScreen';
+import { StoreMissingScreen } from './src/screens/StoreMissingScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { HouseholdScreen } from './src/screens/HouseholdScreen';
 import { HouseholdSetupScreen } from './src/screens/HouseholdSetupScreen';
@@ -72,6 +73,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       Shopping: 'shop/:listId',
       History: 'history',
       Feedback: 'feedback',
+      StoreMissing: 'store-missing',
     },
   },
 };
@@ -326,6 +328,10 @@ function Bootstrapped({ env }: { env: Env }) {
 
         <Stack.Screen name="Feedback" options={{ title: 'Feedback' }}>
           {(props) => <FeedbackScreen {...props} client={client} />}
+        </Stack.Screen>
+
+        <Stack.Screen name="StoreMissing" options={{ title: 'Store missing' }}>
+          {(props) => <StoreMissingScreen {...props} client={client} />}
         </Stack.Screen>
 
         {state.status === 'none' ? (

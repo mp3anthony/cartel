@@ -3,6 +3,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { humanise, type Outcome } from './household';
 import type { Chain } from '../theme/chainColors';
 
+/**
+ * Stores are catalog-only: seeded by Cartel, never created or edited from the app
+ * (ADR 0007). This file therefore only reads.
+ */
 export type LocationRow = {
   id: string;
   name: string;
@@ -40,20 +44,41 @@ type NearbyLocationRecord = {
 };
 
 /**
- * The one locked radius value in the app — every caller imports this rather than
- * re-writing 100. Locked at the tight end of 03-SPEC.md's ~100-150m range for the
- * merge prompt (see 02-DESIGN-REFERENCE.md, Slice 4 merge prompt).
+ * Radius for the dashboard's passive nearby-store nudge: a walking distance, not a
+ * dedup check. A plain judgement call, not a locked constant other code depends on.
  */
-export const MERGE_RADIUS_M = 100;
+export const NEARBY_STORE_RADIUS_M = 200;
 
 /**
- * Rounds a metre distance to the nearest 10 for display in the merge prompt. The
+ * Radius for the Stores picker's "Find stores near me". Wider than the dashboard
+ * nudge because the picker is for choosing a store to attach, not a quick
+ * "you're at a store" hint (Ant decided 2 km).
+ */
+export const PICKER_NEARBY_RADIUS_M = 2000;
+
+/**
+ * Rounds a metre distance to the nearest 10 for display next to a nearby store. The
  * underlying `nearby_locations` RPC returns a precise great-circle distance; showing
  * that precision to a person ("62.3814m away") would read as false accuracy for a
  * number that is itself only as good as a phone's GPS fix.
  */
 export function roundToNearest10(metres: number): number {
   return Math.round(metres / 10) * 10;
+}
+
+/**
+ * The picker's list order: most-visited first (visit counts come from the caller's own
+ * Shop history), ties and never-visited stores alphabetical. Returns a new array.
+ */
+export function orderByVisits(
+  locations: LocationRow[],
+  visits: ReadonlyMap<string, number>,
+): LocationRow[] {
+  return [...locations].sort(
+    (a, b) =>
+      (visits.get(b.id) ?? 0) - (visits.get(a.id) ?? 0) ||
+      a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }),
+  );
 }
 
 export async function loadLocations(client: SupabaseClient): Promise<Outcome<LocationRow[]>> {
@@ -110,62 +135,4 @@ export async function findNearbyLocations(
       distanceM: row.distance_m,
     })),
   };
-}
-
-export async function createLocation(
-  client: SupabaseClient,
-  name: string,
-  lat: number,
-  lng: number,
-  chain: Chain | null,
-): Promise<Outcome<string>> {
-  // `created_by` is left out on purpose. The column defaults to auth.uid(), which is
-  // the same value the insert policy checks it against, so a client that sends it can
-  // only ever agree with the default or be rejected by the policy. One that never
-  // names the column cannot get it wrong. Mirrors createList()'s treatment of
-  // `owner_id` in lists.ts.
-  //
-  // `chain` can be set now or left null/'other' and corrected later — #54 added
-  // `updateLocationChain` below, an open (not owner-scoped) UPDATE path scoped to
-  // just this column, so a caller no longer has to get this right at creation time.
-  const { data, error } = await client
-    .from('locations')
-    .insert({ name: name.trim(), lat, lng, chain })
-    .select('id')
-    .single();
-
-  if (error) {
-    return { ok: false, message: humanise(error) };
-  }
-
-  return { ok: true, value: (data as { id: string }).id };
-}
-
-/**
- * Sets or clears a location's `chain` after creation (#54). Deliberately open —
- * not scoped to the location's creator — matching migration
- * 20260823000001_locations_chain_update.sql's `locations_update_chain` policy,
- * which is `using (true)`/`with check (true)`: `public.locations` has no
- * ownership concept surfaced anywhere in this app (see LocationsScreen.tsx's own
- * header comment), so a chain correction is open to any authenticated user, the
- * same as every other read/write this table already allows. What actually keeps
- * this narrow is the column-level grant, not a row check — `name`/`lat`/`lng`
- * still have no UPDATE grant at all, so this can never touch them regardless of
- * who calls it.
- */
-export async function updateLocationChain(
-  client: SupabaseClient,
-  locationId: string,
-  chain: Chain | null,
-): Promise<Outcome<void>> {
-  const { error } = await client
-    .from('locations')
-    .update({ chain })
-    .eq('id', locationId);
-
-  if (error) {
-    return { ok: false, message: humanise(error) };
-  }
-
-  return { ok: true, value: undefined };
 }

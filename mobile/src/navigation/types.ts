@@ -58,4 +58,6 @@ export type RootStackParamList = {
    * URL to parse it from.
    */
   Feedback: { fromScreen?: string } | undefined;
+  /** The "Store missing?" report form, reached from the Stores picker (#107). */
+  StoreMissing: undefined;
 };

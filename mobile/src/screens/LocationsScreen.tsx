@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -6,30 +6,28 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   Badge,
   Body,
-  Confirm,
-  EmptyState,
   ErrorNote,
   Field,
-  IconButton,
   NAVIGATOR_EDGES,
-  PrimaryButton,
   Row,
   Screen,
   SecondaryButton,
+  Select,
 } from '../components/ui';
+import { StoreBadge } from '../components/StoreBadge';
 import { useLocations } from '../hooks/useLocations';
 import { requestLocation } from '../lib/geolocation';
 import { attachLocation } from '../lib/lists';
+import { loadShopSessionLocationCounts } from '../lib/shopSessions';
 import {
-  createLocation,
   findNearbyLocations,
-  MERGE_RADIUS_M,
+  orderByVisits,
+  PICKER_NEARBY_RADIUS_M,
   roundToNearest10,
-  updateLocationChain,
   type NearbyLocation,
 } from '../lib/locations';
 import type { RootStackParamList } from '../navigation/types';
-import { CHAIN_OPTIONS, chainColor, type Chain } from '../theme/chainColors';
+import { CHAIN_OPTIONS, type Chain } from '../theme/chainColors';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
@@ -38,96 +36,116 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Locations'> & {
   onListsChanged: () => Promise<void>;
 };
 
+type NearbyState =
+  | { status: 'idle' }
+  | { status: 'checking' }
+  | { status: 'denied' }
+  | { status: 'error'; message: string }
+  | { status: 'found'; results: NearbyLocation[] };
+
+type ChainFilter = Chain | 'all';
+
+/** How long the picker waits for visit counts before listing alphabetically. */
+const VISIT_COUNTS_TIMEOUT_MS = 2000;
+
+const CHAIN_FILTER_OPTIONS: { value: ChainFilter; label: string }[] = [
+  { value: 'all', label: 'All chains' },
+  ...CHAIN_OPTIONS,
+];
+
 /**
- * The global location index, and the one place a location gets created.
+ * The Store picker: catalog-only, no creation (ADR 0007). Stores are seeded by Cartel
+ * and found here by nearby (Location Services, on request) or by name search with a
+ * Chain filter. A store that is not listed goes through "Store missing?", which files
+ * a report; nothing in this screen writes to `locations`.
  *
  * Hard invariant (03-SPEC.md § 0): this screen never reads, displays, or filters by
- * `created_by`, household, or any notion of "locations I made" vs "locations others
- * made". `locations.ts` already withholds `created_by` from the SELECT grant — there
- * is no ownership concept here to accidentally add.
+ * `created_by`, or any notion of "stores I made" vs "stores others made".
+ * `locations.ts` withholds `created_by` from the SELECT grant, so there is no
+ * ownership concept here to accidentally add. It may sort (never filter) the list by
+ * the household's Shop history counts, which RLS already scopes and which are
+ * read-only here.
  *
  * `selected` is client-side and ephemeral when `attachToListId` is absent — nothing
- * about "which location is selected" is persisted or sent to the backend in that
- * case; it exists only so a row can show a "Selected" badge for the rest of this
- * screen's mounted lifetime. This is Slice 4's whole selection story, unchanged.
+ * about "which store is selected" is persisted; it exists only so a row can show a
+ * "Selected" badge for this screen's mounted lifetime.
  *
- * `permissionDenied` is sticky for the same lifetime, once set. There is no retry
- * button and no settings deep link this phase — a user who denies location access
- * falls back to searching the existing index for the rest of this visit.
+ * `attachToListId` turns a selection into a real write. `handleSelect` is the one
+ * place a selection "becomes real": every path that finalizes a choice (a catalog row
+ * or a nearby row) calls it, so the attach-vs-badge branch lives in exactly one
+ * function. Present, it writes `location_id` onto that list and returns to it; absent,
+ * it only sets the badge. `returnTo: 'Shopping'` (#89, "Continue at another store")
+ * goes back to the Shopping screen underneath and adds "Keep the current store".
  *
- * `attachToListId` (Slice 5) is what turns a selection from client-side badging
- * into a real write. `handleSelect` is the one place a selection "becomes real" —
- * every path that finalizes a choice (row tap, merge-confirm, just-created-location)
- * calls it rather than setting `selected` directly, so the attach-vs-badge branch
- * lives in exactly one function. Absent, `handleSelect` does exactly what this
- * screen did before Slice 5 existed; present, it writes `location_id` onto that list
- * and returns to it instead.
+ * The nearby search is passive: a button, never a Location Services prompt on mount
+ * (docs/conventions.md). Denial is sticky for this screen's lifetime; there is no
+ * retry and no settings deep link, and name search still works.
  *
- * #54 adds an edit affordance for an existing location's `chain`, beneath each
- * location's own `Row` rather than inside its `trailing` slot — `Row` is itself
- * a `Pressable` when `onPress` is given, and nesting a second `Pressable`
- * (`IconButton`) inside `trailing` recreates the "two nested Pressables reacting
- * to one tap" problem `CheckTarget`'s doc comment in `ui.tsx` warns against.
- * Mirrors `ShoppingScreen.tsx`'s pencil-opens-inline-composer pattern for
- * `location_items.section` corrections: a pencil `IconButton` toggles a
- * `ChainPicker` open/closed for that row only (`editingLocationId`), reusing the
- * same `ChainPicker` the create-composer already uses rather than a second copy.
- * `ChainPicker` already writes on tap in the create-composer's own usage, so
- * editing keeps that same feel — tapping an option writes immediately via
- * `updateLocationChain` and closes the picker, no separate Save/Cancel. The
- * pencil is the toggle: tapping it while that row's picker is open closes it
- * with no write (this is "Cancel"); tapping a different row's pencil switches
- * which row is being edited.
- *
- * #65 adds a "View catalog" `SecondaryButton` per row, navigating to the new
- * `LocationCatalog` screen — a plain sibling element alongside each row's own
- * `Row`/`chainRow`, not nested inside `Row`'s `trailing` slot, for the same
- * "two nested Pressables reacting to one tap" reason #54's chain-edit pencil
- * above already avoids. No `disabled` gating needed: unlike the chain-edit
- * pencil, this is a plain navigation with no in-flight write of its own to
- * race.
+ * "View catalog" (#65) is a sibling of each store's `Row`, not nested in its trailing
+ * slot, to avoid two nested Pressables reacting to one tap (see `CheckTarget` in
+ * `ui.tsx`).
  */
 export function LocationsScreen({ client, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const { view, refresh } = useLocations(client);
+  const { view } = useLocations(client);
   const attachToListId = route.params?.attachToListId;
   // #89: set when the picker was opened from Shopping Mode's "Continue at another store".
   // Finishing here goes back to the Shopping screen underneath, not on to the list.
   const returnToShopping = route.params?.returnTo === 'Shopping';
 
   const [search, setSearch] = useState('');
-  const [composing, setComposing] = useState(false);
-  const [name, setName] = useState('');
-  const [chain, setChain] = useState<Chain | null>(null);
+  const [chainFilter, setChainFilter] = useState<ChainFilter>('all');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [permissionDenied, setPermissionDenied] = useState(false);
-  const [nearbyMatch, setNearbyMatch] = useState<NearbyLocation | null>(null);
-  const [selected, setSelected] = useState<{ id: string; name: string } | null>(
-    null,
-  );
-  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
-  const [savingChainId, setSavingChainId] = useState<string | null>(null);
-  // `busy` is React state, batched: several keydown-triggered `submitCreate()` calls
-  // fired in the same synchronous burst (a fast typist double-hitting Return) all read
-  // the same stale `busy === false` from their closures before any render flushes, so
-  // a state check alone never trips. This ref is set synchronously inside
-  // `submitCreate()` itself, before anything async happens, purely for that
-  // re-entrancy guard — `busy` state stays the source of truth for everything
-  // UI-facing (button disabling).
+  // Synchronous re-entry guard (docs/conventions.md); `busy`/`nearbyState` are display only.
   const busyRef = useRef(false);
+  const [error, setError] = useState<string | null>(null);
+  const [nearbyState, setNearbyState] = useState<NearbyState>({ status: 'idle' });
+  const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
+  // Visit counts per store, only used to order the list. null while loading. Best-effort:
+  // a failed, thrown or slow (over 2 s) load leaves an empty map, so the list falls back
+  // to alphabetical with no error. Whichever settles first wins; a late result is ignored.
+  const [visits, setVisits] = useState<ReadonlyMap<string, number> | null>(null);
+
+  useEffect(() => {
+    let settled = false;
+
+    function settle(next: ReadonlyMap<string, number>) {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      setVisits(next);
+    }
+
+    const timer = setTimeout(() => settle(new Map()), VISIT_COUNTS_TIMEOUT_MS);
+
+    loadShopSessionLocationCounts(client)
+      .then((outcome) =>
+        settle(
+          outcome.ok
+            ? new Map(outcome.value.map((entry) => [entry.locationId, entry.count]))
+            : new Map(),
+        ),
+      )
+      .catch(() => settle(new Map()));
+
+    return () => {
+      // Unmounted: block any later settle from setting state.
+      settled = true;
+      clearTimeout(timer);
+    };
+  }, [client]);
 
   /**
-   * The single place a selection "becomes real". Absent `attachToListId`, this is
-   * byte-identical to Slice 4's row tap: set the ephemeral badge state and stop.
-   * Present, it writes instead — `.eq('id', ...)`-style scoping and RLS already
-   * cover who may attach (see migration 20260810000006), so this never re-derives
-   * an authorization check the database already makes.
+   * The single place a selection "becomes real". Absent `attachToListId`, it sets the
+   * ephemeral badge state and stops. Present, it writes instead — RLS already covers
+   * who may attach (see migration 20260810000006), so this never re-derives an
+   * authorization check the database already makes.
    *
-   * The `busy` guard only applies on the attach path: a bare badge-select has
-   * nothing to race, so gating it here too would make the no-`attachToListId`
-   * branch stop being byte-identical to before.
+   * The `busy` guard only applies on the attach path: a bare badge-select has nothing
+   * to race.
    */
   async function handleSelect(id: string, name: string) {
     if (!attachToListId) {
@@ -135,174 +153,71 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
       return;
     }
 
-    if (busy) {
-      return;
-    }
-
-    setBusy(true);
-    setError(null);
-
-    const outcome = await attachLocation(client, attachToListId, id);
-
-    if (!outcome.ok) {
-      setBusy(false);
-      setError(outcome.message);
-      return;
-    }
-
-    await onListsChanged();
-    setBusy(false);
-    if (returnToShopping) {
-      // `navigate` would push a second Shopping screen in React Navigation 7; `goBack`
-      // returns to the one already underneath, whose list state has just refreshed.
-      navigation.goBack();
-    } else {
-      navigation.navigate('ListDetail', { listId: attachToListId });
-    }
-  }
-
-  function beginComposing() {
-    setError(null);
-    setName('');
-    setChain(null);
-    setComposing(true);
-  }
-
-  function cancelComposing() {
-    setError(null);
-    setComposing(false);
-  }
-
-  async function submitCreate() {
-    // The button is disabled on an empty name, but the keyboard's return key is not.
-    if (name.trim().length === 0 || busy || busyRef.current) {
+    if (busyRef.current) {
       return;
     }
 
     busyRef.current = true;
+    setBusy(true);
+    setError(null);
 
     try {
-      setBusy(true);
-      setError(null);
+      const outcome = await attachLocation(client, attachToListId, id);
 
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+
+      await onListsChanged();
+      if (returnToShopping) {
+        // `navigate` would push a second Shopping screen in React Navigation 7; `goBack`
+        // returns to the one already underneath, whose list state has just refreshed.
+        navigation.goBack();
+      } else {
+        navigation.navigate('ListDetail', { listId: attachToListId });
+      }
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function findNearby() {
+    if (busyRef.current || nearbyState.status === 'denied') {
+      return;
+    }
+
+    busyRef.current = true;
+    setNearbyState({ status: 'checking' });
+
+    try {
       const perm = await requestLocation();
 
       if (perm.status === 'denied') {
-        setBusy(false);
-        setPermissionDenied(true);
-        setComposing(false);
+        setNearbyState({ status: 'denied' });
         return;
       }
 
       if (perm.status === 'error') {
-        setBusy(false);
-        setError(perm.message);
+        setNearbyState({ status: 'error', message: perm.message });
         return;
       }
 
-      const nearby = await findNearbyLocations(
-        client,
-        perm.lat,
-        perm.lng,
-        MERGE_RADIUS_M,
-      );
+      const nearby = await findNearbyLocations(client, perm.lat, perm.lng, PICKER_NEARBY_RADIUS_M);
 
       if (!nearby.ok) {
-        setBusy(false);
-        setError(nearby.message);
+        setNearbyState({ status: 'error', message: nearby.message });
         return;
       }
 
-      if (nearby.value.length > 0) {
-        // Already ordered by distance — the nearest candidate is the one worth
-        // surfacing, and there is only ever room for one merge prompt on screen.
-        setBusy(false);
-        setNearbyMatch(nearby.value[0]);
-        return;
-      }
-
-      const created = await createLocation(client, name, perm.lat, perm.lng, chain);
-
-      if (!created.ok) {
-        setBusy(false);
-        setError(created.message);
-        return;
-      }
-
-      // Captured before setName('') clears it, and before handleSelect's own attach
-      // path may navigate this screen away.
-      const createdName = name.trim();
-
-      await refresh();
-      setBusy(false);
-      setComposing(false);
-      setName('');
-      await handleSelect(created.value, createdName);
+      setNearbyState({ status: 'found', results: nearby.value });
     } finally {
       busyRef.current = false;
     }
   }
 
-  function confirmMerge() {
-    if (!nearbyMatch) {
-      return;
-    }
-
-    // The nearby location already exists, so there is no write for the location
-    // itself here — "using" it is either a client-side selection (byte-identical to
-    // before) or the same attach write every other selection path uses, decided by
-    // handleSelect, not here.
-    void handleSelect(nearbyMatch.id, nearbyMatch.name);
-    setNearbyMatch(null);
-    setComposing(false);
-    setName('');
-  }
-
-  function cancelMerge() {
-    // Leaves `composing` true and `name` intact — the user backed out of this one
-    // match, not out of naming a location.
-    setNearbyMatch(null);
-  }
-
-  function toggleEditingChain(locationId: string) {
-    setError(null);
-    setEditingLocationId((current) => (current === locationId ? null : locationId));
-  }
-
-  async function submitChainEdit(locationId: string, nextChain: Chain | null) {
-    if (savingChainId) {
-      return;
-    }
-
-    setSavingChainId(locationId);
-    setError(null);
-
-    const outcome = await updateLocationChain(client, locationId, nextChain);
-
-    if (!outcome.ok) {
-      setSavingChainId(null);
-      setError(outcome.message);
-      return;
-    }
-
-    await refresh();
-    setSavingChainId(null);
-    // Only close *this* row's picker, not whichever one happens to be open
-    // now — a user can switch to editing a different row while this write
-    // is still in flight (only the saving row's pencil is disabled, not
-    // every other row's), and unconditionally clearing editingLocationId
-    // here would snatch that other row's picker closed out from under them.
-    setEditingLocationId((current) => (current === locationId ? null : current));
-  }
-
-  if (view.status === 'loading') {
-    return (
-      <Screen edges={NAVIGATOR_EDGES}>
-        <ActivityIndicator color={tokens.color.accent} size="large" />
-      </Screen>
-    );
-  }
-
+  // The error check comes first so a stores error is never hidden behind the spinner.
   if (view.status === 'error') {
     return (
       <Screen edges={NAVIGATOR_EDGES}>
@@ -311,11 +226,23 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
     );
   }
 
+  if (view.status === 'loading' || visits === null) {
+    return (
+      <Screen edges={NAVIGATOR_EDGES}>
+        <ActivityIndicator color={tokens.color.accent} size="large" />
+      </Screen>
+    );
+  }
+
   const locations = view.locations;
+  const chainByLocationId = new Map(locations.map((location) => [location.id, location.chain]));
   const query = search.trim().toLowerCase();
-  const filtered = query
-    ? locations.filter((location) => location.name.toLowerCase().includes(query))
-    : locations;
+  const chainLabel = CHAIN_FILTER_OPTIONS.find((option) => option.value === chainFilter)?.label ?? '';
+  const filtered = orderByVisits(locations, visits).filter(
+    (location) =>
+      (query === '' || location.name.toLowerCase().includes(query)) &&
+      (chainFilter === 'all' || location.chain === chainFilter),
+  );
 
   return (
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
@@ -327,42 +254,55 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
         />
       ) : null}
 
+      <View style={styles.section}>
+        <Body>Nearby stores</Body>
+        <SecondaryButton
+          label="Find stores near me"
+          onPress={() => void findNearby()}
+          disabled={busy || nearbyState.status === 'checking' || nearbyState.status === 'denied'}
+        />
+        {nearbyState.status === 'denied' ? (
+          <Body>
+            Location Services isn't available, so nearby stores can't be found this session.
+            Search below instead.
+          </Body>
+        ) : nearbyState.status === 'error' ? (
+          <ErrorNote message={nearbyState.message} />
+        ) : nearbyState.status === 'found' ? (
+          nearbyState.results.length === 0 ? (
+            <Body>No stores nearby right now.</Body>
+          ) : (
+            nearbyState.results.map((result) => (
+              <Row
+                key={result.id}
+                leading={<StoreBadge chain={chainByLocationId.get(result.id) ?? null} />}
+                label={`${result.name} — ~${formatDistance(result.distanceM)} away`}
+                onPress={() => void handleSelect(result.id, result.name)}
+                trailing={result.id === selected?.id ? <Badge label="Selected" /> : undefined}
+              />
+            ))
+          )
+        ) : null}
+      </View>
+
       <Field
         label="Search stores"
         value={search}
         onChangeText={setSearch}
-        placeholder="e.g. Papanui PakNSave"
+        placeholder="e.g. Riccarton"
         autoCapitalize="none"
       />
+
+      <Select label="Chain" value={chainFilter} onChange={setChainFilter} options={CHAIN_FILTER_OPTIONS} />
 
       {filtered.map((location) => (
         <View key={location.id} style={styles.locationGroup}>
           <Row
+            leading={<StoreBadge chain={location.chain} />}
             label={location.name}
             onPress={() => void handleSelect(location.id, location.name)}
-            trailing={
-              location.id === selected?.id ? <Badge label="Selected" /> : undefined
-            }
+            trailing={location.id === selected?.id ? <Badge label="Selected" /> : undefined}
           />
-          <View style={styles.chainRow}>
-            <Badge label={chainLabel(location.chain)} />
-            <IconButton
-              glyph="✏"
-              accessibilityLabel={
-                editingLocationId === location.id
-                  ? `Close chain editor for ${location.name}`
-                  : `Edit chain for ${location.name}`
-              }
-              onPress={() => toggleEditingChain(location.id)}
-              disabled={savingChainId === location.id}
-            />
-          </View>
-          {editingLocationId === location.id ? (
-            <ChainPicker
-              value={location.chain}
-              onChange={(nextChain) => void submitChainEdit(location.id, nextChain)}
-            />
-          ) : null}
           <SecondaryButton
             label="View catalog"
             onPress={() => navigation.navigate('LocationCatalog', { locationId: location.id })}
@@ -370,173 +310,43 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
         </View>
       ))}
 
-      {locations.length > 0 && search.trim().length > 0 && filtered.length === 0 ? (
-        <Body>{`No stores match "${search}".`}</Body>
-      ) : null}
-
-      {!composing && locations.length === 0 ? (
-        permissionDenied ? (
-          <EmptyState
-            heading="No stores yet"
-            body="Location Services isn’t available, so new stores can’t be created this session."
-          />
-        ) : (
-          <EmptyState
-            heading="No stores yet"
-            body="Create one to get started."
-            actionLabel="New store"
-            onAction={beginComposing}
-          />
-        )
+      {filtered.length === 0 && (query !== '' || chainFilter !== 'all') ? (
+        <Body>
+          {query !== '' && chainFilter !== 'all'
+            ? `No stores match "${search.trim()}" in ${chainLabel}.`
+            : query !== ''
+              ? `No stores match "${search.trim()}".`
+              : 'No stores match this chain.'}
+        </Body>
       ) : null}
 
       {error ? <ErrorNote message={error} /> : null}
 
-      {composing && !nearbyMatch ? (
-        <View style={styles.composer}>
-          <Field
-            label="Store name"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="sentences"
-            autoFocus
-            maxLength={60}
-            onSubmitEditing={submitCreate}
-            returnKeyType="done"
-            blurOnSubmit={false}
-          />
-          <ChainPicker value={chain} onChange={setChain} />
-          <PrimaryButton
-            label="Create"
-            onPress={submitCreate}
-            busy={busy}
-            disabled={name.trim().length === 0}
-            keepFocus
-          />
-          <SecondaryButton
-            label="Cancel"
-            onPress={cancelComposing}
-            disabled={busy}
-          />
-        </View>
-      ) : null}
+      <SecondaryButton label="Store missing?" onPress={() => navigation.navigate('StoreMissing')} />
 
-      {composing && nearbyMatch !== null ? (
-        <Confirm
-          message={`There's already a store nearby: "${nearbyMatch.name}" (~${roundToNearest10(nearbyMatch.distanceM)}m away). Cartel keeps one store per spot to avoid duplicates.`}
-          confirmLabel="Use this store"
-          onConfirm={confirmMerge}
-          onCancel={cancelMerge}
-        />
-      ) : null}
-
-      {!composing && !permissionDenied && locations.length > 0 ? (
-        <PrimaryButton label="New store" onPress={beginComposing} />
-      ) : null}
-
-      {permissionDenied && locations.length > 0 ? (
-        <Body>
-          Location Services isn’t available, so new stores can’t be created this
-          session. Search for an existing one above.
-        </Body>
-      ) : null}
+      <Body>Store data includes © OpenStreetMap contributors</Body>
     </Screen>
   );
 }
 
 /**
- * Resolves a stored `chain` value to its display label, always showing a real
- * value — including "Other" for `null` — so every location row has a visible
- * current-value indicator rather than an absent badge for the common
- * unset/'other' case.
+ * Distance for display: rounded to the nearest 10 m under a kilometre (a phone's GPS
+ * fix does not justify more), one decimal of a kilometre from 1000 m up.
  */
-function chainLabel(chain: Chain | null): string {
-  return (
-    CHAIN_OPTIONS.find((option) => option.value === (chain ?? 'other'))?.label ??
-    'Other'
-  );
-}
-
-/**
- * The chain picker shown inside the create-location composer (#51) and,
- * since #54, reused unchanged for editing an existing location's chain from
- * the locations list. A vertical `Row`-based list, not `SegmentedControl` —
- * six options, including long labels ("Four Square"/"FreshChoice") and the
- * apostrophe in "PAK'nSAVE", would not fit an unwrapped single-row segmented
- * track built for three short options. Kept local to this file, not added to
- * `ui.tsx`, since it's single-use and chain-domain-specific.
- *
- * `value === null` renders as "Other" selected — the composer's own starting
- * state and the "no chain chosen" state are the same thing, matching how
- * `chainColor(null)` and `chainColor('other')` both resolve to "no brand
- * colour" on the read side.
- */
-function ChainPicker({
-  value,
-  onChange,
-}: {
-  value: Chain | null;
-  onChange: (chain: Chain | null) => void;
-}) {
-  const tokens = useTheme();
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
-
-  return (
-    <View accessibilityRole="radiogroup" style={styles.chainPicker}>
-      <Body>Chain</Body>
-      {CHAIN_OPTIONS.map((option) => {
-        const selected = value === option.value || (value === null && option.value === 'other');
-        return (
-          <Row
-            key={option.value}
-            label={option.label}
-            leading={
-              <View
-                style={[
-                  styles.chainSwatch,
-                  { backgroundColor: chainColor(option.value) ?? tokens.color.border },
-                  // PAK'nSAVE's yellow has near-zero contrast against light-theme
-                  // surface/ground — the only swatch that needs an outline to stay
-                  // visible against a light background. Don't drop this "for
-                  // consistency"; every other brand colour has enough contrast on
-                  // its own.
-                  option.value === 'paknsave' && styles.chainSwatchOutlined,
-                ]}
-              />
-            }
-            trailing={selected ? <Badge label="Selected" /> : undefined}
-            onPress={() => onChange(option.value === 'other' ? null : option.value)}
-          />
-        );
-      })}
-    </View>
-  );
+function formatDistance(metres: number): string {
+  if (metres >= 1000) {
+    return `${(metres / 1000).toFixed(1)} km`;
+  }
+  return `${roundToNearest10(metres)}m`;
 }
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    composer: {
+    section: {
       gap: tokens.space.sm,
     },
     locationGroup: {
       gap: tokens.space.xs,
-    },
-    chainRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: tokens.space.sm,
-    },
-    chainPicker: {
-      gap: tokens.space.xs,
-    },
-    chainSwatch: {
-      width: 14,
-      height: 14,
-      borderRadius: tokens.radius.sm,
-    },
-    chainSwatchOutlined: {
-      borderWidth: 1,
-      borderColor: tokens.color.textPrimary,
     },
   });
 }

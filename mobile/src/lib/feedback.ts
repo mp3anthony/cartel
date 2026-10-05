@@ -68,6 +68,52 @@ export async function submitFeedback(
     },
   });
 
+  return toOutcome(data, error);
+}
+
+export type StoreMissingInput = {
+  storeName: string;
+  /** A Chain value or 'unsure'. */
+  chain?: string;
+  /** Free-text suburb or street. Never coordinates. */
+  area?: string;
+};
+
+/**
+ * #107: reports a Store absent from the catalog. Same `report-feedback` function
+ * and error handling as `submitFeedback`, with type 'store_missing'. Deliberately
+ * sends no coordinates and no screenshot.
+ */
+export async function submitStoreMissing(
+  client: SupabaseClient,
+  input: StoreMissingInput,
+): Promise<Outcome<void>> {
+  const { data, error } = await client.functions.invoke('report-feedback', {
+    body: {
+      type: 'store_missing',
+      storeName: input.storeName.trim(),
+      chain: input.chain || undefined,
+      area: input.area?.trim() || undefined,
+      context: {
+        appVersion,
+        platform: Platform.OS,
+        screen: 'StoreMissing',
+      },
+    },
+  });
+
+  return toOutcome(data, error);
+}
+
+/**
+ * Shared by both submitters: turns a `functions.invoke` result into an Outcome,
+ * reading the real `{ error }` body off `error.context` (see `submitFeedback`'s
+ * doc comment for why `error.message` alone is not enough).
+ */
+async function toOutcome(
+  data: { success?: boolean; error?: string } | null,
+  error: { message: string } | null,
+): Promise<Outcome<void>> {
   if (error) {
     const context = (error as { context?: Response }).context;
     const bodyMessage = context ? await context.clone().json().then((j) => j?.error, () => null) : null;

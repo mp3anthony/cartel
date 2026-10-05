@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { humanise, type Outcome } from './household';
+import { retryOnJwtIssuedAtFuture } from './postgrestRetry';
 
 /**
  * One completed shop, household-visible. `ownerId` is deliberately absent —
@@ -99,7 +100,9 @@ export type LocationShopCount = {
 export async function loadShopSessionLocationCounts(
   client: SupabaseClient,
 ): Promise<Outcome<LocationShopCount[]>> {
-  const { data, error } = await client.from('shop_sessions').select('location_id');
+  const { data, error } = await retryOnJwtIssuedAtFuture('shop-session-counts', () =>
+    client.from('shop_sessions').select('location_id'),
+  );
 
   if (error) {
     return { ok: false, message: humanise(error) };
