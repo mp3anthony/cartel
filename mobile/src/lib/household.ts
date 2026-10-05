@@ -36,8 +36,8 @@ const MESSAGES: Record<string, string> = {
   list_not_found: 'That list no longer exists.',
   not_list_owner: 'Only the person who made a list can share it.',
   already_shared: 'That list is already shared with your household.',
-  item_not_tagged: 'This item has to be tagged with a location before it can be corrected.',
-  correction_matches_current: "That's already this item's location — nothing to correct.",
+  item_not_tagged: 'This item needs an item location before it can be corrected.',
+  correction_matches_current: "That's already where this item is — nothing to correct.",
   already_voted: 'You already proposed or confirmed this correction. It needs a different person to confirm it.',
   nothing_checked:
     'Nothing new is checked since the last finish. Someone else may have just recorded this shop.',
@@ -45,7 +45,7 @@ const MESSAGES: Record<string, string> = {
     'Nothing is ticked anymore. Someone else may have just reset or finished this list.',
   has_new_checks: 'Someone just checked something new. Finish the shop to record it.',
   invalid_ending: 'Something went wrong finishing this shop. Try again.',
-  no_location: 'Attach a location to this list before finishing a shop.',
+  no_location: 'Attach a store to this list before finishing a shop.',
 };
 
 /**

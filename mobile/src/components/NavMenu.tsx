@@ -57,7 +57,7 @@ export function NavMenu({
   const items: { label: string; onPress: () => void }[] = [
     { label: 'Home', onPress: () => go(() => navigation.navigate('Dashboard')) },
     { label: 'Lists', onPress: () => go(() => navigation.navigate('Lists')) },
-    { label: 'Locations', onPress: () => go(() => navigation.navigate('Locations')) },
+    { label: 'Stores', onPress: () => go(() => navigation.navigate('Locations')) },
     { label: 'History', onPress: () => go(() => navigation.navigate('History')) },
     {
       label: hasHousehold ? 'Household' : 'Join or create a household',

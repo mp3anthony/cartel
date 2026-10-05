@@ -328,7 +328,7 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
       ) : null}
 
       <Field
-        label="Search locations"
+        label="Search stores"
         value={search}
         onChangeText={setSearch}
         placeholder="e.g. Papanui PakNSave"
@@ -371,20 +371,20 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
       ))}
 
       {locations.length > 0 && search.trim().length > 0 && filtered.length === 0 ? (
-        <Body>{`No locations match "${search}".`}</Body>
+        <Body>{`No stores match "${search}".`}</Body>
       ) : null}
 
       {!composing && locations.length === 0 ? (
         permissionDenied ? (
           <EmptyState
-            heading="No locations yet"
-            body="Location access isn’t available, so new locations can’t be created this session."
+            heading="No stores yet"
+            body="Location Services isn’t available, so new stores can’t be created this session."
           />
         ) : (
           <EmptyState
-            heading="No locations yet"
+            heading="No stores yet"
             body="Create one to get started."
-            actionLabel="New location"
+            actionLabel="New store"
             onAction={beginComposing}
           />
         )
@@ -395,7 +395,7 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
       {composing && !nearbyMatch ? (
         <View style={styles.composer}>
           <Field
-            label="Location name"
+            label="Store name"
             value={name}
             onChangeText={setName}
             autoCapitalize="sentences"
@@ -423,20 +423,20 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
 
       {composing && nearbyMatch !== null ? (
         <Confirm
-          message={`There's already a location nearby: "${nearbyMatch.name}" (~${roundToNearest10(nearbyMatch.distanceM)}m away). Cartel keeps one location per spot to avoid duplicates.`}
-          confirmLabel="Use this location"
+          message={`There's already a store nearby: "${nearbyMatch.name}" (~${roundToNearest10(nearbyMatch.distanceM)}m away). Cartel keeps one store per spot to avoid duplicates.`}
+          confirmLabel="Use this store"
           onConfirm={confirmMerge}
           onCancel={cancelMerge}
         />
       ) : null}
 
       {!composing && !permissionDenied && locations.length > 0 ? (
-        <PrimaryButton label="New location" onPress={beginComposing} />
+        <PrimaryButton label="New store" onPress={beginComposing} />
       ) : null}
 
       {permissionDenied && locations.length > 0 ? (
         <Body>
-          Location access isn’t available, so new locations can’t be created this
+          Location Services isn’t available, so new stores can’t be created this
           session. Search for an existing one above.
         </Body>
       ) : null}

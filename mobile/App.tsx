@@ -281,7 +281,7 @@ function Bootstrapped({ env }: { env: Env }) {
           )}
         </Stack.Screen>
 
-        <Stack.Screen name="Locations" options={{ title: 'Locations' }}>
+        <Stack.Screen name="Locations" options={{ title: 'Stores' }}>
           {(props) => (
             <LocationsScreen
               {...props}
@@ -294,7 +294,7 @@ function Bootstrapped({ env }: { env: Env }) {
         {/* Title is a placeholder for the same reason ListDetail's is: the screen
             replaces it with the real location name once useLocations resolves. No
             onListsChanged/lists props — #65's catalog never touches lists/list_items. */}
-        <Stack.Screen name="LocationCatalog" options={{ title: 'Catalog' }}>
+        <Stack.Screen name="LocationCatalog" options={{ title: 'Item catalog' }}>
           {(props) => (
             <LocationCatalogScreen {...props} client={client} />
           )}

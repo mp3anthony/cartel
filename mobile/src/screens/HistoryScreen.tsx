@@ -101,11 +101,11 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
 
   function locationNameFor(session: ShopSessionRow): string {
     if (locationsView.status !== 'loaded') {
-      return 'a location';
+      return 'a store';
     }
     return (
       locationsView.locations.find((location) => location.id === session.locationId)?.name ??
-      'a location'
+      'a store'
     );
   }
 
@@ -118,7 +118,7 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
         return found.name;
       }
     }
-    return session.listName ?? 'a location';
+    return session.listName ?? 'a store';
   }
 
   function toggleExpanded(session: ShopSessionRow) {
