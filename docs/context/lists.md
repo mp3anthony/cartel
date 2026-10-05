@@ -41,8 +41,8 @@ On list detail the check circle ticks an item and tapping the name renames it; i
 _Avoid_: Tick, complete, mark done
 
 **Manual order**:
-The order the user arranged with the up and down controls. Stored as a fractional key and only read-sorted; checking off never reorders (route order in Shopping Mode is computed separately).
-_Avoid_: Sort, drag order
+The order the user arranged by dragging the handle on the left of a row (list detail only; Shopping Mode has no handle). Stored as a fractional key and only read-sorted; checking off never reorders (route order in Shopping Mode is computed separately).
+_Avoid_: Sort, move up/down
 
 **Remove** (item):
 Removes one item from the list. A "×" on the row (list detail and Shopping Mode) swaps the row for an inline "Remove {item}?" with Cancel and Remove; nothing is removed until Remove is tapped. The row is hidden, not destroyed.
@@ -55,7 +55,7 @@ The one-line field at the top of a list: "Add an item" with a "+" button. Enter 
 _Avoid_: Quick add, input bar
 
 **Rename**:
-Tapping the name on list detail turns that row into a small field (Return or ✓ saves, ✕ cancels). One editor is open at a time; it also holds up and down on a second line.
+Tapping the name on list detail turns that row into a small field (Return or ✓ saves, ✕ cancels). One editor is open at a time, and dragging is off while it is open.
 _Avoid_: Edit mode, inline edit sheet
 
 **Location pin**:

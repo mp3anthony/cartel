@@ -210,6 +210,8 @@ and had nine. Each of these shapes the schema or the acceptance test:*
   and it is the first gesture code in a project where native has never been run and
   where web drag is a different input model. Polished drag lands where it can be
   verified on a device.
+  *Superseded 2026-10-05 by #102 (0.0.39): reorder is now a drag handle, hand-rolled
+  with `PanResponder`, no gesture library.*
 - **Item quantities are out of spec and stay out.** `list_items` has no quantity
   field and the CRD never asks for one. Logged in `CHANGE-LOG.md` as pending.
 - **A navigation library is adopted before any feature work in this slice** — see
