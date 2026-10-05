@@ -506,6 +506,12 @@ export function IconButton({
  * `leading` (#102 slice 3) renders first on the main line, before the circle: the drag
  * handle of a reorderable list. Like the other controls it is a sibling of the tick
  * targets, and it is not shown while the row is an editor or a confirmation.
+ *
+ * `stepper` (#111) is the quantity control (`QuantityControl`): a small "+" at quantity 1
+ * and a "×N" chip above it. It renders after the pill and before the pin, as a sibling of
+ * the tick targets so it never toggles check, and like the other controls it is hidden
+ * while an editor or confirmation replaces the line (the quantity editor,
+ * `QuantityEditor`, arrives through the `editor` slot).
  */
 export function CompactItemRow({
   name,
@@ -513,6 +519,7 @@ export function CompactItemRow({
   onToggle,
   disabled = false,
   pill,
+  stepper,
   leading,
   onRename,
   renameLabel,
@@ -531,6 +538,7 @@ export function CompactItemRow({
   onToggle: () => void;
   disabled?: boolean;
   pill?: string | null;
+  stepper?: ReactNode;
   leading?: ReactNode;
   onRename?: () => void;
   renameLabel?: string;
@@ -621,12 +629,14 @@ export function CompactItemRow({
           )}
 
           {pill ? (
-            <View style={styles.compactPill}>
+            <View style={[styles.compactPill, stepper ? styles.compactPillWithStepper : null]}>
               <Text numberOfLines={1} ellipsizeMode="tail" style={styles.compactPillLabel}>
                 {pill}
               </Text>
             </View>
           ) : null}
+
+          {stepper}
 
           {onLocation && locationLabel ? (
             <IconButton
@@ -649,6 +659,126 @@ export function CompactItemRow({
       )}
       {footer}
       <View style={styles.compactDivider} />
+    </View>
+  );
+}
+
+/**
+ * The quantity control on a `CompactItemRow` (#111), passed as its `stepper` slot.
+ *
+ * At quantity 1 it is only a small "+" (a 44pt button), so the everyday row stays as
+ * roomy as before. At 2 or more it is a neutral "×N" chip (a real 44pt-tall box, tabular
+ * figures so digits do not jitter) that opens `QuantityEditor`. Inline "− 2 +" on every
+ * row would leave the name about 38pt on a 390pt iPhone, hence chip-then-editor.
+ *
+ * Neutral on purpose, like the section pill: accent stays reserved for actions. The
+ * chip's width is a minimum, not fixed, so "×99" still fits. Touch boxes are real, no
+ * `hitSlop` (react-native-web ignores it).
+ */
+export function QuantityControl({
+  name,
+  quantity,
+  onIncrement,
+  onOpenEditor,
+  disabled = false,
+}: {
+  name: string;
+  quantity: number;
+  onIncrement: () => void;
+  onOpenEditor: () => void;
+  disabled?: boolean;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  if (quantity < 2) {
+    return (
+      <IconButton
+        glyph="+"
+        accessibilityLabel={`Increase quantity of ${name}`}
+        onPress={onIncrement}
+        disabled={disabled}
+      />
+    );
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Quantity ${quantity} of ${name}, change`}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onOpenEditor}
+      style={({ pressed }) => [
+        styles.quantityChipTarget,
+        pressed && styles.touchTargetPressed,
+        disabled && styles.buttonInactive,
+      ]}
+    >
+      <View style={styles.quantityChip}>
+        <Text style={styles.quantityChipLabel}>{`×${quantity}`}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+/**
+ * The line a `CompactItemRow` shows (via its `editor` slot) while its quantity is being
+ * changed (#111): the item name (muted, one line), "−", the number, "+", and Done. Same
+ * row-becomes-editor pattern as `InlineRowEditor` and `RowConfirm`, one row tall, no
+ * field and no keyboard. "−" at 2 goes to 1 and the editor stays open; only Done closes
+ * it. "−" is disabled at 1 and "+" at `max`. The steppers are never busy-disabled: each
+ * tap is its own relative write and none may be dropped (see `useQuantityStepper`).
+ */
+export function QuantityEditor({
+  name,
+  quantity,
+  max,
+  onIncrement,
+  onDecrement,
+  onDone,
+  disabled = false,
+}: {
+  name: string;
+  quantity: number;
+  max: number;
+  onIncrement: () => void;
+  onDecrement: () => void;
+  onDone: () => void;
+  /** Holds the steppers (not Done) while the screen is finishing a shop. */
+  disabled?: boolean;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <View style={styles.quantityEditor}>
+      <Text numberOfLines={1} style={styles.quantityEditorName}>
+        {name}
+      </Text>
+      <IconButton
+        glyph="−"
+        accessibilityLabel={`Decrease quantity of ${name}`}
+        onPress={onDecrement}
+        disabled={disabled || quantity <= 1}
+      />
+      <Text accessibilityLabel={`Quantity ${quantity}`} style={styles.quantityEditorValue}>
+        {quantity}
+      </Text>
+      <IconButton
+        glyph="+"
+        accessibilityLabel={`Increase quantity of ${name}`}
+        onPress={onIncrement}
+        disabled={disabled || quantity >= max}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Done"
+        onPress={onDone}
+        style={({ pressed }) => [styles.rowConfirmButton, pressed && styles.touchTargetPressed]}
+      >
+        <Text style={styles.rowConfirmAction}>Done</Text>
+      </Pressable>
     </View>
   );
 }
@@ -1391,6 +1521,50 @@ function createStyles(tokens: Tokens) {
       fontWeight: '600',
       color: tokens.color.accent,
     },
+    // QuantityControl chip (#111): the Pressable is the 44pt box, the chip is drawn smaller.
+    quantityChipTarget: {
+      minWidth: tokens.minTouchTarget,
+      minHeight: tokens.minTouchTarget,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: tokens.radius.pill,
+    },
+    quantityChip: {
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      borderColor: tokens.color.border,
+      paddingHorizontal: tokens.space.sm,
+      paddingVertical: 2,
+    },
+    quantityChipLabel: {
+      fontSize: tokens.fontSize.caption,
+      fontWeight: '600',
+      color: tokens.color.textSecondary,
+      fontVariant: ['tabular-nums'],
+    },
+    // QuantityEditor (#111): one row-height line, like rowConfirm.
+    quantityEditor: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.xs,
+      minHeight: 52,
+    },
+    quantityEditorName: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: tokens.fontSize.caption,
+      lineHeight: tokens.fontSize.caption * 1.5,
+      color: tokens.color.textSecondary,
+    },
+    quantityEditorValue: {
+      minWidth: tokens.space.xl,
+      textAlign: 'center',
+      fontSize: tokens.fontSize.body,
+      fontWeight: '600',
+      color: tokens.color.textPrimary,
+      fontVariant: ['tabular-nums'],
+    },
     compactPill: {
       maxWidth: '40%',
       borderRadius: tokens.radius.pill,
@@ -1398,6 +1572,10 @@ function createStyles(tokens: Tokens) {
       borderColor: tokens.color.border,
       paddingHorizontal: tokens.space.sm,
       paddingVertical: 2,
+    },
+    // With a quantity control on the line the pill gives up room so the name keeps it.
+    compactPillWithStepper: {
+      maxWidth: '30%',
     },
     compactPillLabel: {
       fontSize: tokens.fontSize.caption,

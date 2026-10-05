@@ -15,11 +15,14 @@ import {
   NAVIGATOR_EDGES,
   PendingCorrectionLine,
   PrimaryButton,
+  QuantityControl,
+  QuantityEditor,
   RowConfirm,
   Screen,
   SecondaryButton,
 } from '../components/ui';
 import { useListItems } from '../hooks/useListItems';
+import { useQuantityStepper } from '../hooks/useQuantityStepper';
 import type { ListsView } from '../hooks/useLists';
 import { useLocations } from '../hooks/useLocations';
 import { useLocationCheckoffs } from '../hooks/useLocationCheckoffs';
@@ -31,6 +34,7 @@ import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../li
 import {
   addItem,
   finishShopping,
+  MAX_QUANTITY,
   removeItem,
   resetList,
   setChecked,
@@ -246,6 +250,14 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * (and the "N of M checked" count drops with it). The confirmation is cleared on
  * success and, by an effect, if the item disappears from `view` first (another member
  * removed it).
+ *
+ * Issue #111: each row's `stepper` slot holds a `QuantityControl` (a "+" at 1, a "×N" chip
+ * above it) and the chip opens `QuantityEditor` in the row's `editor` slot
+ * (`quantityEditingId`, a third single slot beside `editingItemId` and
+ * `confirmingRemoveId`). Quantity writes go through `useQuantityStepper`, not the `pending`
+ * Set: stepping is tapped in bursts and no tap may be dropped, and it never toggles check
+ * (one tick covers the whole quantity). Finish and Reset are held back while any quantity
+ * write is in flight (`inFlightTotal`), so the recorded quantity matches the screen.
  */
 export function ShoppingScreen({ client, lists, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -338,6 +350,16 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   }, [view]);
 
   const [error, setError] = useState<string | null>(null);
+  // Quantity writes (#111): optimistic and never dropped, so not the `pending` Set.
+  const { quantityOf, step, inFlightTotal } = useQuantityStepper({
+    client,
+    view,
+    refresh,
+    setError,
+  });
+  // The one row showing the quantity editor; exclusive with `editingItemId` and
+  // `confirmingRemoveId`.
+  const [quantityEditingId, setQuantityEditingId] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   useEffect(() => {
     if (error) {
@@ -400,6 +422,17 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     }
   }, [view, confirmingRemoveId]);
 
+  // Same for the quantity editor: its item was removed by another member.
+  useEffect(() => {
+    if (
+      quantityEditingId !== null &&
+      view.status === 'loaded' &&
+      !view.items.some((item) => item.id === quantityEditingId)
+    ) {
+      setQuantityEditingId(null);
+    }
+  }, [view, quantityEditingId]);
+
   useLayoutEffect(() => {
     // Same reasoning as ListDetailScreen's header: it carries the list's name, and
     // it's what carries back too.
@@ -457,8 +490,16 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     setError(null);
     // One slot at a time with the location editor: opening one closes the other.
     cancelEditing();
+    setQuantityEditingId(null);
     confirmingRemoveIdRef.current = itemId;
     setConfirmingRemoveId(itemId);
+  }
+
+  function beginQuantityEditing(itemId: string) {
+    setError(null);
+    cancelEditing();
+    cancelRemoving();
+    setQuantityEditingId(itemId);
   }
 
   function cancelRemoving() {
@@ -501,6 +542,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   function beginEditing(itemId: string) {
     setError(null);
     cancelRemoving();
+    setQuantityEditingId(null);
     editingItemIdRef.current = itemId;
     setEditingItemId(itemId);
     setLocationDraft('');
@@ -648,7 +690,8 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     if (newCheckedCount === 0) {
       return;
     }
-    if (finishingRef.current || finishingShopping || pending.size > 0) {
+    // A quantity write still in flight would be recorded at the old number.
+    if (finishingRef.current || finishingShopping || pending.size > 0 || inFlightTotal > 0) {
       return;
     }
     finishingRef.current = true;
@@ -692,7 +735,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     if (checkedCount === 0) {
       return;
     }
-    if (finishingRef.current || finishingShopping || pending.size > 0) {
+    if (finishingRef.current || finishingShopping || pending.size > 0 || inFlightTotal > 0) {
       return;
     }
     finishingRef.current = true;
@@ -916,6 +959,15 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
               onToggle={() => void toggle(item)}
               disabled={pending.has(item.id)}
               pill={section}
+              stepper={
+                <QuantityControl
+                  name={item.name}
+                  quantity={quantityOf(item)}
+                  onIncrement={() => void step(item, 1)}
+                  onOpenEditor={() => beginQuantityEditing(item.id)}
+                  disabled={finishingShopping}
+                />
+              }
               onLocation={() => beginEditing(item.id)}
               locationLabel={
                 section !== null
@@ -952,6 +1004,16 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
                     submitDisabled={locationDraft.trim().length === 0}
                     maxLength={60}
                   />
+                ) : quantityEditingId === item.id ? (
+                  <QuantityEditor
+                    name={item.name}
+                    quantity={quantityOf(item)}
+                    max={MAX_QUANTITY}
+                    onIncrement={() => void step(item, 1)}
+                    onDecrement={() => void step(item, -1)}
+                    onDone={() => setQuantityEditingId(null)}
+                    disabled={finishingShopping}
+                  />
                 ) : undefined
               }
               footer={
@@ -986,6 +1048,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
               label="Reset list"
               onPress={() => void resetThisList()}
               busy={finishingShopping}
+              disabled={inFlightTotal > 0}
             />
             <SecondaryButton
               label="Cancel"
@@ -1004,11 +1067,12 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
               label="Done shopping"
               onPress={() => void finishThisShop('done')}
               busy={finishingShopping}
+              disabled={inFlightTotal > 0}
             />
             <SecondaryButton
               label="Continue at another store"
               onPress={() => void finishThisShop('continue')}
-              disabled={finishingShopping}
+              disabled={finishingShopping || inFlightTotal > 0}
             />
             <SecondaryButton
               label="Cancel"
@@ -1024,7 +1088,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
             setError(null);
             setConfirmingFinish(true);
           }}
-          disabled={checkedCount === 0 || pending.size > 0}
+          disabled={checkedCount === 0 || pending.size > 0 || inFlightTotal > 0}
         />
       )}
     </Screen>
