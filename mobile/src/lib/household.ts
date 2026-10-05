@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { JWT_ISSUED_AT_FUTURE, retryOnJwtIssuedAtFuture } from './postgrestRetry';
+
 export type Household = {
   id: string;
   name: string;
@@ -80,6 +82,10 @@ export function humanise(error: { message: string; code?: string }): string {
     }
   }
 
+  if (error.code === JWT_ISSUED_AT_FUTURE) {
+    return "Cartel couldn't load just now. Try again in a moment.";
+  }
+
   if (error.code === '42501' || DENIAL_TEXT.some((text) => error.message.includes(text))) {
     return DENIED;
   }
@@ -92,9 +98,9 @@ export async function loadHouseholdState(
 ): Promise<Outcome<HouseholdState>> {
   // RLS scopes this to the caller's own household, so no filter is needed here and
   // adding one would imply the query is trusted to do the scoping. It is not.
-  const { data, error } = await client
-    .from('household_members')
-    .select('household_id, households(id, name)');
+  const { data, error } = await retryOnJwtIssuedAtFuture('household', () =>
+    client.from('household_members').select('household_id, households(id, name)'),
+  );
 
   if (error) {
     return { ok: false, message: humanise(error) };

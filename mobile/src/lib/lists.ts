@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateKeyBetween } from 'fractional-indexing';
 
 import { humanise, type Outcome } from './household';
+import { retryOnJwtIssuedAtFuture } from './postgrestRetry';
 
 export type ListRow = {
   id: string;
@@ -109,11 +110,13 @@ export async function loadLists(client: SupabaseClient): Promise<Outcome<ListRow
   //
   // Ordered by `last_activity_at`, which a trigger maintains (ticks, adds, renames, store
   // changes, finishes), so the list touched last is on top.
-  const { data, error } = await client
-    .from('lists')
-    .select('id, name, household_id, location_id, created_at, last_activity_at')
-    .is('deleted_at', null)
-    .order('last_activity_at', { ascending: false });
+  const { data, error } = await retryOnJwtIssuedAtFuture('lists', () =>
+    client
+      .from('lists')
+      .select('id, name, household_id, location_id, created_at, last_activity_at')
+      .is('deleted_at', null)
+      .order('last_activity_at', { ascending: false }),
+  );
 
   if (error) {
     return { ok: false, message: humanise(error) };
@@ -132,11 +135,13 @@ export async function loadLists(client: SupabaseClient): Promise<Outcome<ListRow
     const itemRows: { list_id: string; checked_at: string | null }[] = [];
 
     for (let i = 0; i < ids.length; i += 10) {
-      const itemResult = await client
-        .from('list_items')
-        .select('list_id, checked_at')
-        .in('list_id', ids.slice(i, i + 10))
-        .is('deleted_at', null);
+      const itemResult = await retryOnJwtIssuedAtFuture('list-items', () =>
+        client
+          .from('list_items')
+          .select('list_id, checked_at')
+          .in('list_id', ids.slice(i, i + 10))
+          .is('deleted_at', null),
+      );
 
       if (itemResult.error) {
         return { ok: false, message: humanise(itemResult.error) };
