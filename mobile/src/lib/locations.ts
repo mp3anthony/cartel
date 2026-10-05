@@ -66,6 +66,21 @@ export function roundToNearest10(metres: number): number {
   return Math.round(metres / 10) * 10;
 }
 
+/**
+ * The picker's list order: most-visited first (visit counts come from the caller's own
+ * Shop history), ties and never-visited stores alphabetical. Returns a new array.
+ */
+export function orderByVisits(
+  locations: LocationRow[],
+  visits: ReadonlyMap<string, number>,
+): LocationRow[] {
+  return [...locations].sort(
+    (a, b) =>
+      (visits.get(b.id) ?? 0) - (visits.get(a.id) ?? 0) ||
+      a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }),
+  );
+}
+
 export async function loadLocations(client: SupabaseClient): Promise<Outcome<LocationRow[]>> {
   // RLS grants SELECT on this table to every authenticated user unconditionally —
   // `public.locations` is deliberately global, unlike `lists`/`list_items` — so no

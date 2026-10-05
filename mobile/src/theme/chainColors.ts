@@ -10,10 +10,11 @@
  * fixed brand colours, not part of this app's own light/dark palette pair,
  * so unlike everything in tokens.ts there is no light/dark split here.
  *
- * Only the primary hex per chain is modeled. Four Square and FreshChoice
- * each have a researched optional secondary colour (green) too, but nothing
- * in scope for #51 needs a two-colour treatment — add it here if a later
- * issue needs it.
+ * The primary hex is the fill, and the only colour the donut uses. Four Square
+ * and FreshChoice also have a ring colour, used only by StoreBadge, because
+ * their reds are nearly the same as New World's at badge size. FreshChoice's
+ * ring is its website UI blue (Ant's choice over the leaf green) so it can't
+ * be confused with Four Square's green.
  */
 export type Chain =
   | 'new_world'
@@ -37,6 +38,22 @@ const CHAIN_COLORS: Record<Chain, string> = {
   woolworths: '#007837',
   freshchoice: '#D8232A',
 };
+
+const CHAIN_RING_COLORS: Partial<Record<Chain, string>> = {
+  four_square: '#278342',
+  freshchoice: '#18A3D7',
+};
+
+/**
+ * Returns the badge ring hex for a chain, or null when it has none (every chain but
+ * Four Square and FreshChoice, plus null/undefined/unknown values).
+ */
+export function chainRingColor(chain: string | null | undefined): string | null {
+  if (!chain) {
+    return null;
+  }
+  return (CHAIN_RING_COLORS as Record<string, string>)[chain] ?? null;
+}
 
 /**
  * Returns the brand hex for a chain, or null for null/undefined/unknown values

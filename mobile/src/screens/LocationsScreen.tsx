@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -18,8 +18,10 @@ import { StoreBadge } from '../components/StoreBadge';
 import { useLocations } from '../hooks/useLocations';
 import { requestLocation } from '../lib/geolocation';
 import { attachLocation } from '../lib/lists';
+import { loadShopSessionLocationCounts } from '../lib/shopSessions';
 import {
   findNearbyLocations,
+  orderByVisits,
   PICKER_NEARBY_RADIUS_M,
   roundToNearest10,
   type NearbyLocation,
@@ -43,6 +45,9 @@ type NearbyState =
 
 type ChainFilter = Chain | 'all';
 
+/** How long the picker waits for visit counts before listing alphabetically. */
+const VISIT_COUNTS_TIMEOUT_MS = 2000;
+
 const CHAIN_FILTER_OPTIONS: { value: ChainFilter; label: string }[] = [
   { value: 'all', label: 'All chains' },
   ...CHAIN_OPTIONS,
@@ -55,9 +60,11 @@ const CHAIN_FILTER_OPTIONS: { value: ChainFilter; label: string }[] = [
  * a report; nothing in this screen writes to `locations`.
  *
  * Hard invariant (03-SPEC.md § 0): this screen never reads, displays, or filters by
- * `created_by`, household, or any notion of "stores I made" vs "stores others made".
+ * `created_by`, or any notion of "stores I made" vs "stores others made".
  * `locations.ts` withholds `created_by` from the SELECT grant, so there is no
- * ownership concept here to accidentally add.
+ * ownership concept here to accidentally add. It may sort (never filter) the list by
+ * the household's Shop history counts, which RLS already scopes and which are
+ * read-only here.
  *
  * `selected` is client-side and ephemeral when `attachToListId` is absent — nothing
  * about "which store is selected" is persisted; it exists only so a row can show a
@@ -95,6 +102,41 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
   const [error, setError] = useState<string | null>(null);
   const [nearbyState, setNearbyState] = useState<NearbyState>({ status: 'idle' });
   const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
+  // Visit counts per store, only used to order the list. null while loading. Best-effort:
+  // a failed, thrown or slow (over 2 s) load leaves an empty map, so the list falls back
+  // to alphabetical with no error. Whichever settles first wins; a late result is ignored.
+  const [visits, setVisits] = useState<ReadonlyMap<string, number> | null>(null);
+
+  useEffect(() => {
+    let settled = false;
+
+    function settle(next: ReadonlyMap<string, number>) {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      setVisits(next);
+    }
+
+    const timer = setTimeout(() => settle(new Map()), VISIT_COUNTS_TIMEOUT_MS);
+
+    loadShopSessionLocationCounts(client)
+      .then((outcome) =>
+        settle(
+          outcome.ok
+            ? new Map(outcome.value.map((entry) => [entry.locationId, entry.count]))
+            : new Map(),
+        ),
+      )
+      .catch(() => settle(new Map()));
+
+    return () => {
+      // Unmounted: block any later settle from setting state.
+      settled = true;
+      clearTimeout(timer);
+    };
+  }, [client]);
 
   /**
    * The single place a selection "becomes real". Absent `attachToListId`, it sets the
@@ -175,14 +217,7 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
     }
   }
 
-  if (view.status === 'loading') {
-    return (
-      <Screen edges={NAVIGATOR_EDGES}>
-        <ActivityIndicator color={tokens.color.accent} size="large" />
-      </Screen>
-    );
-  }
-
+  // The error check comes first so a stores error is never hidden behind the spinner.
   if (view.status === 'error') {
     return (
       <Screen edges={NAVIGATOR_EDGES}>
@@ -191,11 +226,19 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
     );
   }
 
+  if (view.status === 'loading' || visits === null) {
+    return (
+      <Screen edges={NAVIGATOR_EDGES}>
+        <ActivityIndicator color={tokens.color.accent} size="large" />
+      </Screen>
+    );
+  }
+
   const locations = view.locations;
   const chainByLocationId = new Map(locations.map((location) => [location.id, location.chain]));
   const query = search.trim().toLowerCase();
   const chainLabel = CHAIN_FILTER_OPTIONS.find((option) => option.value === chainFilter)?.label ?? '';
-  const filtered = locations.filter(
+  const filtered = orderByVisits(locations, visits).filter(
     (location) =>
       (query === '' || location.name.toLowerCase().includes(query)) &&
       (chainFilter === 'all' || location.chain === chainFilter),

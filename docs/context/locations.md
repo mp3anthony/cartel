@@ -62,11 +62,11 @@ _Avoid_: Store directory, item database, catalog (unqualified)
 ### Store catalog (planned, #107)
 
 **Store catalog**:
-Not the Item catalog (the per-store screen of items). The seeded, Cartel-maintained list of supermarket and grocery chain branches (New World, PAK'nSAVE, Four Square, Woolworths, FreshChoice, SuperValue if any remain) in Christchurch and surrounding area, roughly Rangiora to Lincoln and the coast. Compiled from the brands' own store locators and OpenStreetMap, never from Google Maps; Ant spot-checks it before seeding. No independents, dairies or other shop types. Users find a store from it by nearby (dashboard radius) when Location Services is allowed, otherwise by name search with a brand filter. Staleness is accepted; Store missing reports and corrections are the freshness mechanism.
+Not the Item catalog (the per-store screen of items). The seeded, Cartel-maintained list of supermarket and grocery chain branches (New World, PAK'nSAVE, Four Square, Woolworths, FreshChoice, SuperValue if any remain) in Christchurch and surrounding area, roughly Rangiora to Lincoln and the coast. Compiled from the brands' own store locators and OpenStreetMap, never from Google Maps; Ant spot-checks it before seeding. No independents, dairies or other shop types. Users find a store from it by nearby (dashboard radius) when Location Services is allowed, otherwise by name search with a brand filter. The picker's list puts the stores in the household's Shop history first (most visits first), then alphabetical; the nearby list stays ordered by distance. Staleness is accepted; Store missing reports and corrections are the freshness mechanism.
 _Avoid_: Places search, maps integration, catalog (unqualified)
 
 **Canonical name**:
-The one agreed form of a catalog store's name: brand plus branch, e.g. "New World Riccarton", stored alongside its brand. Exists to end differing spellings and duplicates. The brand also drives the badge (brand colour plus name text; real logos are a separate follow-up needing permission).
+The one agreed form of a catalog store's name: brand plus branch, e.g. "New World Riccarton", stored alongside its brand. Exists to end differing spellings and duplicates. The brand also drives the badge (brand colour plus name text; New World is solid red; Four Square and FreshChoice show their red with a green or blue ring so the three reds can be told apart; real logos are a separate follow-up needing permission).
 _Avoid_: Display name, nickname
 
 **Store missing report**:
