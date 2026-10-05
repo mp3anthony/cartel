@@ -1,0 +1,53 @@
+id,chain,name,lat,lng,address,source_url,osm_ref,notes
+,new_world,New World Bishopdale,-43.488450,172.587207,"Bishopdale Mall, Cnr Farrington Ave & Harewood Rd, Christchurch 8053",https://www.newworld.co.nz/store-finder,w153445031,
+,new_world,New World Durham Street,-43.538731,172.633136,"175 Durham Street South, Christchurch 8011",https://www.newworld.co.nz/store-finder,w694038804,
+,new_world,New World Fendalton,-43.517932,172.588375,"19-23 Memorial Avenue, Christchurch 8053",https://www.newworld.co.nz/store-finder,n2161706945,
+,new_world,New World Ferry Road,-43.549017,172.683999,"7-11 St John Street, Woolston, Christchurch 8062",https://www.newworld.co.nz/store-finder,w666760593,Locator name is Ferry Road but the store is on St John Street; OSM way has no branch tag.
+,new_world,New World Halswell,-43.580634,172.565907,"346 Halswell Road, Christchurch 8025",https://www.newworld.co.nz/store-finder,w26468153,OSM way has no branch or address tags; matched by position.
+,new_world,New World Ilam,-43.525919,172.569816,"47C - 57C Peer St, Upper Riccarton, Christchurch 8041",https://www.newworld.co.nz/store-finder,w439832892,
+,new_world,New World Kaiapoi,-43.382302,172.659995,"52 Charles Street, Kaiapoi 7630",https://www.newworld.co.nz/store-finder,w443171698,OSM branch tag missing.
+,new_world,New World Lincoln,-43.642172,172.473748,"77 Gerald Street, Lincoln 7608",https://www.newworld.co.nz/store-finder,w193057152,
+,new_world,New World Northwood,-43.459648,172.622380,"2 Mounter Ave, Christchurch 8051",https://www.newworld.co.nz/store-finder,w151948097,
+,new_world,New World Prestons,-43.475142,172.662021,"420 Marshland Rd, Marshland, Christchurch 8083",https://www.newworld.co.nz/store-finder,w494607325,
+,new_world,New World Rangiora,-43.302577,172.594722,"10 Good Street, Rangiora 7400",https://www.newworld.co.nz/store-finder,w236399045,
+,new_world,New World Ravenswood,-43.307212,172.671774,"10 Bob Robertson Drive, Woodend 7691",https://www.newworld.co.nz/store-finder,w911390204,Serves Woodend and Pegasus.
+,new_world,New World Rolleston,-43.596763,172.382424,"92 Rolleston Drive, Rolleston 7614",https://www.newworld.co.nz/store-finder,n2784551965,
+,new_world,New World St Martins,-43.557536,172.654764,"92 Wilsons Road, Christchurch 8023",https://www.newworld.co.nz/store-finder,w183366653,
+,new_world,New World Stanmore,-43.520181,172.656980,"288 Stanmore Road, Christchurch 8013",https://www.newworld.co.nz/store-finder,w101465917,
+,new_world,New World Wigram,-43.552696,172.557495,"51 Skyhawk Road, Wigram 8042",https://www.newworld.co.nz/store-finder,w502460357,
+,paknsave,PAK'nSAVE Hornby,-43.542793,172.523177,"The Hub 418 Main S Rd, Hornby, Christchurch 8042",https://www.paknsave.co.nz/store-finder,n1649789483,
+,paknsave,PAK'nSAVE Moorhouse,-43.539026,172.638327,"297 Moorhouse Ave, Sydenham, Christchurch 8011",https://www.paknsave.co.nz/store-finder,w101514323,
+,paknsave,PAK'nSAVE Papanui,-43.485578,172.614722,"171 Main North Road, Papanui, Christchurch",https://www.paknsave.co.nz/store-finder,w1169237304,
+,paknsave,PAK'nSAVE Rangiora,-43.324790,172.600528,"2 Southbrook Rd, Waimakariri, Rangiora 7400",https://www.paknsave.co.nz/store-finder,w409367573,OSM branch tag missing.
+,paknsave,PAK'nSAVE Riccarton,-43.531177,172.596227,"Westfield Riccarton, 129 Riccarton Rd, Riccarton, Christchurch 8041",https://www.paknsave.co.nz/store-finder,w1078378573,
+,paknsave,PAK'nSAVE Rolleston,-43.597481,172.396498,"157 Levi Road, Rolleston 7614",https://www.paknsave.co.nz/store-finder,w1343586885,
+,paknsave,PAK'nSAVE Wainoni,-43.512855,172.693245,"174 Wainoni Rd, Avondale, Christchurch 8061",https://www.paknsave.co.nz/store-finder,w463566563,
+,four_square,Four Square West Melton,-43.523235,172.370412,"1/736 Weedons Ross Road, West Melton, Christchurch 7676",https://www.foursquare.co.nz/store-finder,n5267483966,
+,four_square,Four Square Diamond Harbour,-43.628392,172.724461,"141 Marine Drive, Diamond Harbour 8971",https://www.foursquare.co.nz/store-finder,w1133037468,Inside the bounding box but outside the named places; kept because it is inside the box. Ant may drop it.
+,freshchoice,FreshChoice Barrington,-43.555765,172.620604,"256 Barrington Street, Christchurch 8024",https://store.freshchoice.co.nz/,n469313826,
+,freshchoice,FreshChoice City Market,-43.533957,172.637828,"71 Lichfield Street, Christchurch Central, Christchurch 8011",https://store.freshchoice.co.nz/,w1051223205,Locator name is City Market; OSM way has no branch tag.
+,freshchoice,FreshChoice Edgeware,-43.513208,172.636812,"61 Edgeware Road, Edgeware, Christchurch 8014",https://store.freshchoice.co.nz/,n9386764746,OSM branch tag missing.
+,freshchoice,FreshChoice Fendalton,-43.509513,172.590280,"376 Ilam Road, Bryndwr, Fendalton 8053",https://store.freshchoice.co.nz/,n1722643297,
+,freshchoice,FreshChoice Lyttelton,-43.602858,172.721529,"17 London Street, Lyttelton, Christchurch 8082",https://store.freshchoice.co.nz/,w101185359,OSM branch tag missing.
+,freshchoice,FreshChoice Mandeville,-43.380118,172.536215,"1/468 Mandeville Road, Ohoka, Christchurch 7692",https://store.freshchoice.co.nz/,n5652951601,"Coordinates from an OSM node still tagged brand SuperValue, in Mandeville Village Shops; the locator lists this store as FreshChoice (converted). Not independently confirmed to be the same unit; Ant to spot-check."
+,freshchoice,FreshChoice Merivale,-43.512655,172.621299,"189 Papanui Road, Merivale, Christchurch 8014",https://store.freshchoice.co.nz/,n3048355219,
+,freshchoice,FreshChoice Parklands,-43.481239,172.706116,"60 Queenspark Drive, Parklands, Christchurch 8083",https://store.freshchoice.co.nz/,w224191412,
+,freshchoice,FreshChoice Prebbleton,-43.581752,172.513762,"9 Tosswill Road, Prebbleton 7604",https://store.freshchoice.co.nz/,w894448450,
+,freshchoice,FreshChoice Sumner,-43.569594,172.760172,"43 Nayland Street, Sumner, Christchurch 8081",https://store.freshchoice.co.nz/,w1348142777,OSM way has no branch or address tags; matched by position (Sumner).
+,woolworths,Woolworths Avonhead,-43.511173,172.557275,"Cnr Withells Road & Merrin Street, Avonhead, Christchurch 8042",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w1013884960,
+,woolworths,Woolworths Belfast,-43.447751,172.628349,"755 Main North Road, Belfast, Christchurch",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w1082617978,
+,woolworths,Woolworths Christchurch Airport,-43.489861,172.547710,"530 - 546A Memorial Ave, Christchurch",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w540962413,OSM way has no name tags beyond brand; matched by position.
+,woolworths,Woolworths Church Corner,-43.532760,172.573075,"Cnr Riccarton Rd & Hansons Lane, Christchurch 8041",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w34369592,
+,woolworths,Woolworths Colombo St,-43.553326,172.635601,"219 Colombo St, Christchurch 8023",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w53916748,
+,woolworths,Woolworths Eastgate,-43.532451,172.675585,"6 Buckleys Road, Linwood, Christchurch 8062",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,n4712861689,OSM node last checked 2023-08; matched by position.
+,woolworths,Woolworths Ferrymead,-43.556825,172.702514,"999 Ferry Road, Christchurch",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w101486484,
+,woolworths,Woolworths Halswell,-43.568202,172.578691,"5 Timberyard Drive, Halswell, Christchurch 8025",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w1563906611,A second OSM node (n14250423401) duplicates this store; not used.
+,woolworths,Woolworths Hornby,-43.542764,172.526909,"Cnr Main Sth Rd & Chappie Place, Hornby, Christchurch",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w294902761,
+,woolworths,Woolworths Kaiapoi,-43.385925,172.657796,"87-97 Hilton Street, Kaiapoi 7630",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w68678569,OSM way has no branch tag; matched by position.
+,woolworths,Woolworths Moorhouse Ave,-43.538771,172.641768,"347 Moorhouse Ave, Christchurch 8011",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w101515749,
+,woolworths,Woolworths New Brighton,-43.506816,172.729992,"12 Hawke Street, New Brighton, Christchurch 8061",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w101695417,
+,woolworths,Woolworths Northlands,-43.491464,172.611749,"Cnr Main North & Sawyers Arms Roads, Christchurch 8051",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w160564053,
+,woolworths,Woolworths Rangiora East,-43.307383,172.598870,"40-54 Ivory Street, Rangiora 7400",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w305600921,OSM way has no branch tag; matched by position.
+,woolworths,Woolworths Rolleston,-43.594157,172.386640,"Cnr McCauley Street & Rolleston Drive, Rolleston",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w269479855,OSM way has no branch tag; matched by position.
+,woolworths,Woolworths The Palms,-43.505450,172.664377,"Marshlands Rd, Christchurch 8061",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w1265659520,
+,woolworths,Woolworths Waimakariri Junction,-43.376384,172.649449,"6 Hakarau Road, Kaiapoi",https://www.woolworths.co.nz/api/v1/addresses/pickup-addresses,w1395093235,
