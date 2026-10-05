@@ -17,6 +17,7 @@ import {
 } from '../components/ui';
 import { DonutChart, type DonutSegment } from '../components/DonutChart';
 import { ScopeIcon } from '../components/ScopeIcon';
+import { StoreBadge } from '../components/StoreBadge';
 import type { ListsView } from '../hooks/useLists';
 import { useLocations } from '../hooks/useLocations';
 import { useShopSessions } from '../hooks/useShopSessions';
@@ -29,6 +30,7 @@ import {
 } from '../lib/locationItemVotes';
 import {
   findNearbyLocations,
+  NEARBY_STORE_RADIUS_M,
   roundToNearest10,
   type NearbyLocation,
 } from '../lib/locations';
@@ -37,16 +39,6 @@ import type { RootStackParamList } from '../navigation/types';
 import type { Chain } from '../theme/chainColors';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
-
-/**
- * How far "nearby" reaches for the #23 nudge — deliberately not
- * `MERGE_RADIUS_M` (`locations.ts`, 100m): that constant answers "is this
- * close enough to be the same physical store," a dedup check. This answers
- * "close enough that starting a list here is worth suggesting," a walking
- * distance. No spec value exists for this one; 200m is a plain judgement
- * call, not a locked constant other code depends on.
- */
-const NEARBY_STORE_RADIUS_M = 200;
 
 type NearbyState =
   | { status: 'idle' }
@@ -317,6 +309,7 @@ export function DashboardScreen({
           nearbyState.results.map((result) => (
             <Row
               key={result.id}
+              leading={<StoreBadge chain={locationChain(result.id)} />}
               label={`${result.name} — ${roundToNearest10(result.distanceM)}m away`}
               onPress={() => void startOrContinueAtLocation(result.id)}
             />

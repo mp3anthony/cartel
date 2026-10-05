@@ -20,8 +20,7 @@ export type Chain =
   | 'paknsave'
   | 'four_square'
   | 'woolworths'
-  | 'freshchoice'
-  | 'other';
+  | 'freshchoice';
 
 export const CHAIN_OPTIONS: { value: Chain; label: string }[] = [
   { value: 'new_world', label: 'New World' },
@@ -29,10 +28,9 @@ export const CHAIN_OPTIONS: { value: Chain; label: string }[] = [
   { value: 'four_square', label: 'Four Square' },
   { value: 'woolworths', label: 'Woolworths' },
   { value: 'freshchoice', label: 'FreshChoice' },
-  { value: 'other', label: 'Other' },
 ];
 
-const CHAIN_COLORS: Record<Exclude<Chain, 'other'>, string> = {
+const CHAIN_COLORS: Record<Chain, string> = {
   new_world: '#E11A2C',
   paknsave: '#FFD600',
   four_square: '#ED1D24',
@@ -41,12 +39,12 @@ const CHAIN_COLORS: Record<Exclude<Chain, 'other'>, string> = {
 };
 
 /**
- * Returns the brand hex for a chain, or null for 'other'/null/undefined —
- * callers (DonutChart.tsx) treat null as "use the existing tint-mixed-accent
- * look," never as an error or a default colour of its own.
+ * Returns the brand hex for a chain, or null for null/undefined/unknown values
+ * (legacy 'other' rows included) — callers (DonutChart.tsx) treat null as "use the
+ * existing tint-mixed-accent look," never as an error or a default colour of its own.
  */
 export function chainColor(chain: string | null | undefined): string | null {
-  if (!chain || chain === 'other') {
+  if (!chain) {
     return null;
   }
   return (CHAIN_COLORS as Record<string, string>)[chain] ?? null;
