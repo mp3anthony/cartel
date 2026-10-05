@@ -48,6 +48,9 @@ const MESSAGES: Record<string, string> = {
   has_new_checks: 'Someone just checked something new. Finish the shop to record it.',
   invalid_ending: 'Something went wrong finishing this shop. Try again.',
   no_location: 'Attach a store to this list before finishing a shop.',
+  item_not_found: 'That item is gone. Someone may have just removed it.',
+  invalid_delta: "Couldn't change the quantity. Try again.",
+  invalid_name: "That item name isn't valid. Check it and try again.",
 };
 
 /**

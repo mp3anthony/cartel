@@ -14,6 +14,8 @@ import {
   InlineRowEditor,
   NAVIGATOR_EDGES,
   PrimaryButton,
+  QuantityControl,
+  QuantityEditor,
   Row,
   RowConfirm,
   Screen,
@@ -23,6 +25,7 @@ import { ReorderableList } from '../components/ReorderableList';
 import { DragHandleIcon } from '../components/RowIcons';
 import { ScopeIcon } from '../components/ScopeIcon';
 import { useListItems } from '../hooks/useListItems';
+import { useQuantityStepper } from '../hooks/useQuantityStepper';
 import type { ListsView } from '../hooks/useLists';
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocations } from '../hooks/useLocations';
@@ -34,6 +37,7 @@ import {
   addItems,
   attachLocation,
   createList,
+  MAX_QUANTITY,
   moveItem,
   promoteList,
   removeItem,
@@ -70,7 +74,15 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ListDetail'> & {
  * when a store is attached, opens the same editor in a location mode. Only one row is
  * edited at a time (`editingId` plus `editingMode`). The location mode's ✓ tags the item when it has no section at
  * this store yet and proposes a correction when it has, the same two writes Shopping
- * Mode makes. No section pill here, which keeps room for a quantity counter (#111).
+ * Mode makes. No section pill here, which keeps room for the quantity control (#111).
+ *
+ * Issue #111: each row carries a `QuantityControl` (a "+" at 1, a "×N" chip above it)
+ * through the row's `stepper` slot; the chip opens `QuantityEditor` ("− N + Done") in the
+ * row's `editor` slot. `quantityEditingId` is one more single slot, mutually exclusive
+ * with `editingId` and `confirmingRemoveId`, and it turns dragging off like they do.
+ * Quantity writes go through `useQuantityStepper`, deliberately not `mutate()`: that
+ * guard drops a tap that lands during a write, and a quantity tap must never be lost.
+ * The stepper never toggles check; one tick covers the whole quantity.
  *
  * Issue #102: "×" now sits on the row itself, in place of the old pencil position, and opens an inline
  * `RowConfirm` ("Remove {item}?") in that row's place. It used to live on the editor's
@@ -121,6 +133,11 @@ export function ListDetailScreen({
   const [copyShared, setCopyShared] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Quantity writes are their own optimistic, never-dropped path, not `mutate()` (#111).
+  const { quantityOf, step } = useQuantityStepper({ client, view, refresh, setError });
+  // The one row showing the quantity editor ("− N + Done"); mutually exclusive with
+  // `editingId` and `confirmingRemoveId`.
+  const [quantityEditingId, setQuantityEditingId] = useState<string | null>(null);
   // `busy` is React state, batched: several keydown-triggered `add()` calls fired in
   // the same synchronous burst (a fast typist double-hitting Return) all read the same
   // stale `busy === false` from their closures before any render flushes, so a state
@@ -160,6 +177,17 @@ export function ListDetailScreen({
       setConfirmingRemoveId(null);
     }
   }, [view, confirmingRemoveId]);
+
+  // Same for the quantity editor: its item was removed by another member.
+  useEffect(() => {
+    if (
+      quantityEditingId !== null &&
+      view.status === 'loaded' &&
+      !view.items.some((item) => item.id === quantityEditingId)
+    ) {
+      setQuantityEditingId(null);
+    }
+  }, [view, quantityEditingId]);
 
   // The pin's data: sections already tagged at the attached store. Called unconditionally
   // (null until a store is attached), above this screen's early returns.
@@ -228,6 +256,7 @@ export function ListDetailScreen({
     setError(null);
     // One slot at a time with the editor: opening one closes the other.
     cancelEditing();
+    setQuantityEditingId(null);
     confirmingRemoveIdRef.current = itemId;
     setConfirmingRemoveId(itemId);
   }
@@ -244,9 +273,17 @@ export function ListDetailScreen({
     }
   }
 
+  function beginQuantityEditing(itemId: string) {
+    setError(null);
+    cancelEditing();
+    cancelRemoving();
+    setQuantityEditingId(itemId);
+  }
+
   function beginEditing(item: ListItemRow) {
     setError(null);
     cancelRemoving();
+    setQuantityEditingId(null);
     editingIdRef.current = item.id;
     setEditingMode('rename');
     setEditingName(item.name);
@@ -256,6 +293,7 @@ export function ListDetailScreen({
   function beginLocating(item: ListItemRow) {
     setError(null);
     cancelRemoving();
+    setQuantityEditingId(null);
     editingIdRef.current = item.id;
     setEditingMode('location');
     setEditingName('');
@@ -541,7 +579,8 @@ export function ListDetailScreen({
   const items = pendingOrder
     ? [...loadedItems].sort((x, y) => pendingOrder.indexOf(x.id) - pendingOrder.indexOf(y.id))
     : loadedItems;
-  const dragDisabled = busy || editingId !== null || confirmingRemoveId !== null;
+  const dragDisabled =
+    busy || editingId !== null || confirmingRemoveId !== null || quantityEditingId !== null;
   const canShare = list.householdId === null && inHousehold;
   const attachedLocation =
     list.locationId && locationsView.status === 'loaded'
@@ -632,7 +671,7 @@ export function ListDetailScreen({
       <ReorderableList
         items={items}
         disabled={dragDisabled}
-        dimmed={editingId !== null || confirmingRemoveId !== null}
+        dimmed={editingId !== null || confirmingRemoveId !== null || quantityEditingId !== null}
         handleIcon={<DragHandleIcon />}
         handleLabel={(item) => `Drag to reorder ${item.name}`}
         onDrop={(itemId, beforeId, afterId) => dropItem(itemId, beforeId, afterId, loadedItems)}
@@ -653,6 +692,14 @@ export function ListDetailScreen({
               void mutate(() => setChecked(client, item.id, item.checkedAt === null));
             }}
             disabled={busy}
+            stepper={
+              <QuantityControl
+                name={item.name}
+                quantity={quantityOf(item)}
+                onIncrement={() => void step(item, 1)}
+                onOpenEditor={() => beginQuantityEditing(item.id)}
+              />
+            }
             onRename={() => beginEditing(item)}
             renameLabel={`Rename ${item.name}`}
             // Only once the store's tags have loaded: until then an already-tagged item
@@ -694,6 +741,15 @@ export function ListDetailScreen({
                   busy={busy}
                   submitDisabled={editingName.trim().length === 0}
                   maxLength={editingMode === 'location' ? 60 : 120}
+                />
+              ) : item.id === quantityEditingId ? (
+                <QuantityEditor
+                  name={item.name}
+                  quantity={quantityOf(item)}
+                  max={MAX_QUANTITY}
+                  onIncrement={() => void step(item, 1)}
+                  onDecrement={() => void step(item, -1)}
+                  onDone={() => setQuantityEditingId(null)}
                 />
               ) : undefined
             }

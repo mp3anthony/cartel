@@ -29,7 +29,17 @@ export type ListItemRow = {
    * "new since the last finish" is `checkedAt !== null && recordedAt === null`.
    * Server-maintained: the client never writes it. */
   recordedAt: string | null;
+  /** Whole number, 1..99 (#111). One tick covers the whole quantity. */
+  quantity: number;
 };
+
+/** The ceiling on an item's quantity; the database enforces the same 1..99. */
+export const MAX_QUANTITY = 99;
+
+/** Keeps a quantity inside 1..MAX_QUANTITY. */
+export function clampQuantity(value: number): number {
+  return Math.min(MAX_QUANTITY, Math.max(1, Math.round(value)));
+}
 
 /**
  * The database's spelling of the two rows above, kept separate rather than exported so
@@ -51,6 +61,7 @@ type ListItemRecord = {
   position: string;
   checked_at: string | null;
   recorded_at: string | null;
+  quantity: number;
 };
 
 /**
@@ -366,7 +377,7 @@ export async function loadItems(
   // the opposite. Sorting here rather than in JS keeps that agreement in one place.
   const { data, error } = await client
     .from('list_items')
-    .select('id, name, position, checked_at, recorded_at')
+    .select('id, name, position, checked_at, recorded_at, quantity')
     .eq('list_id', listId)
     .is('deleted_at', null)
     .order('position')
@@ -386,8 +397,33 @@ export async function loadItems(
       position: row.position,
       checkedAt: row.checked_at,
       recordedAt: row.recorded_at,
+      quantity: row.quantity,
     })),
   };
+}
+
+/**
+ * Raises or lowers an item's quantity by one and returns the new value. A relative
+ * change in one atomic RPC (migration 20261006000000), so two members tapping "+" at the
+ * same moment both count. Deltas are NOT idempotent: this is never wrapped in a retry
+ * (`retryOnJwtIssuedAtFuture` or any other), because after an unknown outcome the first
+ * call may already have committed. A failure is surfaced and the person re-taps.
+ */
+export async function adjustItemQuantity(
+  client: SupabaseClient,
+  itemId: string,
+  delta: 1 | -1,
+): Promise<Outcome<number>> {
+  const { data, error } = await client.rpc('adjust_item_quantity', {
+    p_item_id: itemId,
+    p_delta: delta,
+  });
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  return { ok: true, value: data as number };
 }
 
 export async function addItem(
