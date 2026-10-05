@@ -23,8 +23,11 @@ import {
 import { ScopeIcon } from '../components/ScopeIcon';
 import { useListItems } from '../hooks/useListItems';
 import type { ListsView } from '../hooks/useLists';
+import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocations } from '../hooks/useLocations';
 import type { Household, Outcome } from '../lib/household';
+import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
+import { voteLocationItemCorrection } from '../lib/locationItemVotes';
 import {
   addItem,
   addItems,
@@ -61,12 +64,16 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ListDetail'> & {
  * again.
  *
  * Items render as `CompactItemRow`s (#80, under #76), the same density as Shopping
- * Mode. The row's ↑ ↓ controls live behind its pencil: tapping it turns that one row
- * into an `InlineRowEditor` (rename field, ✓/✕) with the move buttons on a second line,
- * so reorder costs one extra tap. Only one row is edited at a time; moving an item keeps
- * its editor open, since the row keeps its key.
+ * Mode. Issue #102 slice 2 retired the pencil: the check circle ticks, tapping the name
+ * turns that one row into an `InlineRowEditor` (rename field, ✓/✕) with the ↑ ↓ move
+ * buttons on a second line (until the drag handle lands), and a pin, shown only when a
+ * store is attached, opens the same editor in a location mode. Only one row is edited at
+ * a time (`editingId` plus `editingMode`); moving an item keeps its editor open, since
+ * the row keeps its key. The location mode's ✓ tags the item when it has no section at
+ * this store yet and proposes a correction when it has, the same two writes Shopping
+ * Mode makes. No section pill here, which keeps room for a quantity counter (#111).
  *
- * Issue #102: "×" now sits on the row itself, after the pencil, and opens an inline
+ * Issue #102: "×" now sits on the row itself, in place of the old pencil position, and opens an inline
  * `RowConfirm` ("Remove {item}?") in that row's place. It used to live on the editor's
  * second line, whose field is `autoFocus`; the leading guess for "the x did nothing" is
  * that a tap there closed the iOS keyboard, the layout shifted and the tap was lost
@@ -96,6 +103,9 @@ export function ListDetailScreen({
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  // What the one open editor is for: the item's name, or its location at the attached
+  // store. `editingName` holds the draft text for either.
+  const [editingMode, setEditingMode] = useState<'rename' | 'location'>('rename');
   const [renamingList, setRenamingList] = useState(false);
   const [listNameDraft, setListNameDraft] = useState('');
   const [confirmingShare, setConfirmingShare] = useState(false);
@@ -142,6 +152,23 @@ export function ListDetailScreen({
       setConfirmingRemoveId(null);
     }
   }, [view, confirmingRemoveId]);
+
+  // The pin's data: sections already tagged at the attached store. Called unconditionally
+  // (null until a store is attached), above this screen's early returns.
+  const { view: locationItems, refresh: refreshLocationItems } = useLocationItems(
+    client,
+    list?.locationId ?? null,
+  );
+
+  // The store was detached (here or by another member) while the location editor was
+  // open: its ✓ would have nothing to write to, so close it.
+  useEffect(() => {
+    if (editingMode === 'location' && editingId !== null && !list?.locationId) {
+      editingIdRef.current = null;
+      setEditingId(null);
+      setEditingName('');
+    }
+  }, [list?.locationId, editingMode, editingId]);
 
   useLayoutEffect(() => {
     // The header carries the list's name for the same reason it carries the
@@ -213,7 +240,17 @@ export function ListDetailScreen({
     setError(null);
     cancelRemoving();
     editingIdRef.current = item.id;
+    setEditingMode('rename');
     setEditingName(item.name);
+    setEditingId(item.id);
+  }
+
+  function beginLocating(item: ListItemRow) {
+    setError(null);
+    cancelRemoving();
+    editingIdRef.current = item.id;
+    setEditingMode('location');
+    setEditingName('');
     setEditingId(item.id);
   }
 
@@ -267,6 +304,29 @@ export function ListDetailScreen({
     void mutate(
       () => renameItem(client, id, editingName),
       () => finishEditing(id),
+    );
+  }
+
+  // First tag for an item with no section at this store, a correction proposal for one
+  // that has one: the same two writes Shopping Mode's editor makes. Copy and wording are
+  // kept local to each screen (docs/conventions.md).
+  function commitLocation(item: ListItemRow, section: string | null) {
+    if (!list || list.locationId === null || editingName.trim().length === 0) {
+      return;
+    }
+
+    const locationId = list.locationId;
+    const proposed = editingName;
+
+    void mutate(
+      () =>
+        section !== null
+          ? voteLocationItemCorrection(client, locationId, item.name, proposed)
+          : tagItemLocation(client, locationId, item.name, proposed),
+      async () => {
+        await refreshLocationItems();
+        finishEditing(item.id);
+      },
     );
   }
 
@@ -556,7 +616,15 @@ export function ListDetailScreen({
       ) : null}
 
       <View>
-        {items.map((item, index) => (
+        {items.map((item, index) => {
+          // The section this item already has at the attached store, if any: only
+          // decides tag vs. propose-a-correction for the pin. Never shown as a pill.
+          const section =
+            list.locationId && locationItems.status === 'loaded'
+              ? sectionForItemName(locationItems.items, item.name)
+              : null;
+
+          return (
           <CompactItemRow
             key={item.id}
             name={item.name}
@@ -565,33 +633,64 @@ export function ListDetailScreen({
               void mutate(() => setChecked(client, item.id, item.checkedAt === null));
             }}
             disabled={busy}
-            onEdit={() => beginEditing(item)}
-            editLabel={`Edit ${item.name}`}
-            editDisabled={busy}
+            onRename={() => beginEditing(item)}
+            renameLabel={`Rename ${item.name}`}
+            // Only once the store's tags have loaded: until then an already-tagged item
+            // would look untagged and a correction would be written as a (rejected) tag.
+            onLocation={
+              list.locationId && locationItems.status === 'loaded'
+                ? () => beginLocating(item)
+                : undefined
+            }
+            locationLabel={
+              section !== null
+                ? `Propose a new location for ${item.name}`
+                : `Tag a location for ${item.name}`
+            }
+            locationDisabled={busy}
             editor={
               item.id === editingId ? (
                 <InlineRowEditor
                   value={editingName}
                   onChangeText={setEditingName}
-                  accessibilityLabel={`Name for ${item.name}`}
-                  onSubmit={commitRename}
+                  placeholder={
+                    editingMode === 'location'
+                      ? section !== null
+                        ? `Currently: ${section}`
+                        : 'Aisle 4'
+                      : undefined
+                  }
+                  accessibilityLabel={
+                    editingMode === 'location'
+                      ? section !== null
+                        ? `New location for ${item.name}`
+                        : `Location for ${item.name}`
+                      : `Name for ${item.name}`
+                  }
+                  onSubmit={() =>
+                    editingMode === 'location' ? commitLocation(item, section) : commitRename()
+                  }
                   onCancel={cancelEditing}
                   busy={busy}
                   submitDisabled={editingName.trim().length === 0}
-                  maxLength={120}
+                  maxLength={editingMode === 'location' ? 60 : 120}
                 >
-                  <IconButton
-                    glyph="↑"
-                    accessibilityLabel={`Move ${item.name} up`}
-                    onPress={() => moveUp(index, items)}
-                    disabled={busy || index === 0}
-                  />
-                  <IconButton
-                    glyph="↓"
-                    accessibilityLabel={`Move ${item.name} down`}
-                    onPress={() => moveDown(index, items)}
-                    disabled={busy || index === items.length - 1}
-                  />
+                  {editingMode === 'rename' ? (
+                    <>
+                      <IconButton
+                        glyph="↑"
+                        accessibilityLabel={`Move ${item.name} up`}
+                        onPress={() => moveUp(index, items)}
+                        disabled={busy || index === 0}
+                      />
+                      <IconButton
+                        glyph="↓"
+                        accessibilityLabel={`Move ${item.name} down`}
+                        onPress={() => moveDown(index, items)}
+                        disabled={busy || index === items.length - 1}
+                      />
+                    </>
+                  ) : undefined}
                 </InlineRowEditor>
               ) : undefined
             }
@@ -615,7 +714,8 @@ export function ListDetailScreen({
               ) : undefined
             }
           />
-        ))}
+          );
+        })}
       </View>
 
       {renamingList ? (
