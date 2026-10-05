@@ -39,7 +39,7 @@ _Avoid_: Finish, clear
 ### Looking back
 
 **Shop history**:
-The household's record of finished shops, on the History screen (menu item "History"). Shows the 5 most recent shops. The cap limits the display only: older shops stay stored and still count toward "Where you shop". Each entry is titled by its store and date, with the list name as secondary text (the list name is the title when no store was attached). It expands to the items bought, in check-off order, each with its Quantity when above 1 (for example "Milk ×2"), followed by a collapsed "Not bought" group, expandable, holding the items left unchecked in that shop. "Start new list from this" and "Delete" sit inside an expanded entry, not on the collapsed card; "Clear all history" removes every entry. Empty state: "No shops recorded yet".
+The household's record of finished shops, on the History screen (menu item "History"). Shows the 5 most recent shops. The cap limits the display only: older shops stay stored and still count toward "Where you shop". Each entry is titled by its store and date, with the list name as secondary text (the list name is the title when no store was attached). It expands to the items bought, in check-off order, each with its Quantity when above 1 (for example "Milk ×2"), followed by a collapsed "Not bought" group, expandable, holding the items left unchecked in that shop, which show their Quantity the same way. "Start new list from this" and "Delete" sit inside an expanded entry, not on the collapsed card; "Clear all history" removes every entry. Empty state: "No shops recorded yet".
 _Avoid_: Receipts, past lists, trips
 
 **Dashboard**:

@@ -37,7 +37,7 @@ One entry on a list, identified to the rest of the app by its normalised name (c
 _Avoid_: Product, entry, row (for the data)
 
 **Quantity**:
-A whole number from 1 to 99 on an item, with no units ("2", not "2 litres"; units may be a later ticket). Every item starts at 1, including all items that existed before quantities. Changed with the stepper on the Compact row. Shared lists: quantity changes are adjustments, so two people tapping "+" at the same moment both count. Kept when a list is reset, recorded in Shop history, and brought back by both copy routes (see Finish shopping and Shop history).
+A whole number from 1 to 99 on an item, with no units ("2", not "2 litres"). Every item starts at 1, including all items that existed before quantities. Changed with the stepper on the Compact row. Shared lists: quantity changes are adjustments, so two people tapping "+" at the same moment both count. Kept when a list is reset, recorded in Shop history, and brought back by both copy routes (see Finish shopping and Shop history).
 _Avoid_: Count, amount, units
 
 **Check off**:
