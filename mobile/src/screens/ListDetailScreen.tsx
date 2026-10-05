@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
+  Banner,
   Body,
   CheckTarget,
   CompactItemRow,
@@ -33,7 +34,7 @@ import type { Household, Outcome } from '../lib/household';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { voteLocationItemCorrection } from '../lib/locationItemVotes';
 import {
-  addItem,
+  addOrBumpItem,
   addItems,
   attachLocation,
   createList,
@@ -133,6 +134,9 @@ export function ListDetailScreen({
   const [copyShared, setCopyShared] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The note under the composer after an add that bumped an existing item (#111), or null.
+  // Kept until the next add or tick; no timer. `id` makes each note a fresh Banner.
+  const [bumpNote, setBumpNote] = useState<{ id: number; text: string } | null>(null);
   // Quantity writes are their own optimistic, never-dropped path, not `mutate()` (#111).
   const { quantityOf, step } = useQuantityStepper({ client, view, refresh, setError });
   // The one row showing the quantity editor ("− N + Done"); mutually exclusive with
@@ -332,9 +336,30 @@ export function ListDetailScreen({
 
     busyRef.current = true;
 
+    setBumpNote(null);
+
+    // Never retried: a bump is a delta (see `addOrBumpItem`).
+    let bumpText: string | null = null;
+
     void mutate(
-      () => addItem(client, listId, draft, last),
-      () => setDraft(''),
+      async () => {
+        const outcome = await addOrBumpItem(client, listId, draft, last);
+
+        if (outcome.ok && outcome.value.bumped) {
+          const { name, quantity, capped } = outcome.value;
+          bumpText = capped
+            ? `${name} is already \u00D7${quantity}`
+            : `${name} is now \u00D7${quantity}`;
+        }
+
+        return outcome;
+      },
+      () => {
+        setDraft('');
+        if (bumpText !== null) {
+          setBumpNote({ id: Date.now(), text: bumpText });
+        }
+      },
     ).finally(() => {
       busyRef.current = false;
     });
@@ -518,7 +543,7 @@ export function ListDetailScreen({
     const addOutcome = await addItems(
       client,
       newListId,
-      sourceItems.map((item) => item.name),
+      sourceItems.map((item) => ({ name: item.name, quantity: item.quantity })),
       null,
     );
 
@@ -653,6 +678,8 @@ export function ListDetailScreen({
         />
       </View>
 
+      {bumpNote ? <Banner key={bumpNote.id} message={bumpNote.text} /> : null}
+
       {error ? <ErrorNote message={error} /> : null}
 
       {view.status === 'loading' ? (
@@ -689,6 +716,7 @@ export function ListDetailScreen({
             leading={handle}
             checked={item.checkedAt !== null}
             onToggle={() => {
+              setBumpNote(null);
               void mutate(() => setChecked(client, item.id, item.checkedAt === null));
             }}
             disabled={busy}
