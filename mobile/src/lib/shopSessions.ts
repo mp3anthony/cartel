@@ -20,6 +20,11 @@ export type ShopSessionRow = {
   listName: string | null;
   itemNames: string[];
   checkedItemNames: string[];
+  /** Parallel to `itemNames` (#111). Always the same length; entries from before
+   * quantities existed read as 1. */
+  itemQuantities: number[];
+  /** Parallel to `checkedItemNames`; same rules as `itemQuantities`. */
+  checkedItemQuantities: number[];
   completedAt: string;
 };
 
@@ -32,8 +37,22 @@ type ShopSessionRecord = {
   list: { name: string } | null;
   item_names: string[];
   checked_item_names: string[];
+  item_quantities: number[] | null;
+  checked_item_quantities: number[] | null;
   completed_at: string;
 };
+
+/**
+ * Reads a parallel quantity array. Null (a row from before #111) or an array whose length
+ * does not match its names reads as all 1s, so a misaligned array can never attach the
+ * wrong quantity to a name.
+ */
+function readQuantities(quantities: number[] | null, length: number): number[] {
+  if (quantities === null || quantities.length !== length) {
+    return new Array<number>(length).fill(1);
+  }
+  return quantities;
+}
 
 /**
  * How many shops History shows. Display-only: the donut counts every shop
@@ -55,7 +74,7 @@ export async function loadShopSessions(
   const { data, error } = await client
     .from('shop_sessions')
     .select(
-      'id, household_id, location_id, list_id, list:lists(name), item_names, checked_item_names, completed_at',
+      'id, household_id, location_id, list_id, list:lists(name), item_names, checked_item_names, item_quantities, checked_item_quantities, completed_at',
     )
     .order('completed_at', { ascending: false })
     .limit(SHOP_SESSION_HISTORY_CAP);
@@ -76,6 +95,11 @@ export async function loadShopSessions(
       listName: row.list?.name ?? null,
       itemNames: row.item_names,
       checkedItemNames: row.checked_item_names,
+      itemQuantities: readQuantities(row.item_quantities, row.item_names.length),
+      checkedItemQuantities: readQuantities(
+        row.checked_item_quantities,
+        row.checked_item_names.length,
+      ),
       completedAt: row.completed_at,
     })),
   };
@@ -164,8 +188,15 @@ export async function deleteAllShopSessions(client: SupabaseClient): Promise<Out
 
 export type ShopSessionItemBreakdown = {
   name: string;
+  /** 1..99; 1 for an entry recorded before quantities existed. */
+  quantity: number;
   bought: boolean;
 };
+
+type BreakdownSource = Pick<
+  ShopSessionRow,
+  'itemNames' | 'checkedItemNames' | 'itemQuantities' | 'checkedItemQuantities'
+>;
 
 /**
  * Every original item in a shop session, in snapshot order, each marked
@@ -182,34 +213,34 @@ export type ShopSessionItemBreakdown = {
  * "is this name anywhere in checkedItemNames," or a duplicate name would
  * either double-mark or under-mark once one occurrence was checked and the
  * other wasn't.
+ *
+ * A bought entry takes its quantity from `checkedItemQuantities` (what was ticked), an
+ * unbought one from `itemQuantities`, each matched by the same name-occurrence order.
  */
-export function sessionItemBreakdown(
-  session: Pick<ShopSessionRow, 'itemNames' | 'checkedItemNames'>,
-): ShopSessionItemBreakdown[] {
-  const remaining = new Map<string, number>();
-  for (const name of session.checkedItemNames) {
-    remaining.set(name, (remaining.get(name) ?? 0) + 1);
-  }
+export function sessionItemBreakdown(session: BreakdownSource): ShopSessionItemBreakdown[] {
+  const remaining = new Map<string, number[]>();
+  session.checkedItemNames.forEach((name, index) => {
+    const queue = remaining.get(name) ?? [];
+    queue.push(session.checkedItemQuantities[index] ?? 1);
+    remaining.set(name, queue);
+  });
 
-  return session.itemNames.map((name) => {
-    const left = remaining.get(name) ?? 0;
-    if (left > 0) {
-      remaining.set(name, left - 1);
-      return { name, bought: true };
+  return session.itemNames.map((name, index) => {
+    const bought = remaining.get(name)?.shift();
+    if (bought !== undefined) {
+      return { name, quantity: bought, bought: true };
     }
-    return { name, bought: false };
+    return { name, quantity: session.itemQuantities[index] ?? 1, bought: false };
   });
 }
 
 /**
- * The names a shop session left unbought, in snapshot order: its `itemNames` minus
+ * The items a shop session left unbought, in snapshot order: its `itemNames` minus
  * its `checkedItemNames`. Under Continue a session's `itemNames` already excludes
  * items an earlier store recorded, so this never lists another store's purchases.
  */
-export function notBoughtNames(
-  session: Pick<ShopSessionRow, 'itemNames' | 'checkedItemNames'>,
-): string[] {
+export function notBoughtItems(session: BreakdownSource): { name: string; quantity: number }[] {
   return sessionItemBreakdown(session)
     .filter((entry) => !entry.bought)
-    .map((entry) => entry.name);
+    .map((entry) => ({ name: entry.name, quantity: entry.quantity }));
 }

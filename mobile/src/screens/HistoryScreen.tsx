@@ -20,11 +20,11 @@ import { ChevronIcon } from '../components/ScopeIcon';
 import { useLocations } from '../hooks/useLocations';
 import { useShopSessions } from '../hooks/useShopSessions';
 import type { Household } from '../lib/household';
-import { addItems, attachLocation, createList } from '../lib/lists';
+import { addItems, attachLocation, createList, itemLabel } from '../lib/lists';
 import {
   deleteAllShopSessions,
   deleteShopSession,
-  notBoughtNames,
+  notBoughtItems,
   type ShopSessionRow,
 } from '../lib/shopSessions';
 import type { RootStackParamList } from '../navigation/types';
@@ -51,7 +51,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'History'> & {
  * Each entry is a collapsed card (#89): a pressable header with the store as
  * its title, a quieter "{list name} · {date}" line, and a chevron. Expanding it
  * shows what was bought (`checkedItemNames`, in the order it was ticked), then
- * a collapsed "Not bought (n)" group (`notBoughtNames()`), then the entry's
+ * a collapsed "Not bought (n)" group (`notBoughtItems()`), then the entry's
  * actions, "Start new list from this" and "Delete" (with their composer and
  * confirm), which exist only inside an expanded card. "Clear all history"
  * stays at the top. The list name is read through an embed (`list:lists(name)`),
@@ -267,7 +267,15 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
 
     const newListId = createOutcome.value;
 
-    const addOutcome = await addItems(client, newListId, session.itemNames, null);
+    const addOutcome = await addItems(
+      client,
+      newListId,
+      session.itemNames.map((name, index) => ({
+        name,
+        quantity: session.itemQuantities[index] ?? 1,
+      })),
+      null,
+    );
 
     if (!addOutcome.ok) {
       setBusy(false);
@@ -355,7 +363,7 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
           ? `${session.listName} · ${formatCompletedAt(session.completedAt)}`
           : formatCompletedAt(session.completedAt);
         const expanded = expandedIds.has(session.id);
-        const notBought = notBoughtNames(session);
+        const notBought = notBoughtItems(session);
         const notBoughtOpen = notBoughtOpenIds.has(session.id);
         const composing = copyingSessionId === session.id;
         const confirmingDelete = confirmingDeleteId === session.id;
@@ -384,7 +392,7 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
                 <View style={styles.itemList}>
                   {session.checkedItemNames.map((name, index) => (
                     <Text key={`${name}-${index}`} style={styles.itemLine}>
-                      {name}
+                      {itemLabel(name, session.checkedItemQuantities[index] ?? 1)}
                     </Text>
                   ))}
                 </View>
@@ -403,9 +411,9 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
                       <ChevronIcon expanded={notBoughtOpen} />
                     </Pressable>
                     {notBoughtOpen
-                      ? notBought.map((name, index) => (
+                      ? notBought.map(({ name, quantity }, index) => (
                           <Text key={`${name}-${index}`} style={styles.notBoughtLine}>
-                            {name}
+                            {itemLabel(name, quantity)}
                           </Text>
                         ))
                       : null}

@@ -55,7 +55,7 @@ _Avoid_: Delete (for the user-facing action)
 ### Editing and rows
 
 **Add-item composer**:
-The one-line field at the top of a list: "Add an item" with a "+" button. Enter or "+" adds and keeps focus for the next item. Adding a name already on the list (case-insensitive) does not create a second item: it raises that item's Quantity by 1 and shows a brief message ("Milk is now ×2"). If that item was ticked, it is unticked and raised. The same composer appears in Shopping Mode, at the top.
+The one-line field at the top of a list: "Add an item" with a "+" button. Enter or "+" adds and keeps focus for the next item. Adding a name already on the list (case-insensitive) does not create a second item: it raises that item's Quantity by 1 and shows a note under the composer ("Milk is now ×2", or "Milk is already ×99" at the ceiling) that stays until the next add or tick. If that item was ticked, it is unticked and raised. The same composer appears in Shopping Mode, at the top.
 _Avoid_: Quick add, input bar
 
 **Rename**:

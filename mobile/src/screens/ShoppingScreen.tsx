@@ -32,7 +32,7 @@ import { computeRouteOrder } from '../lib/locationCheckoffs';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
 import {
-  addItem,
+  addOrBumpItem,
   finishShopping,
   MAX_QUANTITY,
   removeItem,
@@ -388,6 +388,10 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   const finishingRef = useRef(false);
   // The confirmation shown after a finish or reset, or null. Cleared by the next tick.
   const [banner, setBanner] = useState<string | null>(null);
+  // The note under the composer after an add that bumped an existing item (#111), or null.
+  // Kept until the next add or tick; no timer. `id` makes each note a fresh Banner, so a
+  // dismissed note does not hide the next one even when the words are the same.
+  const [bumpNote, setBumpNote] = useState<{ id: number; text: string } | null>(null);
   const [addDraft, setAddDraft] = useState('');
   const [addBusy, setAddBusy] = useState(false);
   const addBusyRef = useRef(false);
@@ -449,6 +453,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
       return;
     }
     setBanner(null);
+    setBumpNote(null);
 
     const nextChecked = !isChecked(item);
 
@@ -777,13 +782,23 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     addBusyRef.current = true;
     setAddBusy(true);
     setError(null);
+    setBumpNote(null);
 
     try {
-      const outcome = await addItem(client, listId, addDraft, last);
+      // Never retried: a bump is a delta (see `addOrBumpItem`).
+      const outcome = await addOrBumpItem(client, listId, addDraft, last);
 
       if (!outcome.ok) {
         setError(outcome.message);
         return;
+      }
+
+      if (outcome.value.bumped) {
+        const { name, quantity, capped } = outcome.value;
+        setBumpNote({
+          id: Date.now(),
+          text: capped ? `${name} is already \u00D7${quantity}` : `${name} is now \u00D7${quantity}`,
+        });
       }
 
       await refresh();
@@ -941,6 +956,8 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
           keepFocus
         />
       </View>
+
+      {bumpNote ? <Banner key={bumpNote.id} message={bumpNote.text} /> : null}
 
       <View>
         {orderedItems.map((item) => {
