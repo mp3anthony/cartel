@@ -11,7 +11,6 @@ import {
   EmptyState,
   ErrorNote,
   Field,
-  IconButton,
   InlineRowEditor,
   NAVIGATOR_EDGES,
   PrimaryButton,
@@ -20,6 +19,8 @@ import {
   Screen,
   SecondaryButton,
 } from '../components/ui';
+import { ReorderableList } from '../components/ReorderableList';
+import { DragHandleIcon } from '../components/RowIcons';
 import { ScopeIcon } from '../components/ScopeIcon';
 import { useListItems } from '../hooks/useListItems';
 import type { ListsView } from '../hooks/useLists';
@@ -65,11 +66,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ListDetail'> & {
  *
  * Items render as `CompactItemRow`s (#80, under #76), the same density as Shopping
  * Mode. Issue #102 slice 2 retired the pencil: the check circle ticks, tapping the name
- * turns that one row into an `InlineRowEditor` (rename field, ✓/✕) with the ↑ ↓ move
- * buttons on a second line (until the drag handle lands), and a pin, shown only when a
- * store is attached, opens the same editor in a location mode. Only one row is edited at
- * a time (`editingId` plus `editingMode`); moving an item keeps its editor open, since
- * the row keeps its key. The location mode's ✓ tags the item when it has no section at
+ * turns that one row into an `InlineRowEditor` (rename field, ✓/✕), and a pin, shown only
+ * when a store is attached, opens the same editor in a location mode. Only one row is
+ * edited at a time (`editingId` plus `editingMode`). The location mode's ✓ tags the item when it has no section at
  * this store yet and proposes a correction when it has, the same two writes Shopping
  * Mode makes. No section pill here, which keeps room for a quantity counter (#111).
  *
@@ -81,6 +80,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ListDetail'> & {
  * mutually exclusive with `editingId`, and a removal confirms through the same
  * `mutate()` as every other write. A confirm for an item that another member removed
  * meanwhile is dropped by the effect below.
+ *
+ * Issue #102 slice 3: a drag handle on each row (`ReorderableList`) replaces the ↑ ↓
+ * buttons. A drop writes one `moveItem` between the neighbours' current positions.
+ * `pendingOrder` holds the dropped order on screen for the round trip, so the row does
+ * not snap back to its old slot before the reload lands; it is cleared once the write
+ * settles, success or not. Dragging is off while a write is in flight, an editor is
+ * open, or a removal is being confirmed.
  */
 export function ListDetailScreen({
   client,
@@ -134,6 +140,8 @@ export function ListDetailScreen({
   // stale-write guard as `editingIdRef`.
   const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null);
   const confirmingRemoveIdRef = useRef<string | null>(null);
+  // Item ids in the order a drop has just asked for, until its write settles.
+  const [pendingOrder, setPendingOrder] = useState<string[] | null>(null);
 
   const list =
     lists.status === 'loaded'
@@ -330,29 +338,31 @@ export function ListDetailScreen({
     );
   }
 
-  function moveUp(index: number, items: ListItemRow[]) {
-    // Neighbours are read from the rendered order and exclude the item being moved,
-    // exactly as moveItem() documents: up one place lands between items[index - 2]
-    // and items[index - 1], and the missing neighbour at the top reads as null.
-    void mutate(() =>
-      moveItem(
-        client,
-        items[index].id,
-        index >= 2 ? items[index - 2].position : null,
-        items[index - 1].position,
-      ),
-    );
-  }
+  // A drop lands between two neighbours, read from the order the list showed when the
+  // drag began and excluding the moved item, exactly as moveItem() documents. Positions
+  // come from the loaded rows by id; a neighbour another member has removed since reads
+  // as the end of the list, which still lands the item somewhere sensible.
+  function dropItem(
+    itemId: string,
+    beforeId: string | null,
+    afterId: string | null,
+    items: ListItemRow[],
+  ) {
+    if (mutatingRef.current) {
+      return;
+    }
 
-  function moveDown(index: number, items: ListItemRow[]) {
+    const position = (id: string | null) =>
+      items.find((candidate) => candidate.id === id)?.position ?? null;
+    const others = items.map((item) => item.id).filter((id) => id !== itemId);
+    const at = beforeId === null ? 0 : others.indexOf(beforeId) + 1;
+
+    others.splice(at, 0, itemId);
+    setPendingOrder(others);
+
     void mutate(() =>
-      moveItem(
-        client,
-        items[index].id,
-        items[index + 1].position,
-        index + 2 < items.length ? items[index + 2].position : null,
-      ),
-    );
+      moveItem(client, itemId, position(beforeId), position(afterId)),
+    ).finally(() => setPendingOrder(null));
   }
 
   function share() {
@@ -527,7 +537,11 @@ export function ListDetailScreen({
     );
   }
 
-  const items = view.status === 'loaded' ? view.items : [];
+  const loadedItems = view.status === 'loaded' ? view.items : [];
+  const items = pendingOrder
+    ? [...loadedItems].sort((x, y) => pendingOrder.indexOf(x.id) - pendingOrder.indexOf(y.id))
+    : loadedItems;
+  const dragDisabled = busy || editingId !== null || confirmingRemoveId !== null;
   const canShare = list.householdId === null && inHousehold;
   const attachedLocation =
     list.locationId && locationsView.status === 'loaded'
@@ -615,8 +629,14 @@ export function ListDetailScreen({
         />
       ) : null}
 
-      <View>
-        {items.map((item, index) => {
+      <ReorderableList
+        items={items}
+        disabled={dragDisabled}
+        dimmed={editingId !== null || confirmingRemoveId !== null}
+        handleIcon={<DragHandleIcon />}
+        handleLabel={(item) => `Drag to reorder ${item.name}`}
+        onDrop={(itemId, beforeId, afterId) => dropItem(itemId, beforeId, afterId, loadedItems)}
+        renderRow={(item, handle) => {
           // The section this item already has at the attached store, if any: only
           // decides tag vs. propose-a-correction for the pin. Never shown as a pill.
           const section =
@@ -626,8 +646,8 @@ export function ListDetailScreen({
 
           return (
           <CompactItemRow
-            key={item.id}
             name={item.name}
+            leading={handle}
             checked={item.checkedAt !== null}
             onToggle={() => {
               void mutate(() => setChecked(client, item.id, item.checkedAt === null));
@@ -674,24 +694,7 @@ export function ListDetailScreen({
                   busy={busy}
                   submitDisabled={editingName.trim().length === 0}
                   maxLength={editingMode === 'location' ? 60 : 120}
-                >
-                  {editingMode === 'rename' ? (
-                    <>
-                      <IconButton
-                        glyph="↑"
-                        accessibilityLabel={`Move ${item.name} up`}
-                        onPress={() => moveUp(index, items)}
-                        disabled={busy || index === 0}
-                      />
-                      <IconButton
-                        glyph="↓"
-                        accessibilityLabel={`Move ${item.name} down`}
-                        onPress={() => moveDown(index, items)}
-                        disabled={busy || index === items.length - 1}
-                      />
-                    </>
-                  ) : undefined}
-                </InlineRowEditor>
+                />
               ) : undefined
             }
             onRemove={() => beginRemoving(item.id)}
@@ -715,8 +718,8 @@ export function ListDetailScreen({
             }
           />
           );
-        })}
-      </View>
+        }}
+      />
 
       {renamingList ? (
         <View style={styles.editor}>

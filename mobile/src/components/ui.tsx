@@ -502,6 +502,10 @@ export function IconButton({
  * adds a "×" as the last sibling, so it sits on the main row instead of behind the editor. It is never inside the tick `Pressable`. `confirm`
  * (see `RowConfirm`) replaces the whole line the same way `editor` does; `editor` wins if
  * a caller ever passes both, though the screens keep the two mutually exclusive.
+ *
+ * `leading` (#102 slice 3) renders first on the main line, before the circle: the drag
+ * handle of a reorderable list. Like the other controls it is a sibling of the tick
+ * targets, and it is not shown while the row is an editor or a confirmation.
  */
 export function CompactItemRow({
   name,
@@ -509,6 +513,7 @@ export function CompactItemRow({
   onToggle,
   disabled = false,
   pill,
+  leading,
   onRename,
   renameLabel,
   onLocation,
@@ -526,6 +531,7 @@ export function CompactItemRow({
   onToggle: () => void;
   disabled?: boolean;
   pill?: string | null;
+  leading?: ReactNode;
   onRename?: () => void;
   renameLabel?: string;
   onLocation?: () => void;
@@ -547,6 +553,7 @@ export function CompactItemRow({
         <View style={styles.compactLine}>{editor ?? confirm}</View>
       ) : (
         <View style={styles.compactLine}>
+          {leading}
           {onRename ? (
             <>
               <Pressable
@@ -717,9 +724,7 @@ export function RowConfirm({
 /**
  * The editor a `CompactItemRow` turns into: a small field with ✓ and ✕ beside it,
  * replacing the stacked Field + Save + Cancel blocks. `busy` freezes the whole line
- * while a write is in flight, so neither button can double-submit. `children`, when
- * given, render on a second line beneath it (the add-to-list screen puts reorder
- * there); without them it is the same single line as ever.
+ * while a write is in flight, so neither button can double-submit.
  */
 export function InlineRowEditor({
   value,
@@ -731,7 +736,6 @@ export function InlineRowEditor({
   busy = false,
   submitDisabled = false,
   maxLength,
-  children,
 }: {
   value: string;
   onChangeText: (text: string) => void;
@@ -742,7 +746,6 @@ export function InlineRowEditor({
   busy?: boolean;
   submitDisabled?: boolean;
   maxLength?: number;
-  children?: ReactNode;
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -773,7 +776,6 @@ export function InlineRowEditor({
         />
         <IconButton glyph="✕" accessibilityLabel="Cancel" onPress={onCancel} disabled={busy} />
       </View>
-      {children ? <View style={styles.inlineEditorLine}>{children}</View> : null}
     </View>
   );
 }
