@@ -57,7 +57,7 @@ export function chainRingColor(chain: string | null | undefined): string | null 
 
 /**
  * Returns the brand hex for a chain, or null for null/undefined/unknown values
- * (legacy 'other' rows included) — callers (DonutChart.tsx) treat null as "use the
+ * (for example a store not loaded yet) — callers (DonutChart.tsx) treat null as "use the
  * existing tint-mixed-accent look," never as an error or a default colour of its own.
  */
 export function chainColor(chain: string | null | undefined): string | null {

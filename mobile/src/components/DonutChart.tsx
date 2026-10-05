@@ -36,8 +36,8 @@ export type DonutSegment = {
  * `chainColors.ts`) renders in that chain's actual brand colour instead of a
  * tint-mixed accent step. This makes the ring distinguish stores by identity,
  * not just by rank — the tint ramp alone can't tell New World from
- * PAK'nSAVE at a glance. A segment with no recognised chain ('other' or
- * `null`) still falls through to the original tint-mixed look, unchanged.
+ * PAK'nSAVE at a glance. A segment with no recognised chain (`null`, when the
+ * store is not loaded) still falls through to the original tint-mixed look, unchanged.
  *
  * The arcs themselves are not individually tappable — hit-testing a thin SVG
  * stroke segment is fiddly and RN-SVG gives no built-in help for it. The

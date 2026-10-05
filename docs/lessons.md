@@ -36,7 +36,7 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - Storage: direct SQL `DELETE` on `storage.objects` is blocked. The `feedback-screenshots` bucket is public-read (required for GitHub's image bots) with authenticated own-folder insert and no delete path, like `location_items`. One test object is permanently orphaned there, harmless.
 - Edge Function secrets: no MCP tool manages them. Ant sets `GITHUB_BUG_REPORT_TOKEN` through the dashboard or CLI; agents never handle a token.
 - **report-feedback reasoning (cited by #68 and #69, PR #71; screenshots #70, PR #75).** Feedback becomes a GitHub issue through an Edge Function, not from the client, so the token never ships in the bundle. The function verifies identity server-side and never trusts the client, creates the `from-app` label idempotently, and returns 401 when unauthenticated. It is modelled on the sibling funded project's bug-report route. Rate limiting is deferred until real outside testers; contact-back is deliberately omitted (a patch-notes or known-issues feature would supersede it).
-- A permission classifier blocks direct SQL writes to live production data; build the in-app path rather than routing around it.
+- A permission classifier blocks direct SQL writes to live production data; build the in-app path rather than routing around it. It also blocks agents applying migrations to production: agents write the migration file plus single-statement pre/post-flight checks, and Ant applies it by hand (#107 Migrations A and B).
 
 ## Tooling
 

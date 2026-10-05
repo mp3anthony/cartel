@@ -4,8 +4,6 @@ The global, anonymous store layer shared by every household. Nothing here knows 
 
 > The terms below are the UI words (shipped with #94). This file keeps its old name, as do the code, table names, routes and URLs.
 
-> **Planned, not built (#107, ADR 0007):** stores become a seeded Store catalog; users stop creating stores, and the **Chain** (brand) comes from the catalog row instead of a user choice. The **Store catalog**, **Canonical name** and **Store missing report** entries at the bottom describe the planned behaviour.
-
 ## Old-to-new mapping (#94, UI wording only)
 
 | Old UI word | New UI word |
@@ -23,7 +21,7 @@ The global, anonymous store layer shared by every household. Nothing here knows 
 ### Stores
 
 **Store**:
-A shop, global and shared across all households (old UI word: Location). Today users create one from "New store" on the Stores screen (name plus position); under #107 that creation is removed and stores come only from the Store catalog. No code path deletes one. Name and position cannot be edited after creation; only the Chain can. Under #107 the brand comes from the catalog, so even that edit goes away.
+A shop, global and shared across all households (old UI word: Location). Stores come only from the Store catalog; users cannot create, rename, move or edit one, and no code path deletes one.
 _Avoid_: Shop, place. In the UI never "location" for a store; the code keeps `location`.
 
 **Store location**:
@@ -34,11 +32,11 @@ _Avoid_: Address, position (in the UI)
 The iPhone's own name for its GPS switch. Phone permission messages say this, never bare "location", so it cannot be confused with a Store location or an Item location. It is the phone's setting, not a Cartel concept.
 
 **Chain**:
-The brand a store belongs to: New World, PAK'nSAVE, Four Square, Woolworths, FreshChoice, or Other. An explicit choice by the user, never inferred from the name. Any household member can change it at any time. "Other" is a real value, distinct from no chain set; both look the same. SuperValue is deliberately not offered. Under #107 the brand comes from the catalog row; the user no longer chooses or edits it.
+The brand a store belongs to: New World, PAK'nSAVE, Four Square, Woolworths or FreshChoice. Always set from the catalog row, never chosen by the user and never inferred from the name. There is no "Other". SuperValue is deliberately not offered; a new brand needs a migration.
 _Avoid_: Brand, banner, franchise
 
 **Merge prompt**:
-Retired by #107 along with user-created stores. Until then: when creating a store near an existing one, the app offers the existing one instead of a duplicate (the prompt uses the Store word). "Merge" means reusing the nearby row; nothing is deleted. The radius is locked at 100 m (`MERGE_RADIUS_M`), distinct from the larger nearby-stores radius used on the dashboard.
+Retired by #107 with user-created stores.
 _Avoid_: Dedupe, duplicate warning
 
 **Attach**:
@@ -59,14 +57,14 @@ _Avoid_: Edit, suggestion, vote (in the UI)
 The per-store screen reached by "View catalog" (old UI word: Location catalog): every item with an Item location, grouped by it, alphabetical within each, with "No item locations here yet" when empty. Where corrections are proposed. Not the Store catalog below. Its redesign is #114.
 _Avoid_: Store directory, item database, catalog (unqualified)
 
-### Store catalog (planned, #107)
+### Store catalog
 
 **Store catalog**:
 Not the Item catalog (the per-store screen of items). The seeded, Cartel-maintained list of supermarket and grocery chain branches (New World, PAK'nSAVE, Four Square, Woolworths, FreshChoice, SuperValue if any remain) in Christchurch and surrounding area, roughly Rangiora to Lincoln and the coast. Compiled from the brands' own store locators and OpenStreetMap, never from Google Maps; Ant spot-checks it before seeding. No independents, dairies or other shop types. Users find a store from it by nearby (dashboard radius) when Location Services is allowed, otherwise by name search with a brand filter. The picker's list puts the stores in the household's Shop history first (most visits first), then alphabetical; the nearby list stays ordered by distance. Staleness is accepted; Store missing reports and corrections are the freshness mechanism.
 _Avoid_: Places search, maps integration, catalog (unqualified)
 
 **Canonical name**:
-The one agreed form of a catalog store's name: brand plus branch, e.g. "New World Riccarton", stored alongside its brand. Exists to end differing spellings and duplicates. The brand also drives the badge (brand colour plus name text; New World is solid red; Four Square and FreshChoice show their red with a green or blue ring so the three reds can be told apart; real logos are a separate follow-up needing permission).
+The one agreed form of a catalog store's name: brand plus branch, e.g. "New World Riccarton", stored alongside its brand. Unique across the catalog. Exists to end differing spellings and duplicates. The brand also drives the badge (brand colour plus name text; New World is solid red; Four Square and FreshChoice show their red with a green or blue ring so the three reds can be told apart; real logos are a separate follow-up needing permission).
 _Avoid_: Display name, nickname
 
 **Store missing report**:

@@ -57,9 +57,9 @@ insert into auth.users (id, is_anonymous) values
   ('00000000-0000-4000-8000-0000000000f8', true),  -- F
   ('00000000-0000-4000-8000-0000000000a8', true);  -- G
 
-insert into public.locations (id, name, lat, lng, created_by) values
+insert into public.locations (id, name, lat, lng, chain, created_by) values
   ('81000000-0000-4000-8000-000000000001',
-   'Test Supermarket', -36.8485, 174.7633,
+   'Test Supermarket', -36.8485, 174.7633, 'new_world',
    '00000000-0000-4000-8000-0000000000e8');
 
 insert into public.location_items (location_id, name, section) values

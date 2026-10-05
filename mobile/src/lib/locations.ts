@@ -13,7 +13,7 @@ export type LocationRow = {
   lat: number;
   lng: number;
   createdAt: string;
-  chain: Chain | null;
+  chain: Chain;
 };
 
 export type NearbyLocation = {
@@ -34,7 +34,7 @@ type LocationRecord = {
   lat: number;
   lng: number;
   created_at: string;
-  chain: Chain | null;
+  chain: Chain;
 };
 
 type NearbyLocationRecord = {
