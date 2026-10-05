@@ -6,7 +6,7 @@
 
 - `main` is at 0.0.39 (`mobile/app.json`), live. Production holds real user data. Last active `03-SPEC.md` section: Slice 2 (reorder/remove), via #102, now closed (all three slices shipped).
 - #102 slice 3 shipped (0.0.39, PR #122, hand-rolled drag handle). Reviewed by a separate agent, no blockers. Ant tried one drag on his iPhone ("looks pretty good") and chose not to run scenarios 3-7 or the divider/callout checks; he will raise a bug if anything fails. The original "x did nothing" cause is still unconfirmed (slice 1, `docs/lessons.md`).
-- New ticket #123: drag auto-scroll near the screen edge on long lists (v1 limit; fixable without a library, needs an iPhone check). New ticket #117: "JWT issued at future" error on anonymous sign-in on Ant’s phone (needs diagnosis first; a plain reload clears it).
+- New ticket #123: drag auto-scroll near the screen edge on long lists (v1 limit; fixable without a library, needs an iPhone check). New ticket #117: "JWT issued at future" error on anonymous sign-in on Ant's phone (needs diagnosis first; a plain reload clears it).
 - Test data left on the shared Supabase project from an earlier browser test (all anonymous, inert): one list "ZZ test 102" (`59344e62-4855-4942-acda-d3d45f8fe244`) with a recorded shop, owned by anonymous user `cef386ef-86ff-4207-942a-832f7567fc33` (plus one earlier empty anonymous user). Cleanup is by id only, never a blanket wipe.
 - #94 grilled with docs (decisions on the ticket, vocabulary in `docs/context/locations.md`). #114 still to grill. Unlogged: Ant mentioned a lag issue (some actions slow, others instant); he will log it himself.
 
