@@ -72,7 +72,7 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - `SHOP_SESSION_HISTORY_CAP` (5) was not live-stress-tested (bulk insert to production was blocked); it rests on code review. The 8 MB screenshot cap is unconfirmed with Ant.
 - Unverified or cosmetic: the iOS status-bar icon colour (one static choice), and nested-button hydration warnings from `ListDetailScreen` rows.
 - #52 Places search-assist is closed, superseded by #107 (seeded store catalog, ADR 0007). Google Places was rejected because its terms forbid caching or storing Places content, and it needs an API key and billing prepayment. The old local branch `52-google-places-search-assist` is obsolete.
-- Captcha on anonymous sign-in, orphaned households after a member leaves, and item quantities are not built; see `CHANGE-LOG.md`.
+- Captcha on anonymous sign-in and orphaned households after a member leaves are not built; see `CHANGE-LOG.md`. Item quantities are in scope via #111.
 - `docs/research/todoist-list-ui.md` draws on Ant's screenshots, not a primary source.
 - No leave-household action exists, so someone already in a household cannot join another. Tracked in #90.
 - Driving the app in the in-app browser: `type` plus Return does not reliably submit the add-item field; fill it with `form_input`, then click "+". Click by `ref` or by frame coordinates, never screenshot pixels. A fresh origin can show "JWT issued at future" (#117); it should self-heal, and if it still shows, tap Try again.

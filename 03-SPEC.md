@@ -212,8 +212,8 @@ and had nine. Each of these shapes the schema or the acceptance test:*
   verified on a device.
   *Superseded 2026-10-05 by #102 (0.0.39): reorder is now a drag handle, hand-rolled
   with `PanResponder`, no gesture library.*
-- **Item quantities are out of spec and stay out.** `list_items` has no quantity
-  field and the CRD never asks for one. Logged in `CHANGE-LOG.md` as pending.
+- **Item quantities were out of spec here; they are now in.** Brought in via issue
+  #111; see `docs/context/lists.md` (Quantity).
 - **A navigation library is adopted before any feature work in this slice** — see
   the note below.
 
