@@ -46,8 +46,22 @@ _Avoid_: Assign, link, select
 ### Item locations
 
 **Item location**:
-Where an item sits inside a store (an aisle or area, e.g. "Aisle 4"), matched by the item's normalised name (old UI words: Section, section tag; code: section tag). One per item per store, and anonymous: it records no creator. _Decided in #106, not built:_ matched by the same folded name as list items (case, inner spaces, accents), and labels are stored with a leading capital. The first one for an item is made from Shopping Mode or from the list screen's Location pin; the Item catalog can only correct existing ones.
-_Avoid_: Section (in the UI), aisle, category, label
+Where an item sits inside a store (an aisle or area, e.g. "Aisle 4"), matched by the item's normalised name (old UI words: Section, section tag; code: section tag). One per item per store, and anonymous: it records no creator. _Decided in #106, not built:_ matched by the same folded name as list items (case, inner spaces, accents), and labels are stored with a leading capital. _Decided in #112, not built:_ labels come only from the **Layout order sequence** below (typing free text is removed), and existing free-text labels are migrated (see below). The first one for an item is made from Shopping Mode or from the list screen's Location pin; the Item catalog can only correct existing ones.
+_Avoid_: Section (in the UI), aisle (as a name for the whole concept; **Aisle** below is one option in the set), category, label
+
+**Layout order sequence**:
+_Decided in #112, not built:_ the fixed standard set of Item locations, identical for all stores, in NZ shop-floor wording: Fruit & Veg, Butchery, Seafood, Deli, Bakery, Dairy, Chilled, then Aisles in numeric order (parsed as numbers, so 2 before 20 and 22), then Frozen, Health & Beauty, Pharmacy, Beer & Wine. It drives Shopping Mode's **Layout order** (`shopping.md`).
+_Avoid_: Produce, Meat (use Fruit & Veg, Butchery)
+
+**Aisle**:
+_Decided in #112, not built:_ one option in the standard set, not a fixed list, because aisle numbers are per store and arbitrary (some run 1, 2, 3; others 20, 22, 23). Choosing it reveals a number control and saves the plain-text label "Aisle 22" (no schema change; the sort parses "Aisle N"). Under the control, the aisle numbers already used at that store show as quick chips.
+
+**Item location picker**:
+_Decided in #112, not built:_ where the first Item location for an item is set (Shopping Mode, the list screen's Location pin) and where the Item catalog's edit does the same: tappable chips for the standard set, no typing and no "Other..." option. It ends with a small "Missing one? Tell us" link that opens the existing feedback flow with the subject "Item location missing" and the Store attached; Ant adds it to the set (report-only, the same pattern as the Store missing report). This touches the deployed `report-feedback` Edge Function that #109 also changes; whichever lands second rebases.
+_Avoid_: Free-text entry, Other
+
+**Item location migration**:
+_Decided in #112, not built:_ a one-off production data change for existing free-text labels. Labels that fold cleanly to the standard set (e.g. "aisle 4" to "Aisle 4", "dairy section" to "Dairy") are rewritten; labels that do not map (e.g. "Cleaning") are cleared and those items re-tagged from the picker, with pending corrections on cleared tags going with them. Stops at the plan for Ant (locked-invariant escalation); an Investigator takes a read-only count first. Run in one pass with the #106 production migration, which also capitalises labels and merges duplicates.
 
 **Correction**:
 A proposal to change an item's Item location, made with "Propose" and confirmed with "Confirm". It stays pending until a second, independent user confirms; the proposer cannot confirm their own. Several different pending corrections may exist for one item; applying one clears the rest. There is no reject verb. Shown as a muted "Proposed: X" line; the dashboard lists "Pending corrections" (decided in #110, not built yet: removed from Home; corrections are seen in the Store's Item catalog only). _Decided in #106, not built:_ a correction that differs from the current label only by case or whitespace applies immediately with no second user.

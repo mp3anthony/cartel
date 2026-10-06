@@ -7,12 +7,16 @@ The act of shopping: walking a store with a list, finishing the shop, and lookin
 ### In the store
 
 **Shopping Mode**:
-The screen opened by "Start shopping" on a list detail, where items are checked off in route order, with larger touch targets and type than the rest of the app. The add-item composer sits at the top, where attention is while shopping.
+The screen opened by "Start shopping" on a list detail, where items are checked off in route order (_decided in #112, not built:_ Layout order), with larger touch targets and type than the rest of the app. The add-item composer sits at the top, where attention is while shopping.
 _Avoid_: Trip mode, store mode
 
 **Route order**:
-The order items are shown in Shopping Mode, computed when the screen is read and never stored. Observed check-off history at that store comes first; an untagged-in-history item falls back to its **Item location**; anything else keeps entry order.
+The order items are shown in Shopping Mode, computed when the screen is read and never stored. Observed check-off history at that store comes first; an untagged-in-history item falls back to its **Item location**; anything else keeps entry order. _Decided in #112, not built:_ replaced by **Layout order**; the learned history sort is removed from Shopping Mode (the read-time sort in `computeRouteOrder` goes). Finish shopping still writes the Check-off record unchanged, so history keeps accumulating. The learned per-user walking order is parked as #151 (grill only, depends on #112).
 _Avoid_: Aisle order, smart sort
+
+**Layout order**:
+_Decided in #112, not built:_ the order of Shopping Mode, the same for every store and every list, following the standard sequence in `locations.md` (see **Layout order sequence**). Items with no Item location go last, in the order they were added; within one department or aisle, items sort alphabetically. Shopping Mode's only ordering until #151.
+_Avoid_: Route order (the old learned ordering), smart sort
 
 **Glanceability**:
 The design test for Shopping Mode: one-handed, one look, large rows, nothing that needs thinking. Quick successive check-offs must never block each other.
@@ -25,7 +29,7 @@ _Avoid_: Active list, open list (every list is active)
 ### Finishing
 
 **Check-off record**:
-The anonymous, global record written on Finish shopping: the ordered, normalised names of the checked items plus a completion time. It carries no household, list or user. It stays names-only: Quantity says nothing about store layout, so it is not recorded here. It is what teaches route order.
+The anonymous, global record written on Finish shopping: the ordered, normalised names of the checked items plus a completion time. It carries no household, list or user. It stays names-only: Quantity says nothing about store layout, so it is not recorded here. It is what teaches route order. _Decided in #112, not built:_ no order is learned from it once the learned sort is removed; it keeps accumulating for #151 only.
 _Avoid_: Shopping log, receipt
 
 **Finish shopping**:
@@ -50,4 +54,4 @@ The home screen (menu item "Home"). Sections: Nearby stores, Continue shopping, 
 - **Graphs**: two-up tiles, "Where you shop" (donut) and "How often you shop" (bars, shops over time), tap to expand.
 - **Recent activity**: a quiet, low-density list with "See all history".
 - **Pending corrections is removed from Home.** It belongs in the Store's Item catalog, where corrections already show as "Proposed: X".
-- **Limits on graphs:** Cartel stores no prices and has no item categories (Item locations are free-text, per-Store tags), so spending or category graphs are not possible yet and are not in v1 (see `CHANGE-LOG.md`). v1 uses existing data only._Avoid_: Overview, feed
+- **Limits on graphs:** Cartel stores no prices and has no item categories (Item locations are per-Store tags, not categories), so spending or category graphs are not possible yet and are not in v1 (see `CHANGE-LOG.md`). v1 uses existing data only._Avoid_: Overview, feed
