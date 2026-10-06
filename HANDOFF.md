@@ -2,7 +2,11 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-06, end of session 22)
+## Current state (2026-10-06, end of session 23)
+
+- **#143 (content-sized buttons) is planned, reviewed and ready to build; nothing is built.** The approved plan is the latest comment on #143 (call-site table, `fullWidth` and `ButtonRow` API, steps, tests, 15-scenario iPhone checklist). A separate reviewer found no blocking defects; two judgement calls were settled by the orchestrator: the Lists screen "Create list" composer is full-width (screen-level form) while in-card and in-place composers are content-sized pairs, and on the Shopping finish card only "Done shopping", "Reset list" and "Finish shopping" are full-width. Next session: Code Writer builds it (version 0.0.46), separate Code Reviewer, preview via the local dev server so Ant can adjust before it is final, or open the PR directly. Then update the design reference HTML (four places) and republish the Artifact. #156 follows, never in parallel. No `03-SPEC.md` section was active.
+
+(Session 22 state follows.)
 
 - **#139 (HS house style for controls) is grilled and settled; the design reference is now HTML.** `02-DESIGN-REFERENCE.md` is replaced by hand-written `02-DESIGN-REFERENCE.html` (agents read it like markdown, Ant views it as a published Artifact, republished at every change; `scripts/check-design-reference.mjs` checks its palette against `tokens.ts`). Decided: Cartel takes only the shape and style of the HS website's controls; its own palette stays; no glass; the website's radius scale for cards is not adopted. #139 is now the **parent issue** with sub-issues **#156** (HS pill buttons and press feedback; build right after #143), **#157** (circular back button in the header, drill-down screens only; today the app has no back button) and **#158** (floating bottom pill nav replaces the hamburger: Home, Lists, Stores, History, plus a gear for Settings; hides with the keyboard and in Shopping Mode). Build order: #143, #156, #157, #158; each stops at the Planner. #158 collides with #109, #103 and #110 (#144, #145) on navigation; comments left on those. Ant reviewed the HTML on 2026-10-06 ("looks great") and accepted the details he had not stated himself: the close circle, the accent ring and 300ms slide on the current nav link, the soft shadow on the floating pill, the exact four-plus-gear split. Nothing was built.
 - **#112 (Shopping order) is grilled and settled, not built.** It is now the **parent issue** with sub-issues **#153** (fixed layout order, remove the learned sort; client only), **#154** (Item location picker: chips, Aisle number control, "Missing one? Tell us" link; touches the `report-feedback` Edge Function that #109 also changes, whichever lands second rebases) and **#155** (production label migration, hybrid: rewrite what folds to the standard set, clear the rest; **stops at the plan for Ant**, runs in one pass with the #106 migration). Decisions are in `docs/context/locations.md` and `shopping.md` (marked "decided in #112, not built"), PR #152. Finish shopping keeps writing check-off records. No `03-SPEC.md` section was active. **#151 (learned per-user walking order) is filed, parked and needs its own grill; Ant starts that in a fresh session.**
@@ -28,7 +32,7 @@ Can start now (no blockers):
 
 1. **#106** (grilled, unblocked). Planner next; the production migration slice stops at the plan for Ant.
 2. Plan #109 (grilled; see above).
-3. Plan #143 (foundation for the Home work and the HS house style), then #156, #157, #158 (#139).
+3. Build #143 (planned, see above), then plan and build #156, #157, #158 (#139).
 4. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 waits for #106's migration plan so both run together.
 5. #123 (low priority, whenever).
 
