@@ -54,7 +54,7 @@ A proposal to change an item's Item location, made with "Propose" and confirmed 
 _Avoid_: Edit, suggestion, vote (in the UI)
 
 **Item catalog**:
-The per-store screen reached by "View catalog" (old UI word: Location catalog): every item with an Item location, grouped by it, alphabetical within each, with "No item locations here yet" when empty. Where corrections are proposed. Not the Store catalog below. Its redesign is #114.
+The per-store screen reached by "View catalog" (old UI word: Location catalog): every item with an Item location, grouped by it, alphabetical within each, with "No item locations here yet" when empty. Where corrections are proposed. Not the Store catalog below. _Decided in #114, not built:_ opened from a small book icon at the right end of each store row on the Stores screen (main list and nearby rows; the row tap stays the picker select, and the "Selected" badge is replaced by an outline). The screen has a search box (by item name), Item location groups that collapse and expand (collapsed to start, a dot marks a pending correction, searching expands the matches), and one compact row per item with a clean SVG edit icon (not a glyph) in the style of the list's pin. A pending correction is a muted "Proposed: X" line with a small check inside the item's row.
 _Avoid_: Store directory, item database, catalog (unqualified)
 
 ### Store catalog
