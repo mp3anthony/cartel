@@ -2,8 +2,9 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-06, end of session 19)
+## Current state (2026-10-06, end of session 20)
 
+- **#114 (Item catalog redesign) is grilled and settled, not built.** It is now the **parent issue** with sub-issues **#147** (Stores: small book icon on each store row, outlined selection instead of a "Selected" badge), **#148** (catalog: one compact row per item, clean SVG edit icon, pending corrections as footer lines) and **#149** (catalog: search and collapsible groups; builds on #148). Decisions are on #114 and in `docs/context/locations.md` (Item catalog, marked "decided in #114, not built"). Each stops at the Planner. Independent of #106; #106 got a comment to resolve existing case-only pending corrections in its production migration. #147 and #148 touch `ui` components, so they may rebase onto #143. No `03-SPEC.md` section was active. New user-level skill `research-apps` (screenshot research of other apps; its first run's images were not committed).
 - **#106 (case-duplicates) is grilled and settled, not built.** Decisions are in a comment on the issue and in `docs/context/lists.md` and `locations.md` (marked "decided in #106, not built"): capitalise on save; one folded matching key (case, inner spaces, accents) in a single SQL function mirrored in JS with a parity fixture test, also used for location-tag matching (re-keys `location_items` and votes); one-off merge (oldest row survives, ticked if any ticked, quantity summed clamped to 99); Item location labels capitalised and case/whitespace-only corrections apply with no vote; History snapshots untouched, duplicates fold at copy time; partial unique index on live items. Slices: (1) fold function, JS mirror, parity tests, read-only production duplicate count and a device check of the missing-tag symptom; (2) production migration, **stops at the plan for Ant**; (3) client behaviour. Next step is the Planner. No `03-SPEC.md` section was active.
 - **#110 (Home overhaul) is grilled and settled, not built.** Decisions are recorded in PR #142 (docs, merged). #110 is now the **parent issue**, with sub-issues **#143** (content-sized buttons, shared ui components; the foundation), **#144** (Home hero, Stores row, layout; blocked by #143) and **#145** (graph tiles and motion; blocked by #144). Each stops at the Planner. Ant wants parent issue plus sub-issues as the default way to slice from now on. Pending corrections leaves Home (it stays in the Store's item catalog). Category and spending graphs are logged in `CHANGE-LOG.md` as pending out-of-spec for Ant to triage (needs prices or a category field). No `03-SPEC.md` section was active.
 - **#109 (Household screen becomes Settings) is grilled and settled, not built.** Outcome is on the issue and in `docs/context/household.md` (Settings section, decided-but-not-built); PR #140. Next step is the Planner, which stops at the plan for Ant because it changes the deployed `report-feedback` Edge Function. Build to-dos (stale docs to fix, deploy ordering) are in a comment on #109.
@@ -26,7 +27,7 @@ Can start now (no blockers):
 1. **#106** (grilled, unblocked). Planner next; the production migration slice stops at the plan for Ant.
 2. Plan #109 (grilled; see above).
 3. Plan #143 (foundation for the Home work).
-4. Grill #114, #112 (no longer blocked since #107 S4 shipped) and #139 (design reference).
+4. Plan #147, then #148, then #149. Grill #112 (no longer blocked since #107 S4 shipped) and #139 (design reference).
 5. #123 (low priority, whenever).
 
 Then:
