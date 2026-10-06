@@ -2,9 +2,10 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-06, end of session 24)
+## Current state (2026-10-06, end of session 25)
 
-- **#143 (content-sized buttons) is built (0.0.46) and reviewed clean; the PR is open, labelled `needs-manual-test`, NOT merged.** Branch `143-content-sized-buttons`. Built to the plan on #143 with no deviations; a separate Sonnet reviewer found no issues (tsc and the design-reference check pass; no live-browser or iPhone check was run, no dev server by Ant's choice). Ant has already tried the Preview and says most things work but he wants some changes. **Next session: open the checklist (the latest comment on PR #162, same text on #143), walk through it with Ant on his iPhone, and collect his requested changes as he goes; apply them on this branch (Code Writer, separate Code Reviewer), no further version bump, then merge when he is happy.** Don't merge before he signs off. After merge: republish the design reference HTML Artifact (already edited in the PR, four places). Then #156 (never in parallel). No `03-SPEC.md` section was active.
+- **#143 (content-sized buttons) shipped (0.0.46, PR #162, closed).** Ant ran the Preview, dropped his requested changes and merged. The design reference Artifact is republished (version 4).
+- **#156 (HS pill buttons and press feedback) is PLANNED, not built; the plan is the latest comment on #156, labelled `needs-info`.** Next step: get Ant's yes or changes on four design calls, then remove `needs-info`. The planner's recommended default is listed first for each: (A) icon controls have no ring at rest and fill with the accent on press; (B) rows, check circles and cards are excluded from scale and fill; (C) accent fill on press only, no focus fill (keyboard keeps the focus ring); (D) a disabled ghost pill gets a dashed hairline. Then brief the Code Writer from the plan (0.0.47; new `mobile/src/theme/motion.ts`; changes in `ui.tsx`, `RowIcons.tsx`, `HouseholdScreen.tsx`, the design reference and `docs/conventions.md`), then a separate Sonnet Code Reviewer, then the 15-scenario iPhone checklist in the plan (`needs-manual-test`). Risks to watch: accent flash while scrolling, and whether the web transition strings apply (check `getComputedStyle` on the Preview). Build #156 alone; then #157, #158. No `03-SPEC.md` section was active.
 
 (Session 22 state follows.)
 
