@@ -23,7 +23,7 @@ Turning a personal list into a shared list. One-way: a shared list can never be 
 _Avoid_: Promote (older spec wording), publish, unshare, demote
 
 **Start new list from this** (copy):
-Copies a finished shop or a current list into a new, unchecked list, with a prefilled name and the same "Share with" choice. Each item keeps its Quantity on both routes. From History it copies the full original snapshot of the shop and always attaches that shop's store; from list detail it copies current items and attaches a store only if the source has one. The source is never changed.
+Copies a finished shop or a current list into a new, unchecked list, with a prefilled name and the same "Share with" choice. Each item keeps its Quantity on both routes. From History it copies the full original snapshot of the shop and always attaches that shop's store; from list detail it copies current items and attaches a store only if the source has one. The source is never changed. _Decided in #106, not built:_ copying from History folds items that are the same (per **Item**) into one, Quantities summed and clamped to 99; old snapshots are never rewritten.
 _Avoid_: Duplicate, clone, template, re-shop
 
 **Remove list**:
@@ -33,7 +33,7 @@ _Avoid_: Delete list (the list is not erased)
 ### Items
 
 **Item**:
-One entry on a list, identified to the rest of the app by its normalised name (case-insensitive). It carries a **Quantity**.
+One entry on a list, identified to the rest of the app by its normalised name. It carries a **Quantity**. _Decided in #106, not built:_ "same item" folds case, repeated inner spaces and accents ("jalapeno" = "jalapeño"), one definition used by lists, renames, copies and Item location matching. Names are stored with a leading capital (first letter upper-cased, the rest as typed), on add and rename. Existing duplicates are merged once: the oldest row survives with its position, ticked if any copy was ticked, Quantity the sum clamped to 99. Only one live item per name per list, enforced by the database.
 _Avoid_: Product, entry, row (for the data)
 
 **Quantity**:
@@ -55,11 +55,11 @@ _Avoid_: Delete (for the user-facing action)
 ### Editing and rows
 
 **Add-item composer**:
-The one-line field at the top of a list: "Add an item" with a "+" button. Enter or "+" adds and keeps focus for the next item. Adding a name already on the list (case-insensitive) does not create a second item: it raises that item's Quantity by 1 and shows a note under the composer ("Milk is now ×2", or "Milk is already ×99" at the ceiling) that stays until the next add or tick. If that item was ticked, it is unticked and raised. The same composer appears in Shopping Mode, at the top.
+The one-line field at the top of a list: "Add an item" with a "+" button. Enter or "+" adds and keeps focus for the next item. Adding a name already on the list (case-insensitive) does not create a second item: it raises that item's Quantity by 1 and shows a note under the composer ("Milk is now ×2", or "Milk is already ×99" at the ceiling) that stays until the next add or tick. If that item was ticked, it is unticked and raised. The same composer appears in Shopping Mode, at the top. _Decided in #106, not built:_ the field uses iOS autocorrect and suggestions, and the name is capitalised on add.
 _Avoid_: Quick add, input bar
 
 **Rename**:
-Tapping the name on list detail turns that row into a small field (Return or ✓ saves, ✕ cancels). One editor is open at a time, and dragging is off while it is open.
+Tapping the name on list detail turns that row into a small field (Return or ✓ saves, ✕ cancels). One editor is open at a time, and dragging is off while it is open. _Decided in #106, not built:_ renaming onto another item's name on the list is rejected with a message and the name stays unchanged; a case-only change to the item's own name (bread to Bread) is allowed.
 _Avoid_: Edit mode, inline edit sheet
 
 **Location pin**:

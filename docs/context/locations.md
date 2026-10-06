@@ -46,11 +46,11 @@ _Avoid_: Assign, link, select
 ### Item locations
 
 **Item location**:
-Where an item sits inside a store (an aisle or area, e.g. "Aisle 4"), matched by the item's normalised name (old UI words: Section, section tag; code: section tag). One per item per store, and anonymous: it records no creator. The first one for an item is made from Shopping Mode or from the list screen's Location pin; the Item catalog can only correct existing ones.
+Where an item sits inside a store (an aisle or area, e.g. "Aisle 4"), matched by the item's normalised name (old UI words: Section, section tag; code: section tag). One per item per store, and anonymous: it records no creator. _Decided in #106, not built:_ matched by the same folded name as list items (case, inner spaces, accents), and labels are stored with a leading capital. The first one for an item is made from Shopping Mode or from the list screen's Location pin; the Item catalog can only correct existing ones.
 _Avoid_: Section (in the UI), aisle, category, label
 
 **Correction**:
-A proposal to change an item's Item location, made with "Propose" and confirmed with "Confirm". It stays pending until a second, independent user confirms; the proposer cannot confirm their own. Several different pending corrections may exist for one item; applying one clears the rest. There is no reject verb. Shown as a muted "Proposed: X" line; the dashboard lists "Pending corrections" (decided in #110, not built yet: removed from Home; corrections are seen in the Store's Item catalog only).
+A proposal to change an item's Item location, made with "Propose" and confirmed with "Confirm". It stays pending until a second, independent user confirms; the proposer cannot confirm their own. Several different pending corrections may exist for one item; applying one clears the rest. There is no reject verb. Shown as a muted "Proposed: X" line; the dashboard lists "Pending corrections" (decided in #110, not built yet: removed from Home; corrections are seen in the Store's Item catalog only). _Decided in #106, not built:_ a correction that differs from the current label only by case or whitespace applies immediately with no second user.
 _Avoid_: Edit, suggestion, vote (in the UI)
 
 **Item catalog**:
