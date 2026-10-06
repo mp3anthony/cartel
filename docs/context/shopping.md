@@ -11,8 +11,12 @@ The screen opened by "Start shopping" on a list detail, where items are checked 
 _Avoid_: Trip mode, store mode
 
 **Route order**:
-The order items are shown in Shopping Mode, computed when the screen is read and never stored. Observed check-off history at that store comes first; an untagged-in-history item falls back to its **Item location**; anything else keeps entry order.
+The order items are shown in Shopping Mode, computed when the screen is read and never stored. Observed check-off history at that store comes first; an untagged-in-history item falls back to its **Item location**; anything else keeps entry order. _Decided in #112, not built:_ replaced by **Layout order**; the learned history sort is removed from Shopping Mode (the read-time sort in `computeRouteOrder` goes). Finish shopping still writes the Check-off record unchanged, so history keeps accumulating. The learned per-user walking order is parked as #151 (grill only, depends on #112).
 _Avoid_: Aisle order, smart sort
+
+**Layout order**:
+_Decided in #112, not built:_ the order of Shopping Mode, the same for every store and every list, following the standard sequence in `locations.md` (see **Layout order sequence**). Items with no Item location go last, in the order they were added; within one department or aisle, items sort alphabetically. Shopping Mode's only ordering until #151.
+_Avoid_: Route order (the old learned ordering), smart sort
 
 **Glanceability**:
 The design test for Shopping Mode: one-handed, one look, large rows, nothing that needs thinking. Quick successive check-offs must never block each other.
