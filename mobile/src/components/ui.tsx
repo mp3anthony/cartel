@@ -14,6 +14,7 @@ import {
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme/ThemeProvider';
+import { pressFill, pressScale, pressScaleFill, useReduceMotion } from '../theme/motion';
 import { scrimColor, type Tokens } from '../theme/tokens';
 import { PinIcon } from './RowIcons';
 
@@ -165,6 +166,7 @@ export function PrimaryButton({
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const inactive = busy || disabled;
+  const reduceMotion = useReduceMotion();
 
   return (
     <Pressable
@@ -181,6 +183,7 @@ export function PrimaryButton({
         // Compact gets no alignSelf at all so a composer row keeps centring it vertically.
         compact ? styles.primaryButtonCompact : fullWidth ? styles.buttonFullWidth : styles.buttonContent,
         pressed && styles.primaryButtonPressed,
+        pressScaleFill(pressed, reduceMotion),
         inactive && styles.buttonInactive,
       ]}
     >
@@ -220,6 +223,7 @@ export function SecondaryButton({
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const reduceMotion = useReduceMotion();
 
   return (
     <Pressable
@@ -231,10 +235,22 @@ export function SecondaryButton({
         styles.secondaryButton,
         fullWidth ? styles.buttonFullWidth : styles.buttonContent,
         pressed && styles.secondaryButtonPressed,
+        pressScaleFill(pressed, reduceMotion),
+        disabled && styles.secondaryButtonDisabled,
         disabled && styles.buttonInactive,
       ]}
     >
-      <Text style={styles.secondaryButtonLabel}>{label}</Text>
+      {({ pressed }) => (
+        <Text
+          style={[
+            styles.secondaryButtonLabel,
+            pressed && styles.accentFilledLabel,
+            pressFill(pressed, reduceMotion),
+          ]}
+        >
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -476,14 +492,18 @@ export function IconButton({
   disabled = false,
 }: {
   glyph?: string;
-  icon?: ReactNode;
+  /** Draws an SVG instead of `glyph`; receives the colour for the current press state. */
+  icon?: (color: string) => ReactNode;
   accessibilityLabel: string;
   onPress: () => void;
   disabled?: boolean;
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const reduceMotion = useReduceMotion();
 
+  // The Pressable is the 44pt hit box and scales; the 36pt circle inside it carries the
+  // accent fill on press (#156). No ring at rest.
   return (
     <Pressable
       accessibilityRole="button"
@@ -493,11 +513,33 @@ export function IconButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.touchTarget,
-        pressed && styles.touchTargetPressed,
+        pressScale(pressed, reduceMotion),
         disabled && styles.buttonInactive,
       ]}
     >
-      {icon ?? <Text style={styles.iconGlyph}>{glyph}</Text>}
+      {({ pressed }) => (
+        <View
+          style={[
+            styles.iconCircle,
+            pressed && styles.iconCirclePressed,
+            pressFill(pressed, reduceMotion),
+          ]}
+        >
+          {icon ? (
+            icon(pressed ? tokens.color.accentContrast : tokens.color.textSecondary)
+          ) : (
+            <Text
+              style={[
+                styles.iconGlyph,
+                pressed && styles.accentFilledLabel,
+                pressFill(pressed, reduceMotion),
+              ]}
+            >
+              {glyph}
+            </Text>
+          )}
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -664,7 +706,7 @@ export function CompactItemRow({
 
           {onLocation && locationLabel ? (
             <IconButton
-              icon={<PinIcon />}
+              icon={(color) => <PinIcon color={color} />}
               accessibilityLabel={locationLabel}
               onPress={onLocation}
               disabled={locationDisabled}
@@ -714,6 +756,7 @@ export function QuantityControl({
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const reduceMotion = useReduceMotion();
 
   if (quantity < 2) {
     return (
@@ -735,13 +778,27 @@ export function QuantityControl({
       onPress={onOpenEditor}
       style={({ pressed }) => [
         styles.quantityChipTarget,
-        pressed && styles.touchTargetPressed,
+        pressScale(pressed, reduceMotion),
         disabled && styles.buttonInactive,
       ]}
     >
-      <View style={styles.quantityChip}>
-        <Text style={styles.quantityChipLabel}>{`×${quantity}`}</Text>
-      </View>
+      {({ pressed }) => (
+        <View
+          style={[
+            styles.quantityChip,
+            pressed && styles.accentFilledSurface,
+            pressFill(pressed, reduceMotion),
+          ]}
+        >
+          <Text
+            style={[
+              styles.quantityChipLabel,
+              pressed && styles.accentFilledLabel,
+              pressFill(pressed, reduceMotion),
+            ]}
+          >{`×${quantity}`}</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -774,6 +831,7 @@ export function QuantityEditor({
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const reduceMotion = useReduceMotion();
 
   return (
     <View style={styles.quantityEditor}>
@@ -799,9 +857,23 @@ export function QuantityEditor({
         accessibilityRole="button"
         accessibilityLabel="Done"
         onPress={onDone}
-        style={({ pressed }) => [styles.rowConfirmButton, pressed && styles.touchTargetPressed]}
+        style={({ pressed }) => [
+          styles.rowConfirmButton,
+          pressed && styles.accentFilledSurface,
+          pressScaleFill(pressed, reduceMotion),
+        ]}
       >
-        <Text style={styles.rowConfirmAction}>Done</Text>
+        {({ pressed }) => (
+          <Text
+            style={[
+              styles.rowConfirmAction,
+              pressed && styles.accentFilledLabel,
+              pressFill(pressed, reduceMotion),
+            ]}
+          >
+            Done
+          </Text>
+        )}
       </Pressable>
     </View>
   );
@@ -833,6 +905,7 @@ export function RowConfirm({
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const reduceMotion = useReduceMotion();
 
   return (
     <View accessibilityRole="alert" style={styles.rowConfirm}>
@@ -844,11 +917,22 @@ export function RowConfirm({
         onPress={onCancel}
         style={({ pressed }) => [
           styles.rowConfirmButton,
-          pressed && styles.touchTargetPressed,
+          pressed && styles.accentFilledSurface,
+          pressScaleFill(pressed, reduceMotion),
           busy && styles.buttonInactive,
         ]}
       >
-        <Text style={styles.rowConfirmCancel}>Cancel</Text>
+        {({ pressed }) => (
+          <Text
+            style={[
+              styles.rowConfirmCancel,
+              pressed && styles.accentFilledLabel,
+              pressFill(pressed, reduceMotion),
+            ]}
+          >
+            Cancel
+          </Text>
+        )}
       </Pressable>
       <Text numberOfLines={2} style={styles.rowConfirmMessage}>
         {message}
@@ -861,15 +945,26 @@ export function RowConfirm({
         onPress={onConfirm}
         style={({ pressed }) => [
           styles.rowConfirmButton,
-          pressed && styles.touchTargetPressed,
+          pressed && styles.accentFilledSurface,
+          pressScaleFill(pressed, reduceMotion),
           busy && styles.buttonInactive,
         ]}
       >
-        {busy ? (
-          <ActivityIndicator color={tokens.color.accent} />
-        ) : (
-          <Text style={styles.rowConfirmAction}>{confirmLabel}</Text>
-        )}
+        {({ pressed }) =>
+          busy ? (
+            <ActivityIndicator color={tokens.color.accent} />
+          ) : (
+            <Text
+              style={[
+                styles.rowConfirmAction,
+                pressed && styles.accentFilledLabel,
+                pressFill(pressed, reduceMotion),
+              ]}
+            >
+              {confirmLabel}
+            </Text>
+          )
+        }
       </Pressable>
     </View>
   );
@@ -960,6 +1055,7 @@ export function PendingCorrectionLine({
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const reduceMotion = useReduceMotion();
 
   return (
     <View style={styles.pendingLine}>
@@ -975,6 +1071,7 @@ export function PendingCorrectionLine({
         style={({ pressed }) => [
           styles.pendingConfirm,
           pressed && styles.pendingConfirmPressed,
+          pressScale(pressed, reduceMotion),
           busy && styles.buttonInactive,
         ]}
       >
@@ -1094,14 +1191,11 @@ export function Banner({ message }: { message: string }) {
     <View accessibilityRole="alert" style={styles.banner}>
       <Text style={styles.bannerGlyph}>✓</Text>
       <Text style={styles.bannerText}>{message}</Text>
-      <Pressable
-        accessibilityRole="button"
+      <IconButton
+        glyph="×"
         accessibilityLabel="Dismiss confirmation"
         onPress={() => setDismissed(true)}
-        style={({ pressed }) => [styles.touchTarget, pressed && styles.touchTargetPressed]}
-      >
-        <Text style={styles.iconGlyph}>×</Text>
-      </Pressable>
+      />
     </View>
   );
 }
@@ -1144,6 +1238,7 @@ export function SegmentedControl<T extends string>({
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const reduceMotion = useReduceMotion();
 
   return (
     <View style={styles.segmentedWrap}>
@@ -1161,14 +1256,22 @@ export function SegmentedControl<T extends string>({
               style={({ pressed }) => [
                 styles.segment,
                 selected && styles.segmentSelected,
-                pressed && !selected && styles.segmentPressed,
+                pressed && !selected && styles.accentFilledSurface,
+                pressScaleFill(pressed, reduceMotion),
               ]}
             >
-              <Text
-                style={[styles.segmentLabel, selected && styles.segmentLabelSelected]}
-              >
-                {option.label}
-              </Text>
+              {({ pressed }) => (
+                <Text
+                  style={[
+                    styles.segmentLabel,
+                    selected && styles.segmentLabelSelected,
+                    pressed && !selected && styles.accentFilledLabel,
+                    pressFill(pressed, reduceMotion),
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              )}
             </Pressable>
           );
         })}
@@ -1258,6 +1361,9 @@ export function Select<T extends string>({
 // enlarged (13px caption + 2 * space.xs vertical padding, rounded).
 const PENDING_LINE_HEIGHT = 24;
 
+// The visible circle of an `IconButton`, inside its 44pt hit box.
+const ICON_CIRCLE_SIZE = 36;
+
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     ground: {
@@ -1315,7 +1421,7 @@ function createStyles(tokens: Tokens) {
     },
     primaryButton: {
       backgroundColor: tokens.color.accent,
-      borderRadius: tokens.radius.md,
+      borderRadius: tokens.radius.pill,
       minHeight: tokens.minTouchTarget,
       alignItems: 'center',
       justifyContent: 'center',
@@ -1350,7 +1456,7 @@ function createStyles(tokens: Tokens) {
       lineHeight: tokens.fontSize.title,
     },
     secondaryButton: {
-      borderRadius: tokens.radius.md,
+      borderRadius: tokens.radius.pill,
       borderWidth: 1,
       borderColor: tokens.color.border,
       backgroundColor: tokens.color.surface,
@@ -1360,7 +1466,22 @@ function createStyles(tokens: Tokens) {
       paddingHorizontal: tokens.space.lg,
     },
     secondaryButtonPressed: {
-      backgroundColor: tokens.color.surfaceSunken,
+      backgroundColor: tokens.color.accent,
+      borderColor: tokens.color.accent,
+    },
+    // A disabled ghost pill is drawn dashed so it reads as unavailable by shape, not
+    // only by fading (#156, call D).
+    secondaryButtonDisabled: {
+      borderStyle: 'dashed',
+    },
+    // Press state shared by every pill-shaped or circular control that fills with the
+    // accent: the surface gets the fill, its label gets the contrast colour.
+    accentFilledSurface: {
+      backgroundColor: tokens.color.accent,
+      borderColor: tokens.color.accent,
+    },
+    accentFilledLabel: {
+      color: tokens.color.accentContrast,
     },
     secondaryButtonLabel: {
       color: tokens.color.textPrimary,
@@ -1451,6 +1572,17 @@ function createStyles(tokens: Tokens) {
     },
     touchTargetPressed: {
       backgroundColor: tokens.color.surfaceSunken,
+    },
+    // IconButton: the visible circle inside the 44pt hit box. Transparent at rest.
+    iconCircle: {
+      width: ICON_CIRCLE_SIZE,
+      height: ICON_CIRCLE_SIZE,
+      borderRadius: tokens.radius.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconCirclePressed: {
+      backgroundColor: tokens.color.accent,
     },
     checkCircle: {
       width: tokens.space.lg,
@@ -1545,7 +1677,7 @@ function createStyles(tokens: Tokens) {
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: tokens.space.sm,
-      borderRadius: tokens.radius.md,
+      borderRadius: tokens.radius.pill,
     },
     rowConfirmCancel: {
       fontSize: tokens.fontSize.caption,
@@ -1727,7 +1859,7 @@ function createStyles(tokens: Tokens) {
     segmentedTrack: {
       flexDirection: 'row',
       backgroundColor: tokens.color.surfaceSunken,
-      borderRadius: tokens.radius.md,
+      borderRadius: tokens.radius.pill,
       borderWidth: 1,
       borderColor: tokens.color.border,
       padding: 4,
@@ -1738,11 +1870,8 @@ function createStyles(tokens: Tokens) {
       minHeight: tokens.minTouchTarget,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: tokens.radius.sm,
+      borderRadius: tokens.radius.pill,
       paddingHorizontal: tokens.space.sm,
-    },
-    segmentPressed: {
-      backgroundColor: tokens.color.surface,
     },
     segmentSelected: {
       backgroundColor: tokens.color.accentWash,

@@ -97,7 +97,7 @@ td{min-width:7rem}
 .sp-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 .sp-btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accentContrast)}
 .sp-btn.chip.selected{background:var(--accentWash);border-color:var(--accent)}
-.sp-btn.ghost:hover,.sp-btn.ghost:focus-visible,.sp-btn.ghost:active,.sp-btn.chip:focus-visible,.sp-btn.chip:active,.sp-btn.circle:focus-visible,.sp-btn.circle:active{background:var(--accent);border-color:var(--accent);color:var(--accentContrast);transition:transform 0s,background-color var(--t-feedback) var(--ease-enter),color var(--t-feedback) var(--ease-enter),border-color var(--t-feedback) var(--ease-enter)}
+.sp-btn.ghost:active,.sp-btn.chip:active,.sp-btn.circle:active{background:var(--accent);border-color:var(--accent);color:var(--accentContrast);transition:transform 0s,background-color var(--t-feedback) var(--ease-enter),color var(--t-feedback) var(--ease-enter),border-color var(--t-feedback) var(--ease-enter)}
 .sp-btn.primary:active{background:var(--accentPressed);border-color:var(--accentPressed)}
 .sp-btn:active{transform:scale(.97);transition-duration:0s,var(--t-feedback),var(--t-feedback),var(--t-feedback)}
 .sp-btn:disabled{opacity:.5;cursor:not-allowed;border-style:dashed}
@@ -235,10 +235,13 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <li><strong>Pills.</strong> Buttons are pills (radius 999). Chips are pills. Icon controls are circles.</li>
 <li><strong>Ghost pill.</strong> Transparent or surface fill, 1px hairline in the <code>border</code> colour, <code>textPrimary</code> label. On press, the fill becomes <code>accent</code> with <code>accentContrast</code> text and, like every control, the pill scales to about 0.97. No other movement.</li>
 <li><strong>Primary pill.</strong> <code>accent</code> fill at rest with <code>accentContrast</code> text.</li>
-<li><strong>No hover on iPhone.</strong> Primary is the main action and the ghost pill is secondary. Accent shows on press and focus.</li>
-<li><strong>Width.</strong> Built in #143: full-width remains only for the single main action of a form or an irreversible commit step (Finish shopping), per the #110 rule. Everything else is content-sized. #156 changes shape and colour only; "compact pill" here is not the <code>compact</code> prop (the 44x44 "+" square).</li>
+<li><strong>No hover on iPhone.</strong> Primary is the main action and the ghost pill is secondary. Accent shows on press only; keyboard focus keeps the browser focus ring, with no accent fill (decided in #156, so a fill cannot stick after a tap in iOS Safari).</li>
+<li><strong>Width.</strong> Built in #143: full-width remains only for the single main action of a form or an irreversible commit step (Finish shopping), per the #110 rule. Everything else is content-sized. #156 changes shape and colour only; "compact pill" here is not the <code>compact</code> prop (the 44x44 "+" square, now a circle).</li>
 <li><strong>Hit area.</strong> 44pt minimum always. The visible control may be smaller, for example about 36pt with an invisible larger hit area.</li>
-<li><strong>Press feedback.</strong> Every control scales instantly to about 0.97 on press.</li>
+<li><strong>Press feedback.</strong> Every pill, chip and icon circle scales instantly to about 0.97 on press. Rows, check circles and cards are excluded: they keep their pressed tint, with no scale and no accent fill (decided in #156). An accent fill on a check circle would read as "ticked", and scaling full-width rows mid-shop distracts.</li>
+<li><strong>Icon controls.</strong> About 36pt circle inside the 44pt hit area. No ring at rest; the circle fills with <code>accent</code> and the glyph turns <code>accentContrast</code> on press. The ringed circle is for header controls only (#157, #158).</li>
+<li><strong>Disabled ghost pill.</strong> 50% opacity plus a dashed hairline, so it reads as unavailable by shape as well as fade. A disabled primary pill keeps the opacity only.</li>
+<li><strong>Built (#156, 0.0.47).</strong> Pill buttons, chips, icon circles and press feedback are built in <code>ui.tsx</code>, with motion values in <code>mobile/src/theme/motion.ts</code> (CSS transitions on web, scale only on native).</li>
 <li><strong>Timing is asymmetric.</strong> Entering a state is slow with ease-out. Exiting is fast with ease-in.</li>
 <li><strong>Reduce motion.</strong> All motion honours reduce-motion: the state still changes, with no scale or slide.</li>
 <li><strong>Meaning.</strong> Never encode meaning in colour alone.</li>
@@ -249,7 +252,7 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <tr><td>Enter</td><td><code>cubic-bezier(.22,.31,0,1)</code></td><td>Entering a state, ease-out</td></tr>
 <tr><td>Exit</td><td><code>cubic-bezier(.69,0,0,1)</code></td><td>Leaving a state, ease-in</td></tr>
 <tr><td>Quiet</td><td><code>150ms</code></td><td>Exits, small shifts</td></tr>
-<tr><td>Feedback</td><td><code>300ms</code></td><td>Press and focus fills, nav ring slide</td></tr>
+<tr><td>Feedback</td><td><code>300ms</code></td><td>Press fills, nav ring slide</td></tr>
 <tr><td>Structural</td><td><code>550ms</code></td><td>Larger layout changes</td></tr>
 </tbody></table></div>
 <p>These are the HS website's fixed curve vocabulary.</p>
@@ -278,7 +281,7 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 
 <h3 id="hs-collisions">Status and collisions</h3>
 <ul>
-<li>Status: decided, not built.</li>
+<li>Status: buttons, chips and press feedback built in #156 (0.0.47). The back circle (#157) and the bottom pill nav (#158) are decided, not built.</li>
 <li>Navigation collides with #109, #103 and #110 (#144, #145). Whichever lands later rebases.</li>
 </ul>
 
@@ -300,7 +303,7 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <button type="button" class="sp-btn circle hit" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
 <button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
 </div>
-<p class="note">Press and hold, or tab to a control. Ghost pill and chips fill with the accent on press and keyboard focus. Every control scales to 0.97 on press.</p>
+<p class="note">Press and hold, or tab to a control. Ghost pill and chips fill with the accent on press only; keyboard focus shows the focus ring, with no fill. Every control scales to 0.97 on press.</p>
 </div>
 <div class="cartel-dark stage">
 <p class="cap">Cartel dark</p>
@@ -316,7 +319,7 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <button type="button" class="sp-btn circle hit" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
 <button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
 </div>
-<p class="note">Press and hold, or tab to a control. Ghost pill and chips fill with the accent on press and keyboard focus. Every control scales to 0.97 on press.</p>
+<p class="note">Press and hold, or tab to a control. Ghost pill and chips fill with the accent on press only; keyboard focus shows the focus ring, with no fill. Every control scales to 0.97 on press.</p>
 </div>
 </div>
 <h4>Phone mock: drill-down screen with bottom pill nav</h4>
