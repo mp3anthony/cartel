@@ -22,7 +22,7 @@ npm --prefix mobile run web -- --port 8082
 | `docs/adr/` | Architectural decision records. |
 | `docs/research/` | Research notes. |
 | `01-CRD.md` | Client requirements. |
-| `02-DESIGN-REFERENCE.md` | UI/UX foundation. |
+| `02-DESIGN-REFERENCE.html` | UI/UX foundation. |
 | `03-SPEC.md` | Build breakdown and locked architecture decisions. |
 | `CHANGE-LOG.md` | Out-of-spec requests awaiting triage. |
 | `GEMINI-DELEGATION.md` | Rules for delegating work to Antigravity (agy). |

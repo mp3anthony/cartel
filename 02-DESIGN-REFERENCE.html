@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartel Design Reference</title>
+<style>
+:root{
+  --p-bg:#FAF6F1;--p-surface:#FFFFFF;--p-sunken:#F2EBE3;--p-line:#E7DCD0;
+  --p-accent:#C2410C;--p-accent-ink:#FFFFFF;--p-wash:#FCEDE6;
+  --p-fg:#2B2320;--p-dim:#6B5D54;--p-pos:#2F6F4E;--p-neg:#A32E24;
+  --f-body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --f-mono:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
+  --ease-enter:cubic-bezier(.22,.31,0,1);--ease-exit:cubic-bezier(.69,0,0,1);
+  --t-quiet:150ms;--t-feedback:300ms;--t-structural:550ms;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --p-bg:#15110D;--p-surface:#221B15;--p-sunken:#0F0C09;--p-line:#3D3226;
+  --p-accent:#C9A227;--p-accent-ink:#15110D;--p-wash:#2E2612;
+  --p-fg:#F2E9DC;--p-dim:#B7A996;--p-pos:#6FBE8B;--p-neg:#E28577;color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --p-bg:#15110D;--p-surface:#221B15;--p-sunken:#0F0C09;--p-line:#3D3226;
+  --p-accent:#C9A227;--p-accent-ink:#15110D;--p-wash:#2E2612;
+  --p-fg:#F2E9DC;--p-dim:#B7A996;--p-pos:#6FBE8B;--p-neg:#E28577;color-scheme:dark;}
+/* Specimen palettes. Values are copied from mobile/src/theme/tokens.ts; scripts/check-design-reference.mjs fails if they drift. */
+.cartel-light{--ground:#FAF6F1;--surface:#FFFFFF;--surfaceSunken:#F2EBE3;--border:#E7DCD0;--accent:#C2410C;--accentPressed:#9A340A;--accentWash:#FCEDE6;--accentContrast:#FFFFFF;--textPrimary:#2B2320;--textSecondary:#6B5D54;--positive:#2F6F4E;--negative:#A32E24;--shadow:rgba(43,35,32,.08);color-scheme:light}
+.cartel-dark{--ground:#15110D;--surface:#221B15;--surfaceSunken:#0F0C09;--border:#3D3226;--accent:#C9A227;--accentPressed:#E6BC3A;--accentWash:#2E2612;--accentContrast:#15110D;--textPrimary:#F2E9DC;--textSecondary:#B7A996;--positive:#6FBE8B;--negative:#E28577;--shadow:rgba(0,0,0,.4);color-scheme:dark}
+
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:1rem}
+body{margin:0;background:var(--p-bg);color:var(--p-fg);font-family:var(--f-body);font-size:1rem;line-height:1.6;padding:1.5rem 1rem 5rem;-webkit-font-smoothing:antialiased}
+.wrap{max-width:76rem;margin-inline:auto;display:grid;grid-template-columns:minmax(0,1fr);gap:1.5rem}
+@media (min-width:62rem){.wrap{grid-template-columns:14rem minmax(0,1fr);gap:3rem}}
+main{min-width:0;max-width:52rem}
+h1,h2,h3,h4{line-height:1.2;margin:0;font-weight:650;text-wrap:balance}
+h1{font-size:clamp(2rem,6vw,2.8rem)}
+h2{font-size:clamp(1.45rem,3.6vw,1.8rem);margin-top:3.5rem;padding-top:1.1rem;border-top:1px solid var(--p-line)}
+h3{font-size:1.2rem;margin-top:2rem}
+h4{font-size:1.02rem;margin-top:1.4rem}
+p,ul,ol,dl{margin:.8rem 0 0;max-width:44rem}
+li+li{margin-top:.35rem}
+a{color:var(--p-accent)}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--p-sunken);padding:.08em .35em;border-radius:4px;overflow-wrap:anywhere}
+:focus-visible{outline:2px solid var(--p-accent);outline-offset:2px}
+.eyebrow{font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--p-dim);margin:0 0 .6rem}
+.lead{font-size:1.1rem;color:var(--p-dim)}
+.callout{border:1px solid var(--p-line);border-left:4px solid var(--p-accent);background:var(--p-surface);padding:.85rem 1.1rem;margin-top:1.1rem;max-width:44rem}
+.callout p{margin:0}.callout p+p{margin-top:.6rem}
+.st{display:inline-block;font-size:.72rem;font-weight:650;letter-spacing:.06em;text-transform:uppercase;border:1px solid currentColor;border-radius:999px;padding:.05em .65em;vertical-align:middle;margin-left:.4rem;white-space:nowrap}
+.st.built{color:var(--p-pos)}.st.decided{color:var(--p-accent)}.st.retired{color:var(--p-dim)}
+h2 .st,h3 .st{font-size:.68rem}
+/* contents */
+.toc{font-size:.92rem}
+.toc details{border:1px solid var(--p-line);background:var(--p-surface);padding:.75rem 1rem}
+.toc summary{cursor:pointer;font-weight:650}
+.toc ol{list-style:none;padding:0;margin:.7rem 0 0}
+.toc li+li{margin-top:.3rem}
+.toc a{color:var(--p-dim);text-decoration:none}
+.toc a:hover,.toc a:focus-visible{color:var(--p-fg);text-decoration:underline}
+.toc .sub{padding-left:.9rem;font-size:.86rem}
+@media (min-width:62rem){.toc details{position:sticky;top:1rem;max-height:calc(100vh - 2rem);overflow-y:auto}}
+/* tables */
+.tw{overflow-x:auto;margin-top:1rem;border:1px solid var(--p-line);max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;vertical-align:top;padding:.5rem .75rem;border-bottom:1px solid var(--p-line)}
+th{font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--p-dim);background:var(--p-surface);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td{min-width:7rem}
+/* reference images */
+.refs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:1rem;margin-top:1rem}
+.refs figure{margin:0;border:1px solid var(--p-line);background:var(--p-surface);padding:.6rem;min-width:0}
+.refs img{display:block;max-width:100%;height:auto;max-height:22rem;margin-inline:auto}
+.refs img.small{max-width:12rem}
+.refs figcaption{font-size:.82rem;color:var(--p-dim);margin-top:.5rem}
+/* stages */
+.stage{background:var(--ground);color:var(--textPrimary);border:1px solid var(--border);padding:1.1rem;margin-top:1rem;max-width:100%;border-radius:0}
+.stage .cap{font-size:.74rem;text-transform:uppercase;letter-spacing:.12em;color:var(--textSecondary);margin:0 0 .9rem}
+.stage .note{font-size:.84rem;color:var(--textSecondary);max-width:none}
+.stage .row,.row{display:flex;flex-wrap:wrap;gap:.8rem 1rem;align-items:center;margin-top:.9rem}
+.stage .row:first-of-type{margin-top:0}
+.stage-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr));gap:1rem}
+.stage-pair>.stage{margin-top:1rem}
+.swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8.5rem),1fr));gap:.7rem}
+.sw{border:1px solid var(--border);background:var(--surface);min-width:0}
+.sw .chip{height:3.4rem;border-bottom:1px solid var(--border)}
+.sw .meta{padding:.5rem .6rem .6rem;font-size:.8rem}
+.sw .meta strong{display:block;font-size:.84rem}
+.sw .meta code{background:var(--surfaceSunken);color:var(--textPrimary);display:inline-block;margin-top:.2rem}
+/* controls */
+.sp-btn{position:relative;font:600 1rem/1 var(--f-body);color:var(--textPrimary);border:1px solid var(--border);background:var(--surface);cursor:pointer;margin:0;
+  transition:transform var(--t-quiet) var(--ease-exit),background-color var(--t-quiet) var(--ease-exit),color var(--t-quiet) var(--ease-exit),border-color var(--t-quiet) var(--ease-exit);-webkit-tap-highlight-color:transparent}
+.sp-btn.pill{min-height:44px;padding:0 1.3rem;border-radius:999px}
+.sp-btn.chip{min-height:36px;padding:0 1rem;border-radius:999px;font-size:.92rem;font-weight:550}
+.sp-btn.circle{width:36px;height:36px;padding:0;border-radius:50%;display:inline-grid;place-items:center;flex:none}
+.sp-btn.hit::before{content:"";position:absolute;inset:-4px}
+.sp-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.sp-btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accentContrast)}
+.sp-btn.chip.selected{background:var(--accentWash);border-color:var(--accent)}
+.sp-btn.ghost:hover,.sp-btn.ghost:focus-visible,.sp-btn.ghost:active,.sp-btn.chip:focus-visible,.sp-btn.chip:active,.sp-btn.circle:focus-visible,.sp-btn.circle:active{background:var(--accent);border-color:var(--accent);color:var(--accentContrast);transition:transform 0s,background-color var(--t-feedback) var(--ease-enter),color var(--t-feedback) var(--ease-enter),border-color var(--t-feedback) var(--ease-enter)}
+.sp-btn.primary:active{background:var(--accentPressed);border-color:var(--accentPressed)}
+.sp-btn:active{transform:scale(.97);transition-duration:0s,var(--t-feedback),var(--t-feedback),var(--t-feedback)}
+.sp-btn:disabled{opacity:.5;cursor:not-allowed;border-style:dashed}
+.sp-btn:focus-visible{outline:2px solid var(--textPrimary);outline-offset:3px}
+/* phone mock */
+.mocks{display:flex;flex-wrap:wrap;gap:1.2rem;margin-top:1rem}
+.scroll{overflow-x:auto;max-width:100%}
+.phone{position:relative;width:375px;max-width:100%;height:560px;background:var(--ground);color:var(--textPrimary);border:1px solid var(--border);border-radius:26px;overflow:hidden;padding:14px 16px 0;flex:none}
+.phone.short{height:430px}
+.mhead{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;min-height:44px}
+.mhead>:first-child{justify-self:start}.mhead>:last-child{justify-self:end}
+.mhead.flat{border:1px solid var(--border);background:var(--ground);padding:0 8px}
+.mark{text-align:center;font-weight:700;font-size:1.1rem;letter-spacing:.01em}
+.mark.left{text-align:left;padding-left:.4rem}
+.mhead.flat .mark.left{grid-column:1/3}
+.mtitle{font-size:1.4rem;font-weight:700;margin:1.2rem 0 .2rem}
+.mlist{list-style:none;padding:0;margin:.9rem 0 0;display:grid;gap:.7rem;max-width:none}
+.mrow{display:flex;justify-content:space-between;align-items:center;margin:0;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:.8rem 1rem;box-shadow:0 4px 16px var(--shadow)}
+.mrow.big{padding:1.1rem 1rem;font-size:1.2rem;font-weight:600}
+.tick{width:26px;height:26px;border-radius:50%;border:2px solid var(--textSecondary);display:grid;place-items:center;flex:none}
+.big .tick{width:44px;height:44px}
+.tick.on{background:var(--accent);border-color:var(--accent);color:var(--accentContrast)}
+.tick svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.mnote{font-size:.82rem;color:var(--textSecondary);margin:1.2rem 0 0;max-width:none}
+.pillnav{position:absolute;left:16px;right:16px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(4,1fr);height:48px;border-radius:999px;background:var(--surface);border:1px solid var(--border);box-shadow:0 8px 24px var(--shadow)}
+.pillnav button{position:relative;z-index:1;font:600 .9rem/1 var(--f-body);color:var(--textPrimary);background:none;border:0;border-radius:999px;min-height:44px;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
+.pillnav .ring{position:absolute;top:0;bottom:0;left:0;width:25%;border-radius:999px;box-shadow:inset 0 0 0 2px var(--accent);transform:translateX(calc(var(--i) * 100%));transition:transform var(--t-feedback) var(--ease-enter);pointer-events:none}
+.pillnav button:focus-visible{outline:2px solid var(--textPrimary);outline-offset:-4px}
+dl.defs{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.4rem 1.2rem}
+dl.defs dt{font-weight:650}dl.defs dd{margin:0}
+@media (max-width:34rem){dl.defs{grid-template-columns:1fr}dl.defs dd{margin-bottom:.5rem}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;scroll-behavior:auto!important}.sp-btn:active{transform:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<aside class="toc" aria-label="Contents">
+<details id="toc-details">
+<summary>Contents</summary>
+<ol>
+<li><a href="#how-to-read">How to read this file</a></li>
+<li><a href="#reference-sites">Reference sites</a></li>
+<li><a href="#tone">Tone</a></li>
+<li><a href="#decided-110">Decided in #110</a></li>
+<li><a href="#house-style">HS house style for controls</a></li>
+<li class="sub"><a href="#hs-scope">Scope</a></li>
+<li class="sub"><a href="#hs-buttons">Buttons and motion</a></li>
+<li class="sub"><a href="#hs-back">Back circle</a></li>
+<li class="sub"><a href="#hs-nav">Bottom pill nav</a></li>
+<li class="sub"><a href="#hs-collisions">Status and collisions</a></li>
+<li class="sub"><a href="#hs-specimens">Control specimens</a></li>
+<li><a href="#glanceability">Glanceability</a></li>
+<li><a href="#constraints">Constraints</a></li>
+<li class="sub"><a href="#palette">Palette specimens</a></li>
+<li class="sub"><a href="#accessibility">Accessibility</a></li>
+<li><a href="#retired">Retired: Slice 4 merge prompt</a></li>
+</ol>
+</details>
+</aside>
+
+<main id="top">
+<header>
+<p class="eyebrow">Cartel, UI/UX foundation</p>
+<h1>Cartel Design Reference</h1>
+<p class="lead">The UI/UX foundation for every build session. It is the floor, not the ceiling. The reference images were supplied by the client. They are look-and-feel references only, not products to copy.</p>
+</header>
+
+<section id="how-to-read">
+<h2>How to read this file</h2>
+<ul>
+<li>This file is the source of truth for look, feel and control style. It replaced <code>02-DESIGN-REFERENCE.md</code> in #139. It was first filled in on 2026-08-09, deliberately before Slice 1, so early screens would not set visual conventions ad hoc.</li>
+<li>Palette values live in <code>mobile/src/theme/tokens.ts</code>, which is the sole palette source. The swatches here are copies, and <code>scripts/check-design-reference.mjs</code> fails if they drift.</li>
+<li>This file is republished as an Artifact whenever it changes. Agents read the text; the live specimens are for people. Every rule is also written out as text.</li>
+<li>Status labels: <span class="st built">Built</span> is in the app today. <span class="st decided">Decided, not built</span> is agreed with Ant and describes the intended design, not the current app. <span class="st retired">Retired</span> no longer applies.</li>
+<li>Reference images load from <code>design-refs/</code> next to this file.</li>
+</ul>
+</section>
+
+<section id="reference-sites">
+<h2>Reference sites and apps <span class="st built">Built</span></h2>
+<div class="refs">
+<figure><img src="design-refs/01-ghozi-light-tasks.jpeg" alt="Reference 1: light task-manager concept with soft-shadowed rounded cards on an off-white ground and one saturated accent colour" loading="lazy"><figcaption>Reference 1, <code>01-ghozi-light-tasks.jpeg</code></figcaption></figure>
+<figure><img src="design-refs/02-pathum-todo.jpeg" alt="Reference 2: pastel to-do concept with coloured icon chips on the left and circular check targets on the right of each row" loading="lazy"><figcaption>Reference 2, <code>02-pathum-todo.jpeg</code></figcaption></figure>
+<figure><img src="design-refs/03-pastel-gradient.jpeg" alt="Reference 3: pastel gradient concept showing a soft gradient and blob treatment" loading="lazy"><figcaption>Reference 3, <code>03-pastel-gradient.jpeg</code></figcaption></figure>
+<figure><img src="design-refs/04-avoid-dark-neon.jpeg" alt="Anti-reference 4: dark neon concept with glow accents, rejected" loading="lazy"><figcaption>Anti-reference 4, <code>04-avoid-dark-neon.jpeg</code></figcaption></figure>
+<figure><img class="small" src="design-refs/05-avoid-dark-illustration.png" alt="Anti-reference 5: dark illustration-heavy concept, rejected" loading="lazy" width="192"><figcaption>Anti-reference 5, <code>05-avoid-dark-illustration.png</code> (shown small, the file is about 2 MB)</figcaption></figure>
+</div>
+<ol>
+<li><strong>Light task-manager concept</strong> (<code>design-refs/01-ghozi-light-tasks.jpeg</code>). Take the overall register: soft-shadowed rounded cards on an off-white ground, one saturated accent colour carrying all emphasis (selected chip, active card, primary button), everything else near-neutral. A full-width primary CTA at the bottom of a form (amended by <a href="#decided-110">Decided in #110</a>). Filter chips as a horizontal pill row. This is the closest single match to the agreed tone and wins ties.</li>
+<li><strong>Pastel to-do concept</strong> (<code>design-refs/02-pathum-todo.jpeg</code>). Take the list-row anatomy: a coloured icon chip on the left, label, circular check target on the right, one row per item with generous vertical padding. The per-item colour chip is the mechanism for showing an item's store section or aisle once route learning exists. Colour carries grouping without a second column of text.</li>
+<li><strong>Pastel gradient concept</strong> (<code>design-refs/03-pastel-gradient.jpeg</code>). Take only the soft gradient and blob treatment, and only for empty states, onboarding and the household-invite screen. Gradients stay out of list and shopping surfaces, where they cost legibility.</li>
+<li><strong>Dark neon and dark illustration concepts</strong> (<code>design-refs/04-avoid-dark-neon.jpeg</code>, <code>design-refs/05-avoid-dark-illustration.png</code>). These are anti-references: supplied and rejected. Neon glow accents, a dark-first palette and illustration-heavy onboarding are not the direction. One motif is kept: the ring or donut progress indicator, a candidate for showing shop or list completion. Take the shape and leave the styling.</li>
+</ol>
+</section>
+
+<section id="tone">
+<h2>Tone <span class="st built">Built</span></h2>
+<ul>
+<li>Feel: warm and friendly. Rounded geometry, soft shadows over hard borders, approachable copy. Human, not clinical; friendly, not childish.</li>
+<li>Explicitly avoid:
+<ul>
+<li>Neon or glow accents and dark-first theming (see the anti-references).</li>
+<li>Illustration-led onboarding. The app should be usable before it is explained.</li>
+<li>Gradients on any list or shopping surface.</li>
+<li>Dense, information-heavy dashboards. Cartel is a list, not an analytics tool.</li>
+</ul></li>
+</ul>
+</section>
+
+<section id="decided-110">
+<h2>Decided in #110, not built yet <span class="st decided">Decided, not built</span></h2>
+<p>Describes the decided design, not the current app.</p>
+<p><strong>Buttons are content-sized by default.</strong> Full-width is kept only for the single main action of a form or an irreversible commit step (for example Finish shopping). In-card actions use a compact pill; a global create may be icon-only or a floating circular +. The 44pt minimum tap target (<code>docs/conventions.md</code>) still applies. This amends reference 1's "full-width primary CTA" for everything except those two cases. App-wide rule.</p>
+<p><strong>Home look.</strong> Premium and modern, built so motion can be added. Reference: Copilot Money (hero on top, a row of circular rings, tonal surfaces, graphs). Motion for v1, on mount, 200 to 300ms: progress rings fill, the donut sweeps in, numbers count up; all of it honours reduce-motion. This is not the "dense analytics dashboard" rejected above: two graph tiles, tap to expand, the rest quiet. Layout and sections: Dashboard in <code>docs/context/shopping.md</code>.</p>
+</section>
+
+<section id="house-style">
+<h2>HS house style for controls <span class="st decided">Decided in #139, not built</span></h2>
+<p>Decided in #139 on 2026-10-06. Hazardous Schematics (HS) is Ant's brand for apps and software. Cartel adopts the HS website's control language so it reads as an HS-built app.</p>
+<div class="callout">
+<p><strong>This section describes the decided design, not the current app.</strong> Ant stated directly: the bottom pill replaces the hamburger because the hamburger is hard to reach, the palette stays, no glass, and only the shape and style of buttons change. Those are decided.</p><p>The following were not directly stated by Ant. They are the orchestrator's reading of his answers, and Ant will confirm them visually against the specimens below: the back circle placement (drill-down screens only) and the hairline look; the close circle (X) for dialogs; the 2px accent ring and 300ms slide on the current nav link (taken from the HS website's nav); the soft shadow on the floating pill; the exact split of four destinations plus a gear; Shopping Mode showing only the back circle.</p>
+</div>
+
+<h3 id="hs-scope">Scope</h3>
+<ul>
+<li>Only the shape and style of controls change.</li>
+<li>Cartel keeps its own locked palette. Colours come only from <code>mobile/src/theme/tokens.ts</code>, light and dark.</li>
+<li>No glass: no backdrop blur, no sheen, no specular edge. Ant judged it would not read well in Cartel because it is not used app-wide.</li>
+<li>No HS black or slate ground and no HS orange.</li>
+<li>The website's radius scale for cards and panels is not adopted. Cards and panels keep Cartel's current radii. Only controls change shape.</li>
+</ul>
+
+<h3 id="hs-buttons">Buttons, chips and motion</h3>
+<ul>
+<li><strong>Pills.</strong> Buttons are pills (radius 999). Chips are pills. Icon controls are circles.</li>
+<li><strong>Ghost pill.</strong> Transparent or surface fill, 1px hairline in the <code>border</code> colour, <code>textPrimary</code> label. On press, the fill becomes <code>accent</code> with <code>accentContrast</code> text and, like every control, the pill scales to about 0.97. No other movement.</li>
+<li><strong>Primary pill.</strong> <code>accent</code> fill at rest with <code>accentContrast</code> text.</li>
+<li><strong>No hover on iPhone.</strong> Primary is the main action and the ghost pill is secondary. Accent shows on press and focus.</li>
+<li><strong>Width.</strong> Full-width remains only for the single main action of a form or an irreversible commit step (Finish shopping), per the #110 rule. Everything else is content-sized.</li>
+<li><strong>Hit area.</strong> 44pt minimum always. The visible control may be smaller, for example about 36pt with an invisible larger hit area.</li>
+<li><strong>Press feedback.</strong> Every control scales instantly to about 0.97 on press.</li>
+<li><strong>Timing is asymmetric.</strong> Entering a state is slow with ease-out. Exiting is fast with ease-in.</li>
+<li><strong>Reduce motion.</strong> All motion honours reduce-motion: the state still changes, with no scale or slide.</li>
+<li><strong>Meaning.</strong> Never encode meaning in colour alone.</li>
+</ul>
+<div class="tw"><table>
+<thead><tr><th>Curve or duration</th><th>Value</th><th>Use</th></tr></thead>
+<tbody>
+<tr><td>Enter</td><td><code>cubic-bezier(.22,.31,0,1)</code></td><td>Entering a state, ease-out</td></tr>
+<tr><td>Exit</td><td><code>cubic-bezier(.69,0,0,1)</code></td><td>Leaving a state, ease-in</td></tr>
+<tr><td>Quiet</td><td><code>150ms</code></td><td>Exits, small shifts</td></tr>
+<tr><td>Feedback</td><td><code>300ms</code></td><td>Press and focus fills, nav ring slide</td></tr>
+<tr><td>Structural</td><td><code>550ms</code></td><td>Larger layout changes</td></tr>
+</tbody></table></div>
+<p>These are the HS website's fixed curve vocabulary.</p>
+
+<h3 id="hs-back">Back circle</h3>
+<ul>
+<li>A circular icon button: chevron, accessibility label "Back".</li>
+<li>About 36pt visible, 44pt hit area. Hairline ring on a solid <code>surface</code> fill. No glass.</li>
+<li>Placed at the left of the header.</li>
+<li>Shown on drill-down screens only: list detail, Shopping Mode, a Store's item catalog, Feedback and similar.</li>
+<li>Not shown on the four bottom-nav destinations.</li>
+<li>A matching close circle (X) is used for dialogs.</li>
+<li>Today the app has no back button, because <code>App.tsx</code> hides the native one.</li>
+</ul>
+
+<h3 id="hs-nav">Bottom pill nav</h3>
+<ul>
+<li>The hamburger <code>NavMenu</code> popover is to be replaced by a floating pill nav fixed at the bottom of every screen, clear of the iPhone home-bar safe-area inset. Reason: thumb reach, the hamburger is awkward to reach.</li>
+<li>Four text destinations: Home, Lists, Stores, History.</li>
+<li>Settings (the current Household screen, renamed in #109) moves to a circular gear icon button at the header's right, in the hamburger's slot.</li>
+<li>Look: solid <code>surface</code> pill, 1px hairline, soft shadow only because it floats. No glass.</li>
+<li>Current destination: a 2px accent ring drawn flush inside that link's capsule, no fill. It slides to the new link on change (300ms, transform only, ease-out). Static under reduce-motion.</li>
+<li>Hides while the on-screen keyboard is up, and in Shopping Mode. Shopping Mode keeps only the back circle: oversized targets, no decoration.</li>
+<li>Link tap targets stay at 44pt or larger. Five labels do not fit comfortably at 375px, hence four plus the gear.</li>
+</ul>
+
+<h3 id="hs-collisions">Status and collisions</h3>
+<ul>
+<li>Status: decided, not built.</li>
+<li>Navigation collides with #109, #103 and #110 (#144, #145). Whichever lands later rebases.</li>
+</ul>
+
+<h3 id="hs-specimens">Control specimens</h3>
+<p>Live controls in scoped light and dark containers. They use the <code>tokens.ts</code> palette whatever theme your browser is in.</p>
+<h4>Buttons, chips and icon circles</h4>
+<div class="stage-pair">
+<div class="cartel-light stage">
+<p class="cap">Cartel light</p>
+<div class="row">
+<button type="button" class="sp-btn pill ghost">Ghost pill</button>
+<button type="button" class="sp-btn pill primary">Primary pill</button>
+<button type="button" class="sp-btn pill ghost" disabled>Disabled</button>
+</div>
+<div class="row">
+<button type="button" class="sp-btn chip hit" aria-pressed="false">Chip</button>
+<button type="button" class="sp-btn chip hit selected" aria-pressed="true">Chip, selected</button>
+<button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
+<button type="button" class="sp-btn circle hit" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+<button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
+</div>
+<p class="note">Press and hold, or tab to a control. Ghost pill and chips fill with the accent on press and keyboard focus. Every control scales to 0.97 on press.</p>
+</div>
+<div class="cartel-dark stage">
+<p class="cap">Cartel dark</p>
+<div class="row">
+<button type="button" class="sp-btn pill ghost">Ghost pill</button>
+<button type="button" class="sp-btn pill primary">Primary pill</button>
+<button type="button" class="sp-btn pill ghost" disabled>Disabled</button>
+</div>
+<div class="row">
+<button type="button" class="sp-btn chip hit" aria-pressed="false">Chip</button>
+<button type="button" class="sp-btn chip hit selected" aria-pressed="true">Chip, selected</button>
+<button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
+<button type="button" class="sp-btn circle hit" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+<button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
+</div>
+<p class="note">Press and hold, or tab to a control. Ghost pill and chips fill with the accent on press and keyboard focus. Every control scales to 0.97 on press.</p>
+</div>
+</div>
+<h4>Phone mock: drill-down screen with bottom pill nav</h4>
+<p>Placeholder content. Back circle at the left, wordmark in the middle, gear at the right, nav pill at the bottom with the current link ringed. Tap a nav link to see the ring slide.</p>
+<div class="mocks">
+<div class="scroll"><div class="cartel-light phone" role="group" aria-label="Phone mock, light theme. Placeholder content.">
+<header class="mhead"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button></header>
+<p class="mtitle">Placeholder list</p>
+<ul class="mlist"><li class="mrow"><span>Placeholder item one</span><span class="tick on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></span></li><li class="mrow"><span>Placeholder item two</span><span class="tick"></span></li><li class="mrow"><span>Placeholder item three</span><span class="tick"></span></li></ul>
+<nav class="pillnav" aria-label="Primary navigation (specimen)" style="--i:1">
+<span class="ring" aria-hidden="true"></span>
+<button type="button" data-i="0">Home</button><button type="button" data-i="1" aria-current="page">Lists</button><button type="button" data-i="2">Stores</button><button type="button" data-i="3">History</button>
+</nav>
+</div></div>
+<div class="scroll"><div class="cartel-dark phone" role="group" aria-label="Phone mock, dark theme. Placeholder content.">
+<header class="mhead"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button></header>
+<p class="mtitle">Placeholder list</p>
+<ul class="mlist"><li class="mrow"><span>Placeholder item one</span><span class="tick on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></span></li><li class="mrow"><span>Placeholder item two</span><span class="tick"></span></li><li class="mrow"><span>Placeholder item three</span><span class="tick"></span></li></ul>
+<nav class="pillnav" aria-label="Primary navigation (specimen)" style="--i:1">
+<span class="ring" aria-hidden="true"></span>
+<button type="button" data-i="0">Home</button><button type="button" data-i="1" aria-current="page">Lists</button><button type="button" data-i="2">Stores</button><button type="button" data-i="3">History</button>
+</nav>
+</div></div>
+</div>
+<h4>Phone mock: Shopping Mode</h4>
+<p>Placeholder content. Back circle only, no nav pill, oversized check targets.</p>
+<div class="mocks">
+<div class="scroll"><div class="cartel-light phone short" role="group" aria-label="Shopping Mode mock, light theme. Placeholder content.">
+<header class="mhead"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark">Shopping</span><span class="spacer"></span></header>
+<ul class="mlist"><li class="mrow big"><span>Placeholder item one</span><span class="tick on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></span></li><li class="mrow big"><span>Placeholder item two</span><span class="tick"></span></li><li class="mrow big"><span>Placeholder item three</span><span class="tick"></span></li></ul>
+<p class="mnote">Back circle only. No nav pill, no decoration.</p>
+</div></div>
+<div class="scroll"><div class="cartel-dark phone short" role="group" aria-label="Shopping Mode mock, dark theme. Placeholder content.">
+<header class="mhead"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark">Shopping</span><span class="spacer"></span></header>
+<ul class="mlist"><li class="mrow big"><span>Placeholder item one</span><span class="tick on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></span></li><li class="mrow big"><span>Placeholder item two</span><span class="tick"></span></li><li class="mrow big"><span>Placeholder item three</span><span class="tick"></span></li></ul>
+<p class="mnote">Back circle only. No nav pill, no decoration.</p>
+</div></div>
+</div>
+<h4>Header, today and decided</h4>
+<div class="stage-pair">
+<div class="cartel-light stage">
+<p class="cap">Header, today (schematic)</p>
+<div class="mhead flat"><span class="mark left">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></button></div>
+<p class="cap" style="margin-top:1.25rem">Header, decided</p>
+<div class="mhead flat"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button></div>
+</div>
+<div class="cartel-dark stage">
+<p class="cap">Header, today (schematic)</p>
+<div class="mhead flat"><span class="mark left">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></button></div>
+<p class="cap" style="margin-top:1.25rem">Header, decided</p>
+<div class="mhead flat"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button></div>
+</div>
+</div>
+</section>
+
+<section id="glanceability">
+<h2>Glanceability (Shopping Mode only) <span class="st built">Built</span></h2>
+<p>Agreed constraint: the mid-aisle, one-handed, in-a-hurry case governs Shopping Mode alone (Slice 5 onward). List-building and setup screens are free to be more considered.</p>
+<p>In Shopping Mode: larger type, higher contrast, oversized check targets, minimal decoration. Elsewhere: standard mobile sizing and the warmer treatment above. This is a deliberate split, not an inconsistency. The two contexts have different jobs, and Shopping Mode's job is legibility at arm's length while distracted.</p>
+</section>
+
+<section id="constraints">
+<h2>Constraints <span class="st built">Built</span></h2>
+<ul>
+<li><strong>Brand assets:</strong> none. Cartel starts fresh: no logo, palette or type commitment exists. This file uses the system font stack for that reason.</li>
+<li><strong>Palette: locked 2026-08-10, during Slice 1.</strong> Chosen against real household screens rather than in the abstract, as intended. Values live in <code>mobile/src/theme/tokens.ts</code>, which is the source of truth, not this file.
+<ul>
+<li>Accent: burnt orange <code>#C2410C</code>, 5.2:1 on white. Terracotta and olive were the alternatives. Olive lost because its neutrals drift cool. Terracotta lost to reference 1 being the stated tie-breaker. Burnt orange is also the loudest of the three, which suits Shopping Mode more than list-building, so it is worth re-checking when Slice 5 lands.</li>
+<li>Ground <code>#FAF6F1</code>, warm neutrals, one accent carrying all emphasis. Light is the default. A Light/Dark/System toggle is live (#26, PR #30) with a dark palette whose accent is gold. <code>userInterfaceStyle</code> is <code>automatic</code>.</li>
+<li>Original directional constraints, all met: light ground, single saturated accent, warm rather than cool neutrals, nothing in the neon register.</li>
+</ul>
+Amended 2026-08-09, after Slice 0 was split out: the theme provider and token file are built in Slice 0 with provisional values, so no screen ever hardcodes a colour. Choosing the real values stayed Slice 1 work. Plumbing early, palette late, because picking colours with no screens to judge them against is guessing.</li>
+<li id="accessibility"><strong>Accessibility (baseline, revisit if it bites):</strong> WCAG AA contrast (4.5:1 body, 3:1 large text); touch targets 44pt or larger, larger in Shopping Mode; never encode meaning in colour alone, so the section-colour chip from reference 2 always needs a text or icon partner; respect OS dynamic type and reduce-motion, the latter mattering because drag-to-reorder and animated transitions are v1 requirements per <code>01-CRD.md</code>.</li>
+</ul>
+
+<h3 id="palette">Palette specimens</h3>
+<p><strong>Source of truth: <code>mobile/src/theme/tokens.ts</code>.</strong> These swatches are copies of its <code>lightPalette</code> and <code>darkPalette</code>. Contrast ratios are written in the <code>tokens.ts</code> comments for the light palette. The dark palette (#26) was measured the same way and is locked as approved.</p>
+<div class="stage-pair">
+<div class="cartel-light stage">
+<p class="cap">Cartel light</p>
+<div class="swatches"><div class="sw"><div class="chip" style="background:var(--ground)"></div><div class="meta"><strong>ground</strong><code>#FAF6F1</code></div></div><div class="sw"><div class="chip" style="background:var(--surface)"></div><div class="meta"><strong>surface</strong><code>#FFFFFF</code></div></div><div class="sw"><div class="chip" style="background:var(--surfaceSunken)"></div><div class="meta"><strong>surfaceSunken</strong><code>#F2EBE3</code></div></div><div class="sw"><div class="chip" style="background:var(--border)"></div><div class="meta"><strong>border</strong><code>#E7DCD0</code></div></div><div class="sw"><div class="chip" style="background:var(--accent)"></div><div class="meta"><strong>accent</strong><code>#C2410C</code></div></div><div class="sw"><div class="chip" style="background:var(--accentPressed)"></div><div class="meta"><strong>accentPressed</strong><code>#9A340A</code></div></div><div class="sw"><div class="chip" style="background:var(--accentWash)"></div><div class="meta"><strong>accentWash</strong><code>#FCEDE6</code></div></div><div class="sw"><div class="chip" style="background:var(--accentContrast)"></div><div class="meta"><strong>accentContrast</strong><code>#FFFFFF</code></div></div><div class="sw"><div class="chip" style="background:var(--textPrimary)"></div><div class="meta"><strong>textPrimary</strong><code>#2B2320</code></div></div><div class="sw"><div class="chip" style="background:var(--textSecondary)"></div><div class="meta"><strong>textSecondary</strong><code>#6B5D54</code></div></div><div class="sw"><div class="chip" style="background:var(--positive)"></div><div class="meta"><strong>positive</strong><code>#2F6F4E</code></div></div><div class="sw"><div class="chip" style="background:var(--negative)"></div><div class="meta"><strong>negative</strong><code>#A32E24</code></div></div></div>
+</div>
+<div class="cartel-dark stage">
+<p class="cap">Cartel dark</p>
+<div class="swatches"><div class="sw"><div class="chip" style="background:var(--ground)"></div><div class="meta"><strong>ground</strong><code>#15110D</code></div></div><div class="sw"><div class="chip" style="background:var(--surface)"></div><div class="meta"><strong>surface</strong><code>#221B15</code></div></div><div class="sw"><div class="chip" style="background:var(--surfaceSunken)"></div><div class="meta"><strong>surfaceSunken</strong><code>#0F0C09</code></div></div><div class="sw"><div class="chip" style="background:var(--border)"></div><div class="meta"><strong>border</strong><code>#3D3226</code></div></div><div class="sw"><div class="chip" style="background:var(--accent)"></div><div class="meta"><strong>accent</strong><code>#C9A227</code></div></div><div class="sw"><div class="chip" style="background:var(--accentPressed)"></div><div class="meta"><strong>accentPressed</strong><code>#E6BC3A</code></div></div><div class="sw"><div class="chip" style="background:var(--accentWash)"></div><div class="meta"><strong>accentWash</strong><code>#2E2612</code></div></div><div class="sw"><div class="chip" style="background:var(--accentContrast)"></div><div class="meta"><strong>accentContrast</strong><code>#15110D</code></div></div><div class="sw"><div class="chip" style="background:var(--textPrimary)"></div><div class="meta"><strong>textPrimary</strong><code>#F2E9DC</code></div></div><div class="sw"><div class="chip" style="background:var(--textSecondary)"></div><div class="meta"><strong>textSecondary</strong><code>#B7A996</code></div></div><div class="sw"><div class="chip" style="background:var(--positive)"></div><div class="meta"><strong>positive</strong><code>#6FBE8B</code></div></div><div class="sw"><div class="chip" style="background:var(--negative)"></div><div class="meta"><strong>negative</strong><code>#E28577</code></div></div></div>
+</div>
+</div>
+<div class="tw"><table>
+<thead><tr><th>Token</th><th>Light</th><th>Dark</th><th>Role and contrast (light, from tokens.ts)</th></tr></thead>
+<tbody>
+<tr><td><code>ground</code></td><td><code>#FAF6F1</code></td><td><code>#15110D</code></td><td>Page ground. Warm off-white. Text sits on this and on surface; ground is always the weaker of the two.</td></tr>
+<tr><td><code>surface</code></td><td><code>#FFFFFF</code></td><td><code>#221B15</code></td><td>Cards and rows. </td></tr>
+<tr><td><code>surfaceSunken</code></td><td><code>#F2EBE3</code></td><td><code>#0F0C09</code></td><td>Inset areas. </td></tr>
+<tr><td><code>border</code></td><td><code>#E7DCD0</code></td><td><code>#3D3226</code></td><td>Hairlines. </td></tr>
+<tr><td><code>accent</code></td><td><code>#C2410C</code></td><td><code>#C9A227</code></td><td>The one accent. 5.18:1 on white, 4.81:1 on ground. </td></tr>
+<tr><td><code>accentPressed</code></td><td><code>#9A340A</code></td><td><code>#E6BC3A</code></td><td>Pressed state. 7.32:1. Darker than accent in the light theme, brighter in the dark theme.</td></tr>
+<tr><td><code>accentWash</code></td><td><code>#FCEDE6</code></td><td><code>#2E2612</code></td><td>Pale accent wash for selected rows and quiet emphasis. Never bears text.</td></tr>
+<tr><td><code>accentContrast</code></td><td><code>#FFFFFF</code></td><td><code>#15110D</code></td><td>Text on accent. White on accent is 5.18:1, inverted. Dark ink in the dark theme, because white on the gold measures 2.42:1 and fails AA.</td></tr>
+<tr><td><code>textPrimary</code></td><td><code>#2B2320</code></td><td><code>#F2E9DC</code></td><td>15.40:1 on white, 14.31:1 on ground. </td></tr>
+<tr><td><code>textSecondary</code></td><td><code>#6B5D54</code></td><td><code>#B7A996</code></td><td>6.33:1 on white, 5.88:1 on ground. AA for body text. </td></tr>
+<tr><td><code>positive</code></td><td><code>#2F6F4E</code></td><td><code>#6FBE8B</code></td><td>5.99:1 on white, 5.57:1 on ground. </td></tr>
+<tr><td><code>negative</code></td><td><code>#A32E24</code></td><td><code>#E28577</code></td><td>7.06:1 on white, 6.56:1 on ground. </td></tr>
+</tbody></table></div>
+<p>Two deliberate inversions in the dark palette: <code>accentContrast</code> is dark ink, and <code>accentPressed</code> is brighter than <code>accent</code> (Material's dark-theme convention). Other tokens in <code>tokens.ts</code>: spacing 4, 8, 16, 24, 32, 48; radius sm 8, md 14, lg 20, pill 999; font sizes caption 13, body 16, title 22, display 30; minimum touch target 44; card elevation shadow opacity 0.08, radius 16, offset 0 by 4 (shadow colour <code>#2B2320</code> in light, <code>#000000</code> in dark).</p>
+</section>
+
+<section id="retired">
+<h2>Slice 4 merge prompt <span class="st retired">Retired</span></h2>
+<p>Retired by #107 (ADR 0007): stores come only from the seeded catalog, so there is no create flow and no merge prompt. Git history holds the original rules.</p>
+</section>
+</main>
+</div>
+<script>
+(function(){
+  try{var d=document.getElementById('toc-details');if(d&&window.matchMedia('(min-width:62rem)').matches)d.open=true;}catch(e){}
+  document.querySelectorAll('.pillnav').forEach(function(nav){
+    nav.addEventListener('click',function(e){
+      var b=e.target.closest('button[data-i]');if(!b)return;
+      nav.querySelectorAll('button').forEach(function(x){x.removeAttribute('aria-current');});
+      b.setAttribute('aria-current','page');nav.style.setProperty('--i',b.getAttribute('data-i'));
+    });
+  });
+})();
+</script>
+</body>
+</html>

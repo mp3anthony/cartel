@@ -59,7 +59,7 @@ against it, with credentials supplied by environment and never committed.
 Connectivity is proven by a trivial live call, not assumed from config alone. A
 theme provider and design-token file exist and the placeholder screen consumes
 tokens rather than hardcoded values — token *values* at this stage are provisional
-(see `02-DESIGN-REFERENCE.md`; the real palette is chosen in Slice 1 against actual
+(see `02-DESIGN-REFERENCE.html`; the real palette is chosen in Slice 1 against actual
 screens).
 
 Deliberately **not** in this slice: authentication of any kind (anonymous sign-in
@@ -282,7 +282,7 @@ entry/arbitrary order; the same location after several shops with location tags
 present produces a stable, repeatable non-arbitrary order for the same item set.
 
 *Agreed 2026-08-11, at Problem Agreement — the issue's own `ready-for-human` label
-was correct: neither `01-CRD.md` nor `02-DESIGN-REFERENCE.md` says how tags and
+was correct: neither `01-CRD.md` nor `02-DESIGN-REFERENCE.html` says how tags and
 observed check-off order combine into a route, and none of it was inferable from
 existing code or convention:*
 

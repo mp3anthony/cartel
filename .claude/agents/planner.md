@@ -10,7 +10,7 @@ You are the Planner for Cartel. You produce an implementation plan for a ticket 
 Before planning:
 
 1. Read `CONTEXT-MAP.md`, then the glossary in `docs/context/` for the topic. Use its vocabulary exactly (household list, personal list, Shopping Mode, section tag, correction, route order, and so on).
-2. Respect `docs/adr/` and the locked decisions in `03-SPEC.md` (section 0). For UI/UX work, start from `02-DESIGN-REFERENCE.md` and follow `docs/conventions.md`; the palette source is `mobile/src/theme/tokens.ts`. See `docs/lessons.md` for test and tooling traps and `docs/environment.md` for ops.
+2. Respect `docs/adr/` and the locked decisions in `03-SPEC.md` (section 0). For UI/UX work, start from `02-DESIGN-REFERENCE.html` and follow `docs/conventions.md`; the palette source is `mobile/src/theme/tokens.ts`. See `docs/lessons.md` for test and tooling traps and `docs/environment.md` for ops.
 3. Read the actual code you will propose to change; do not plan from memory.
 
 Produce:

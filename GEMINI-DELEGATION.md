@@ -48,11 +48,11 @@ result is his to judge (design output, anything visual or taste-driven).
    characters is also refused (put the bulk in a file). If a file that legitimately needs to go is refused, tell Ant
    rather than loosening the filter. It is a filter, not a guarantee: never name a file you suspect holds secrets.
 5. **Suited to:** review (agy is the independent reviewer, never the writer of the same code), audits
-   against `02-DESIGN-REFERENCE.md`, design and copy ideas, large-context reading.
+   against `02-DESIGN-REFERENCE.html`, design and copy ideas, large-context reading.
    **Never:** Git/GitHub, migrations, env, production. Those stay with the orchestrator.
    **Never planning** (2026-10-04): plans always go to the `planner` agent (`.claude/agents/planner.md`, Opus), because
    the file filter refuses `.sql` (no database planning) and planning benefits most from full repo access.
-6. **Design work carries the foundation:** every UI brief includes `02-DESIGN-REFERENCE.md` via `-Files`, and
+6. **Design work carries the foundation:** every UI brief includes `02-DESIGN-REFERENCE.html` via `-Files`, and
    agy's output is checked for building on it, not replacing it. The locked palette's source of truth is
    `mobile/src/theme/tokens.ts` (include it too when colour is in play).
 7. **Its output is a claim, not a fact.** Verify before acting; design output is shown to Ant for approval
