@@ -1,7 +1,7 @@
 /**
  * Design tokens — the single source of every visual value in the app.
  *
- * The palette was chosen in Slice 1 against real screens, as 02-DESIGN-REFERENCE.md
+ * The palette was chosen in Slice 1 against real screens, as 02-DESIGN-REFERENCE.html
  * required. Burnt orange (light) / gold (dark) carries every emphasis in the app:
  * there is deliberately only one accent per theme, so anything that wants to stand
  * out competes for the same slot rather than adding a colour — the "one accent" rule

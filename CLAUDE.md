@@ -10,7 +10,7 @@ Every session: read `HANDOFF.md`, then `CONTEXT-MAP.md`; open only the glossary 
 
 **Soft rule:** when a request touches an idea, term or behaviour the glossaries don't document, or seems to disagree with them, the orchestrator runs the `grilling` and `domain-modeling` skills together (that is all `/grill-with-docs` does; only Ant can type that command, the model cannot invoke it) to align with Ant, then updates `docs/context/` (and `docs/adr/` only for hard-to-reverse, surprising, trade-off decisions). Ant sometimes uses other skills instead; that is fine.
 
-**Where knowledge lives:** vocabulary `docs/context/` · build and design-process conventions `docs/conventions.md` · lessons and known items `docs/lessons.md` · environment, ops, acceptance decisions `docs/environment.md` · architectural decisions `docs/adr/` · research notes `docs/research/` · UI/UX foundation `02-DESIGN-REFERENCE.md` · requirements `01-CRD.md` · build breakdown and locked decisions `03-SPEC.md` · out-of-spec inbox `CHANGE-LOG.md` · delegation to Antigravity `GEMINI-DELEGATION.md`.
+**Where knowledge lives:** vocabulary `docs/context/` · build and design-process conventions `docs/conventions.md` · lessons and known items `docs/lessons.md` · environment, ops, acceptance decisions `docs/environment.md` · architectural decisions `docs/adr/` · research notes `docs/research/` · UI/UX foundation `02-DESIGN-REFERENCE.html` · requirements `01-CRD.md` · build breakdown and locked decisions `03-SPEC.md` · out-of-spec inbox `CHANGE-LOG.md` · delegation to Antigravity `GEMINI-DELEGATION.md`.
 
 Docs record only what the code cannot explain: decisions, reasoning, rejected alternatives, voice and tone rules. Never document what a reader gets by opening the code.
 
@@ -18,7 +18,7 @@ Docs record only what the code cannot explain: decisions, reasoning, rejected al
 
 - Orchestrator owns all Git/GitHub interaction.
 - Stack: Expo (managed) app in `mobile/`, React Native Web deployed on Vercel, Supabase (Postgres, RLS, Realtime, anonymous auth). See `docs/adr/0001-supabase-rls-realtime.md`, `docs/adr/0002-location-global-list-private.md` and `docs/adr/0003-anonymous-auth-no-login-wall.md`.
-- **All UI/UX work starts from `02-DESIGN-REFERENCE.md`** (the floor, not the ceiling); `mobile/src/theme/tokens.ts` is the sole palette source. Follow `docs/conventions.md`. Any subagent brief touching UI/UX must carry the foundation.
+- **All UI/UX work starts from `02-DESIGN-REFERENCE.html`** (the floor, not the ceiling); `mobile/src/theme/tokens.ts` is the sole palette source. Follow `docs/conventions.md`. Any subagent brief touching UI/UX must carry the foundation.
 - Testing targets iPhone / iOS Safari only. Ant owns an iPhone, not Android; never write Android steps.
 - The orchestrator delegates review, design and large read-and-think work to Antigravity per
   `GEMINI-DELEGATION.md`, decides that itself without asking Ant, and falls back to Claude subagents on exit

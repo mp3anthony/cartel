@@ -37,13 +37,13 @@ Warm and friendly: rounded geometry, soft shadows over hard borders, approachabl
 _Avoid_: Clinical, childish, playful-quirky
 
 **Anti-references**:
-The rejected directions in `02-DESIGN-REFERENCE.md`: neon or glow accents, dark-first theming, illustration-led onboarding, gradients on list or shopping surfaces, and dense analytics-style dashboards. The ring or donut progress shape is the one motif kept. How the Home graphs reconcile with the dashboard rejection (decided in #110, not built yet) is in `02-DESIGN-REFERENCE.md`.
+The rejected directions in `02-DESIGN-REFERENCE.html`: neon or glow accents, dark-first theming, illustration-led onboarding, gradients on list or shopping surfaces, and dense analytics-style dashboards. The ring or donut progress shape is the one motif kept. How the Home graphs reconcile with the dashboard rejection (decided in #110, not built yet) is in `02-DESIGN-REFERENCE.html`.
 _Avoid_: Competitor styling
 
 ### App shell
 
 **Menu**:
-The hamburger (accessibility label "Menu") opening a popover of Home, Lists, Stores, History and Household. The dashboard is called "Home" here. Decided in #109 (not built yet): the Household item becomes "Settings", see `household.md`.
+The hamburger (accessibility label "Menu") opening a popover of Home, Lists, Stores, History and Household. The dashboard is called "Home" here. Decided in #109 (not built yet): the Household item becomes "Settings", see `household.md`. Decided in #139 (not built yet): the hamburger is slated to be replaced by a floating bottom pill nav (Home, Lists, Stores, History) with Settings as a gear at the header's right, see `02-DESIGN-REFERENCE.html`.
 _Avoid_: Drawer, sidebar
 
 **Version footer**:
