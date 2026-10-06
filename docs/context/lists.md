@@ -45,7 +45,7 @@ On list detail the check circle ticks an item and tapping the name renames it; i
 _Avoid_: Tick, complete, mark done
 
 **Manual order**:
-The order the user arranged by dragging the handle on the left of a row (list detail only; Shopping Mode has no handle). Stored as a fractional key and only read-sorted; checking off never reorders (route order in Shopping Mode is computed separately).
+The order the user arranged by dragging the handle on the left of a row (list detail only; Shopping Mode has no handle). Stored as a fractional key and only read-sorted; checking off never reorders (route order in Shopping Mode is computed separately; _decided in #112, not built:_ it becomes the fixed Layout order).
 _Avoid_: Sort, move up/down
 
 **Remove** (item):

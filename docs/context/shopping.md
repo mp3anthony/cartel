@@ -7,7 +7,7 @@ The act of shopping: walking a store with a list, finishing the shop, and lookin
 ### In the store
 
 **Shopping Mode**:
-The screen opened by "Start shopping" on a list detail, where items are checked off in route order, with larger touch targets and type than the rest of the app. The add-item composer sits at the top, where attention is while shopping.
+The screen opened by "Start shopping" on a list detail, where items are checked off in route order (_decided in #112, not built:_ Layout order), with larger touch targets and type than the rest of the app. The add-item composer sits at the top, where attention is while shopping.
 _Avoid_: Trip mode, store mode
 
 **Route order**:
@@ -29,7 +29,7 @@ _Avoid_: Active list, open list (every list is active)
 ### Finishing
 
 **Check-off record**:
-The anonymous, global record written on Finish shopping: the ordered, normalised names of the checked items plus a completion time. It carries no household, list or user. It stays names-only: Quantity says nothing about store layout, so it is not recorded here. It is what teaches route order.
+The anonymous, global record written on Finish shopping: the ordered, normalised names of the checked items plus a completion time. It carries no household, list or user. It stays names-only: Quantity says nothing about store layout, so it is not recorded here. It is what teaches route order. _Decided in #112, not built:_ no order is learned from it once the learned sort is removed; it keeps accumulating for #151 only.
 _Avoid_: Shopping log, receipt
 
 **Finish shopping**:
@@ -54,4 +54,4 @@ The home screen (menu item "Home"). Sections: Nearby stores, Continue shopping, 
 - **Graphs**: two-up tiles, "Where you shop" (donut) and "How often you shop" (bars, shops over time), tap to expand.
 - **Recent activity**: a quiet, low-density list with "See all history".
 - **Pending corrections is removed from Home.** It belongs in the Store's Item catalog, where corrections already show as "Proposed: X".
-- **Limits on graphs:** Cartel stores no prices and has no item categories (Item locations are free-text, per-Store tags), so spending or category graphs are not possible yet and are not in v1 (see `CHANGE-LOG.md`). v1 uses existing data only._Avoid_: Overview, feed
+- **Limits on graphs:** Cartel stores no prices and has no item categories (Item locations are per-Store tags, not categories), so spending or category graphs are not possible yet and are not in v1 (see `CHANGE-LOG.md`). v1 uses existing data only._Avoid_: Overview, feed
