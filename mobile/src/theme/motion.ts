@@ -51,6 +51,13 @@ const fx = StyleSheet.create({
       transitionDuration: '0ms',
     }),
   },
+  slide: {
+    ...webOnly({
+      transitionProperty: 'transform',
+      transitionDuration: motion.feedback,
+      transitionTimingFunction: motion.enter,
+    }),
+  },
   fillRest: {
     ...webOnly({
       transitionProperty: FILL_PROPS,
@@ -112,6 +119,11 @@ export function pressScaleFill(pressed: boolean, reduceMotion: boolean): StylePr
     return fx.fillInstant;
   }
   return pressed ? fx.bothPressed : fx.bothRest;
+}
+
+/** The bottom nav ring's slide to the new link ("Bottom pill nav" in `02-DESIGN-REFERENCE.html`); nothing under Reduce Motion. */
+export function slideTransform(reduceMotion: boolean): StyleProp<ViewStyle> {
+  return reduceMotion ? null : fx.slide;
 }
 
 // One module-level subscription to the OS Reduce Motion setting, shared by every control

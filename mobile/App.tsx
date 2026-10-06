@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo } from 'react';
-import { ActivityIndicator, Platform } from 'react-native';
+import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import {
   NavigationContainer,
   type LinkingOptions,
+  StackActions,
   type NavigationProp,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -13,12 +14,13 @@ import { Body, ErrorNote, Heading, PrimaryButton, Screen } from './src/component
 import { BackCircle, isDrillDown } from './src/components/BackCircle';
 import { AppErrorBoundary } from './src/components/ErrorBoundary';
 import { HeaderLogo } from './src/components/HeaderLogo';
-import { NavMenu } from './src/components/NavMenu';
+import { BottomNav, SettingsCircle } from './src/components/BottomNav';
 import { useAnonymousSession } from './src/hooks/useAnonymousSession';
 import { useHousehold } from './src/hooks/useHousehold';
 import { useLists } from './src/hooks/useLists';
 import { envResult, type Env } from './src/lib/env';
 import { getSupabaseClient } from './src/lib/supabase';
+import { BottomNavReserveContext } from './src/navigation/bottomNavReserve';
 import type { RootStackParamList } from './src/navigation/types';
 import { ConfigErrorScreen } from './src/screens/ConfigErrorScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
@@ -199,15 +201,16 @@ function Bootstrapped({ env }: { env: Env }) {
   const tokens = useTheme();
 
   // Computed safely ahead of the early returns below (view.state only exists once
-  // view.status === 'loaded') so NavMenu — wired globally here, not per-screen —
-  // always knows whether "Household" or "Join or create a household" is correct,
-  // on every screen, including the ones rendered before a household ever loads.
+  // view.status === 'loaded') so the Settings gear — wired globally here, not
+  // per-screen — always knows whether "Household" or "Join or create a household" is
+  // correct, on every screen, including the ones rendered before a household loads.
   const hasHousehold = view.status === 'loaded' && view.state.status === 'member';
 
-  // A function, not a plain object, as of #24: the hamburger menu it installs via
-  // headerRight needs each screen's own `navigation` to call .navigate() on, which
+  // A function, not a plain object, as of #24: the Settings gear it installs via
+  // headerRight needs each screen's own `navigation` to call popTo on, which
   // only this function form of screenOptions is handed. #157's back circle needs the
-  // `route` too, to tell a drill-down screen from a top-level one.
+  // `route` too, to tell a drill-down screen from a top-level one. Shopping Mode keeps
+  // only the back circle (#158), so its headerRight is empty.
   const screenOptions = useCallback(
     ({
       navigation,
@@ -220,9 +223,38 @@ function Bootstrapped({ env }: { env: Env }) {
       headerLeft: isDrillDown(route)
         ? () => <BackCircle navigation={navigation} />
         : () => null,
-      headerRight: () => <NavMenu navigation={navigation} hasHousehold={hasHousehold} />,
+      headerRight:
+        route.name === 'Shopping'
+          ? () => null
+          : () => <SettingsCircle navigation={navigation} hasHousehold={hasHousehold} />,
     }),
     [tokens, hasHousehold],
+  );
+
+  // The bottom pill (#158) is drawn once here, in flow under the active screen, rather
+  // than per screen. `BottomNavReserveContext` tells `Screen` (and bottom-fixed elements)
+  // that the pill already owns the home-bar inset.
+  const layout = useCallback(
+    ({
+      children,
+      state,
+      navigation,
+    }: {
+      children: ReactNode;
+      state: { routes: { name: string }[]; index: number };
+      navigation: { dispatch: (action: ReturnType<typeof StackActions.popTo>) => void };
+    }) => {
+      const focused = state.routes[state.index]?.name;
+      return (
+        <BottomNavReserveContext.Provider value={focused !== 'Shopping'}>
+          <View style={{ flex: 1 }}>
+            <View style={{ flex: 1 }}>{children}</View>
+            <BottomNav state={state} navigation={navigation} />
+          </View>
+        </BottomNavReserveContext.Provider>
+      );
+    },
+    [],
   );
 
   if (session.status === 'error') {
@@ -254,7 +286,11 @@ function Bootstrapped({ env }: { env: Env }) {
 
   return (
     <NavigationContainer linking={linking} fallback={<Loading />}>
-      <Stack.Navigator initialRouteName="Dashboard" screenOptions={screenOptions}>
+      <Stack.Navigator
+        initialRouteName="Dashboard"
+        screenOptions={screenOptions}
+        layout={layout}
+      >
         <Stack.Screen name="Dashboard" options={{ title: 'Cartel' }}>
           {(props) => (
             <DashboardScreen

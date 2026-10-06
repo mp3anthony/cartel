@@ -13,8 +13,8 @@ type AnyRoute = {
 
 /**
  * Whether a route is a drill-down: a screen reached from another one, which therefore
- * gets the back circle (#157). The top-level destinations (the ones the hamburger menu
- * lists) never do. The Stores picker is top-level when opened from the menu and a
+ * gets the back circle (#157). The top-level destinations (the four bottom-nav
+ * destinations) never do. The Stores picker is top-level when opened from the nav and a
  * drill-down when opened to attach a store to a list, which is what `attachToListId`
  * tells apart.
  */

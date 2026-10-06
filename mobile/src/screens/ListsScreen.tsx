@@ -36,7 +36,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Lists'> & {
  * user from Slice 2 through Slice 9, but the Dashboard screen took that over,
  * and every navigation surface that used to reach this screen's siblings
  * from its header (Locations/History/Household) now goes through the global
- * `NavMenu` (#24) instead. `household` stays a prop here regardless: the
+ * bottom nav (#158, the hamburger menu of #24 before it) instead. `household` stays a prop here regardless: the
  * "share with {household}" checkbox in the composer below still needs it.
  */
 export function ListsScreen({

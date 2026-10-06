@@ -215,7 +215,7 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 </section>
 
 <section id="house-style">
-<h2>HS house style for controls <span class="st decided">Buttons and back circle built; bottom nav decided, not built</span></h2>
+<h2>HS house style for controls <span class="st decided">Buttons, back circle and bottom nav built</span></h2>
 <p>Decided in #139 on 2026-10-06. Hazardous Schematics (HS) is Ant's brand for apps and software. Cartel adopts the HS website's control language so it reads as an HS-built app.</p>
 <div class="callout">
 <p><strong>This section describes the decided design, not the current app.</strong> Ant stated directly: the bottom pill replaces the hamburger because the hamburger is hard to reach, the palette stays, no glass, and only the shape and style of buttons change. Those are decided.</p><p>The following were not directly stated by Ant. They were the orchestrator's reading of his answers. Ant reviewed the specimens below on 2026-10-06 ("looks great") and accepted them: the back circle placement (drill-down screens only) and the hairline look; the close circle (X) for dialogs; the 2px accent ring and 300ms slide on the current nav link (taken from the HS website's nav); the soft shadow on the floating pill; the exact split of four destinations plus a gear; Shopping Mode showing only the back circle.</p>
@@ -270,9 +270,9 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 
 <h3 id="hs-nav">Bottom pill nav</h3>
 <ul>
-<li>The hamburger <code>NavMenu</code> popover is to be replaced by a floating pill nav fixed at the bottom of every screen, clear of the iPhone home-bar safe-area inset. Reason: thumb reach, the hamburger is awkward to reach.</li>
+<li>Built in #158 (0.0.49): the hamburger <code>NavMenu</code> popover is replaced by a floating pill nav at the bottom of every screen, clear of the iPhone home-bar safe-area inset. Reason: thumb reach, the hamburger is awkward to reach. The pill sits in layout flow under the screen rather than overlaying it, so content never scrolls beneath it (no scroll-under); it only looks floating, through side margins, the surface fill, the hairline and the shadow.</li>
 <li>Four text destinations: Home, Lists, Stores, History.</li>
-<li>Settings (the current Household screen, renamed in #109) moves to a circular gear icon button at the header's right, in the hamburger's slot.</li>
+<li>Settings (the current Household screen, renamed in #109) is a circular gear icon button at the header's right, in the hamburger's old slot (it opens the current Household screen until #109 lands).</li>
 <li>Look: solid <code>surface</code> pill, 1px hairline, soft shadow only because it floats. No glass.</li>
 <li>Current destination: a 2px accent ring drawn flush inside that link's capsule, no fill. It slides to the new link on change (300ms, transform only, ease-out). Static under reduce-motion.</li>
 <li>Hides while the on-screen keyboard is up, and in Shopping Mode. Shopping Mode keeps only the back circle: oversized targets, no decoration.</li>
@@ -281,7 +281,7 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 
 <h3 id="hs-collisions">Status and collisions</h3>
 <ul>
-<li>Status: buttons, chips and press feedback built in #156 (0.0.47). The back circle built in #157 (0.0.48). The bottom pill nav (#158) is decided, not built.</li>
+<li>Status: buttons, chips and press feedback built in #156 (0.0.47). The back circle built in #157 (0.0.48). The bottom pill nav is built in #158 (0.0.49).</li>
 <li>Navigation collides with #109, #103 and #110 (#144, #145). Whichever lands later rebases.</li>
 </ul>
 
@@ -361,13 +361,13 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <h4>Header, today and decided</h4>
 <div class="stage-pair">
 <div class="cartel-light stage">
-<p class="cap">Header, today (schematic)</p>
+<p class="cap">Header, before #158 (schematic)</p>
 <div class="mhead flat"><span class="mark left">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></button></div>
 <p class="cap" style="margin-top:1.25rem">Header, decided</p>
 <div class="mhead flat"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button></div>
 </div>
 <div class="cartel-dark stage">
-<p class="cap">Header, today (schematic)</p>
+<p class="cap">Header, before #158 (schematic)</p>
 <div class="mhead flat"><span class="mark left">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></button></div>
 <p class="cap" style="margin-top:1.25rem">Header, decided</p>
 <div class="mhead flat"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button></div>

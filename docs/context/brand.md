@@ -42,12 +42,16 @@ _Avoid_: Competitor styling
 
 ### App shell
 
-**Menu**:
-The hamburger (accessibility label "Menu") opening a popover of Home, Lists, Stores, History and Household. The dashboard is called "Home" here. Decided in #109 (not built yet): the Household item becomes "Settings", see `household.md`. Decided in #139 (not built yet): the hamburger is slated to be replaced by a floating bottom pill nav (Home, Lists, Stores, History) with Settings as a gear at the header's right, see `02-DESIGN-REFERENCE.html`.
-_Avoid_: Drawer, sidebar
+**Bottom nav**:
+The floating pill at the bottom of every screen (built in #158, replacing the hamburger): Home, Lists, Stores, History. The current section is ringed (Settings and Feedback ring nothing). It hides while the on-screen keyboard is up and in Shopping Mode, which keeps only the back circle. The dashboard is called "Home" here.
+_Avoid_: Tab bar, menu, drawer, sidebar
+
+**Settings gear**:
+The circular gear button at the header's right (accessibility label "Settings"), in the slot the hamburger used to hold. Until #109 lands it opens the Household screen (or "Join or create a household" without one); #109 turns that into Settings, see `household.md`. Absent in Shopping Mode.
+_Avoid_: Menu, cog
 
 **Back circle**:
-The circular chevron button at the header's left (accessibility label "Back"), built in #157. Shown on drill-down screens only: list detail, Shopping Mode, a Store's item catalog, Feedback, Store missing, and the Stores picker when opened to attach a store to a list. Not on Home, Lists, plain Stores, History or Household. It does what the browser Back does.
+The circular chevron button at the header's left (accessibility label "Back"), built in #157. Shown on drill-down screens only: list detail, Shopping Mode, a Store's item catalog, Feedback, Store missing, and the Stores picker when opened to attach a store to a list. Not on Home, Lists, plain Stores, History or Household (the bottom-nav destinations and the screen behind the gear). It does what the browser Back does.
 _Avoid_: Back arrow, back chevron
 
 **Close circle**:
