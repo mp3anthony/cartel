@@ -2,9 +2,9 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-06, end of session 23)
+## Current state (2026-10-06, end of session 24)
 
-- **#143 (content-sized buttons) is planned, reviewed and ready to build; nothing is built.** The approved plan is the latest comment on #143 (call-site table, `fullWidth` and `ButtonRow` API, steps, tests, 15-scenario iPhone checklist). A separate reviewer found no blocking defects; two judgement calls were settled by the orchestrator: the Lists screen "Create list" composer is full-width (screen-level form) while in-card and in-place composers are content-sized pairs, and on the Shopping finish card only "Done shopping", "Reset list" and "Finish shopping" are full-width. Next session: Code Writer builds it (version 0.0.46), separate Code Reviewer, preview via the local dev server so Ant can adjust before it is final, or open the PR directly. Then update the design reference HTML (four places) and republish the Artifact. #156 follows, never in parallel. No `03-SPEC.md` section was active.
+- **#143 (content-sized buttons) is built (0.0.46) and reviewed clean; the PR is open, labelled `needs-manual-test`, NOT merged.** Branch `143-content-sized-buttons`. Built to the plan on #143 with no deviations; a separate Sonnet reviewer found no issues (tsc and the design-reference check pass; no live-browser or iPhone check was run, no dev server by Ant's choice). Next: Ant runs the 15-scenario iPhone checklist from the plan comment on #143 against the Preview build, then the orchestrator merges. After merge: republish the design reference HTML Artifact (already edited in the PR, four places). Then #156 (never in parallel). No `03-SPEC.md` section was active.
 
 (Session 22 state follows.)
 

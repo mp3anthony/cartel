@@ -6,6 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   Banner,
   Body,
+  ButtonRow,
   Card,
   CompactItemRow,
   EmptyState,
@@ -1066,6 +1067,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
               onPress={() => void resetThisList()}
               busy={finishingShopping}
               disabled={inFlightTotal > 0}
+              fullWidth
             />
             <SecondaryButton
               label="Cancel"
@@ -1085,17 +1087,20 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
               onPress={() => void finishThisShop('done')}
               busy={finishingShopping}
               disabled={inFlightTotal > 0}
+              fullWidth
             />
-            <SecondaryButton
-              label="Continue at another store"
-              onPress={() => void finishThisShop('continue')}
-              disabled={finishingShopping || inFlightTotal > 0}
-            />
-            <SecondaryButton
-              label="Cancel"
-              onPress={() => setConfirmingFinish(false)}
-              disabled={finishingShopping}
-            />
+            <ButtonRow>
+              <SecondaryButton
+                label="Continue at another store"
+                onPress={() => void finishThisShop('continue')}
+                disabled={finishingShopping || inFlightTotal > 0}
+              />
+              <SecondaryButton
+                label="Cancel"
+                onPress={() => setConfirmingFinish(false)}
+                disabled={finishingShopping}
+              />
+            </ButtonRow>
           </View>
         </Card>
       ) : (
@@ -1106,6 +1111,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
             setConfirmingFinish(true);
           }}
           disabled={checkedCount === 0 || pending.size > 0 || inFlightTotal > 0}
+          fullWidth
         />
       )}
     </Screen>

@@ -87,6 +87,7 @@ export function HouseholdSetupScreen({
           onPress={submitCreate}
           busy={busy}
           disabled={name.trim().length === 0}
+          fullWidth
         />
         <SecondaryButton
           label="Back"
@@ -126,6 +127,7 @@ export function HouseholdSetupScreen({
           onPress={submitJoin}
           busy={busy}
           disabled={code.trim().length < 6}
+          fullWidth
         />
         <SecondaryButton
           label="Back"

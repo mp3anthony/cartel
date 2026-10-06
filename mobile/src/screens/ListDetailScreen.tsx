@@ -6,6 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   Banner,
   Body,
+  ButtonRow,
   CheckTarget,
   CompactItemRow,
   Confirm,
@@ -626,23 +627,25 @@ export function ListDetailScreen({
               ? `Shopping at ${attachedLocation.name}`
               : 'Shopping at a store'}
           </Body>
-          <SecondaryButton
-            label="Start shopping"
-            onPress={() => navigation.navigate('Shopping', { listId })}
-            disabled={busy}
-          />
-          <SecondaryButton
-            label="Change store"
-            onPress={() =>
-              navigation.navigate('Locations', { attachToListId: listId })
-            }
-            disabled={busy}
-          />
-          <SecondaryButton
-            label="Remove store"
-            onPress={removeLocation}
-            disabled={busy}
-          />
+          <ButtonRow>
+            <SecondaryButton
+              label="Start shopping"
+              onPress={() => navigation.navigate('Shopping', { listId })}
+              disabled={busy}
+            />
+            <SecondaryButton
+              label="Change store"
+              onPress={() =>
+                navigation.navigate('Locations', { attachToListId: listId })
+              }
+              disabled={busy}
+            />
+            <SecondaryButton
+              label="Remove store"
+              onPress={removeLocation}
+              disabled={busy}
+            />
+          </ButtonRow>
         </>
       ) : (
         <SecondaryButton
@@ -818,16 +821,18 @@ export function ListDetailScreen({
             onSubmitEditing={commitRenameList}
             returnKeyType="done"
           />
-          <SecondaryButton
-            label="Save"
-            onPress={commitRenameList}
-            disabled={busy || listNameDraft.trim().length === 0}
-          />
-          <SecondaryButton
-            label="Cancel"
-            onPress={() => setRenamingList(false)}
-            disabled={busy}
-          />
+          <ButtonRow>
+            <SecondaryButton
+              label="Save"
+              onPress={commitRenameList}
+              disabled={busy || listNameDraft.trim().length === 0}
+            />
+            <SecondaryButton
+              label="Cancel"
+              onPress={() => setRenamingList(false)}
+              disabled={busy}
+            />
+          </ButtonRow>
         </View>
       ) : (
         <SecondaryButton
@@ -863,12 +868,14 @@ export function ListDetailScreen({
               }
             />
           ) : null}
-          <SecondaryButton
-            label="Create"
-            onPress={() => void submitCopy(items)}
-            disabled={busy || copyName.trim().length === 0}
-          />
-          <SecondaryButton label="Cancel" onPress={cancelCopy} disabled={busy} />
+          <ButtonRow>
+            <SecondaryButton
+              label="Create"
+              onPress={() => void submitCopy(items)}
+              disabled={busy || copyName.trim().length === 0}
+            />
+            <SecondaryButton label="Cancel" onPress={cancelCopy} disabled={busy} />
+          </ButtonRow>
         </View>
       ) : (
         <SecondaryButton

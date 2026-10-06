@@ -201,6 +201,7 @@ export function ListsScreen({
             busy={busy}
             disabled={name.trim().length === 0}
             keepFocus
+            fullWidth
           />
           <SecondaryButton
             label="Cancel"

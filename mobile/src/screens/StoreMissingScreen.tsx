@@ -114,7 +114,7 @@ export function StoreMissingScreen({ navigation, client }: Props) {
 
       {error ? <ErrorNote message={error} /> : null}
 
-      <PrimaryButton label="Send" onPress={submit} busy={busy} disabled={!canSubmit} />
+      <PrimaryButton label="Send" onPress={submit} busy={busy} disabled={!canSubmit} fullWidth />
     </Screen>
   );
 }
