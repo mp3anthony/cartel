@@ -32,7 +32,7 @@ Can start now (no blockers):
 
 1. **#106** (grilled, unblocked). Planner next; the production migration slice stops at the plan for Ant.
 2. Plan #109 (grilled; see above).
-3. Build #143 (planned, see above), then plan and build #156, #157, #158 (#139).
+3. Build #156 (planned, awaiting Ant on calls A to D), then plan and build #157, #158 (#139).
 4. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 waits for #106's migration plan so both run together.
 5. #123 (low priority, whenever).
 
