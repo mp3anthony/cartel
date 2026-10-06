@@ -175,7 +175,7 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
         // returns to the one already underneath, whose list state has just refreshed.
         navigation.goBack();
       } else {
-        navigation.navigate('ListDetail', { listId: attachToListId });
+        navigation.popTo('ListDetail', { listId: attachToListId });
       }
     } finally {
       busyRef.current = false;

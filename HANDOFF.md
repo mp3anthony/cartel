@@ -2,10 +2,12 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-06, end of session 26)
+## Current state (2026-10-06, end of session 27)
 
-- **#156 (HS pill buttons and press feedback) shipped (0.0.47, PR #164, closed).** Built with Ant's four calls A to D (icon controls: no ring at rest, accent fill on press; rows, check circles and cards excluded from scale and fill; fill on press only, keyboard keeps the focus ring; a disabled ghost pill gets a dashed hairline). A separate Sonnet review came back clean, a browser check on the local dev server passed, and Ant ran the 15-scenario iPhone checklist on the Preview: all passed. New `mobile/src/theme/motion.ts`. The design reference Artifact is republished (version 5). The "Decided in #139, not built" label on the HS house-style section still stands for the back circle and bottom nav; its buttons part is now built, so reword it when #157 or #158 lands.
-- **Next: #157 (circular back button in the header, drill-down screens only), then #158 (floating bottom pill nav).** Neither is planned yet. Next step for #157: brief the `planner` agent (it stops at the plan for Ant; today the app has no back button because `App.tsx` hides the native one). Build #157 alone, then #158. #143 and #156 are both done, so the shared `ui` components are settled. No `03-SPEC.md` section was active.
+- **#157 (circular back button) is built and in review: PR #166 (0.0.48), not merged.** Ant wants the next session to **walk him through PR #166** first; then he runs the 17-scenario iPhone checklist (posted on #157) on the Preview, and merge only after it passes. Plan approved with Ant's three defaults: back circle also on the Stores picker when opened to attach a store; wordmark centred on every screen; close circle and shared `HeaderCircleButton` built now with no caller. A separate Sonnet review came back clean (one docs typo, fixed); `tsc`, web export and the design-reference check pass; a local browser check passed (no Back on Lists, Back on a list returns to Lists, cold load then Back lands on Home). The visual look and wordmark centring were not seen (screenshot timed out); the iPhone test covers them. Labels on #157: `ready-for-agent`, `needs-manual-test`. This handoff commit sits on the PR branch `feat/157-back-circle`. No `03-SPEC.md` section was active.
+- **After the merge:** republish the design reference Artifact (the HTML changed: back circle built, section badge reworded to "Buttons and back circle built; bottom nav decided, not built"; reword again when #158 lands), then brief the `planner` agent for **#158** (floating bottom pill nav; stops at the plan for Ant; reuses `HeaderCircleButton` for the gear).
+- **Known follow-up, not fixed, not filed:** `navigate('Lists')` at `ListDetailScreen.tsx:487`, `:598` and `ShoppingScreen.tsx:836` pushes a duplicate Lists screen (React Navigation 7), so Back can return to a stale or deleted list; fix is `popTo('Lists')`. Offer Ant to file it or fold it into #158. After a reload or deep link, Back goes to Home, not the logical parent (matches Safari Back). The dev console shows React DOM warnings for `accessible` and `importantForAccessibility` on SVG icons (existing pattern from `RowIcons`).
+- **#156 (HS pill buttons and press feedback) shipped (0.0.47, PR #164, closed).** New `mobile/src/theme/motion.ts`; Ant's 15-scenario iPhone checklist passed.
 - **#143 (content-sized buttons) shipped (0.0.46, PR #162, closed).**
 
 (Earlier state follows.)
@@ -34,7 +36,7 @@ Can start now (no blockers):
 
 1. **#106** (grilled, unblocked). Planner next; the production migration slice stops at the plan for Ant.
 2. Plan #109 (grilled; see above).
-3. Plan and build #157, then #158 (#139). #156 is done.
+3. Merge #157 (PR #166, after Ant's iPhone test), then plan and build #158 (#139).
 4. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 waits for #106's migration plan so both run together.
 5. #123 (low priority, whenever).
 

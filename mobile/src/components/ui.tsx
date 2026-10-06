@@ -545,6 +545,49 @@ export function IconButton({
 }
 
 /**
+ * The ringed circle for header controls (#157): the back circle, and the close circle for
+ * dialogs. #158's gear reuses it. Unlike `IconButton`, which has no ring at rest, this one
+ * always shows a hairline ring on the surface colour, as the HS site's header controls do.
+ * Same 44pt hit box with a 36pt circle inside; press feedback (scale, accent fill) comes
+ * only from `motion.ts`, and focus never fills (keyboard focus keeps the ring).
+ */
+export function HeaderCircleButton({
+  icon,
+  accessibilityLabel,
+  onPress,
+}: {
+  /** Draws the glyph; receives the colour for the current press state. */
+  icon: (color: string) => ReactNode;
+  accessibilityLabel: string;
+  onPress: () => void;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const reduceMotion = useReduceMotion();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={({ pressed }) => [styles.touchTarget, pressScale(pressed, reduceMotion)]}
+    >
+      {({ pressed }) => (
+        <View
+          style={[
+            styles.headerCircle,
+            pressed && styles.accentFilledSurface,
+            pressFill(pressed, reduceMotion),
+          ]}
+        >
+          {icon(pressed ? tokens.color.accentContrast : tokens.color.textPrimary)}
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+/**
  * The compact list-item row shared by Shopping Mode and the add-to-list screen: leading check circle, name, an optional right-aligned neutral pill, and
  * optional pin and "×" controls, on one ~52pt line with a hairline divider inset to the text edge — the
  * density redesign of #76, replacing a 100pt-per-item stack of a check row plus a
@@ -1583,6 +1626,17 @@ function createStyles(tokens: Tokens) {
     },
     iconCirclePressed: {
       backgroundColor: tokens.color.accent,
+    },
+    // HeaderCircleButton: ringed at rest, unlike `iconCircle`.
+    headerCircle: {
+      width: ICON_CIRCLE_SIZE,
+      height: ICON_CIRCLE_SIZE,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      borderColor: tokens.color.border,
+      backgroundColor: tokens.color.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     checkCircle: {
       width: tokens.space.lg,
