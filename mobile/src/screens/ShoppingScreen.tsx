@@ -846,7 +846,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
           heading="No store attached"
           body="Attach a store to this list before you start shopping."
           actionLabel="Back to list"
-          onAction={() => navigation.navigate('ListDetail', { listId })}
+          onAction={() => navigation.popTo('ListDetail', { listId })}
         />
       </Screen>
     );
@@ -908,7 +908,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
           heading="Nothing to shop for"
           body="This list has no items yet."
           actionLabel="Back to list"
-          onAction={() => navigation.navigate('ListDetail', { listId })}
+          onAction={() => navigation.popTo('ListDetail', { listId })}
         />
       </Screen>
     );

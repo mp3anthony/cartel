@@ -215,7 +215,7 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 </section>
 
 <section id="house-style">
-<h2>HS house style for controls <span class="st decided">Decided in #139, not built</span></h2>
+<h2>HS house style for controls <span class="st decided">Buttons and back circle built; bottom nav decided, not built</span></h2>
 <p>Decided in #139 on 2026-10-06. Hazardous Schematics (HS) is Ant's brand for apps and software. Cartel adopts the HS website's control language so it reads as an HS-built app.</p>
 <div class="callout">
 <p><strong>This section describes the decided design, not the current app.</strong> Ant stated directly: the bottom pill replaces the hamburger because the hamburger is hard to reach, the palette stays, no glass, and only the shape and style of buttons change. Those are decided.</p><p>The following were not directly stated by Ant. They were the orchestrator's reading of his answers. Ant reviewed the specimens below on 2026-10-06 ("looks great") and accepted them: the back circle placement (drill-down screens only) and the hairline look; the close circle (X) for dialogs; the 2px accent ring and 300ms slide on the current nav link (taken from the HS website's nav); the soft shadow on the floating pill; the exact split of four destinations plus a gear; Shopping Mode showing only the back circle.</p>
@@ -265,7 +265,7 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <li>Shown on drill-down screens only: list detail, Shopping Mode, a Store's item catalog, Feedback and similar.</li>
 <li>Not shown on the four bottom-nav destinations.</li>
 <li>A matching close circle (X) is used for dialogs.</li>
-<li>Today the app has no back button, because <code>App.tsx</code> hides the native one.</li>
+<li>Built in #157 (0.0.48). The wordmark is centred on every screen, so it does not move between screens with and without a back circle.</li>
 </ul>
 
 <h3 id="hs-nav">Bottom pill nav</h3>
@@ -281,7 +281,7 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 
 <h3 id="hs-collisions">Status and collisions</h3>
 <ul>
-<li>Status: buttons, chips and press feedback built in #156 (0.0.47). The back circle (#157) and the bottom pill nav (#158) are decided, not built.</li>
+<li>Status: buttons, chips and press feedback built in #156 (0.0.47). The back circle built in #157 (0.0.48). The bottom pill nav (#158) is decided, not built.</li>
 <li>Navigation collides with #109, #103 and #110 (#144, #145). Whichever lands later rebases.</li>
 </ul>
 

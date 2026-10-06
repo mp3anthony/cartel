@@ -10,6 +10,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Body, ErrorNote, Heading, PrimaryButton, Screen } from './src/components/ui';
+import { BackCircle, isDrillDown } from './src/components/BackCircle';
 import { AppErrorBoundary } from './src/components/ErrorBoundary';
 import { HeaderLogo } from './src/components/HeaderLogo';
 import { NavMenu } from './src/components/NavMenu';
@@ -205,10 +206,20 @@ function Bootstrapped({ env }: { env: Env }) {
 
   // A function, not a plain object, as of #24: the hamburger menu it installs via
   // headerRight needs each screen's own `navigation` to call .navigate() on, which
-  // only this function form of screenOptions is handed.
+  // only this function form of screenOptions is handed. #157's back circle needs the
+  // `route` too, to tell a drill-down screen from a top-level one.
   const screenOptions = useCallback(
-    ({ navigation }: { navigation: NavigationProp<RootStackParamList> }) => ({
+    ({
+      navigation,
+      route,
+    }: {
+      navigation: NavigationProp<RootStackParamList>;
+      route: Parameters<typeof isDrillDown>[0];
+    }) => ({
       ...headerOptions(tokens),
+      headerLeft: isDrillDown(route)
+        ? () => <BackCircle navigation={navigation} />
+        : () => null,
       headerRight: () => <NavMenu navigation={navigation} hasHousehold={hasHousehold} />,
     }),
     [tokens, hasHousehold],
@@ -366,27 +377,27 @@ function Bootstrapped({ env }: { env: Env }) {
  * list loads. `headerTitleStyle` is gone because it only ever styled the default
  * text-based title, which nothing here still renders.
  *
- * `headerBackVisible: false` hides the native-stack back chevron — redundant next to
- * the wordmark once the hamburger `NavMenu` covers the same "go somewhere else" job,
- * and confusing sitting right beside a logo that isn't itself a button. It does not
- * disable back navigation — the OS/browser back gesture and button still work
- * exactly as before. It also does nothing at all on this project's actual review
- * surface: `headerBackVisible` is only read by native-stack's *native* header path
+ * `headerBackVisible: false` hides the native-stack's own back chevron: the app draws
+ * its own circular back control instead (#157, `BackCircle`), on drill-down screens
+ * only. `headerLeft` is the single wiring point for it, set per screen in
+ * `screenOptions` (not here, since it depends on the route). That is also why both
+ * are needed: `headerBackVisible` is only read by native-stack's *native* header path
  * (`react-native-screens`, unavailable on web), not by the JS `Header` component
- * `@react-navigation/elements` falls back to on web, which instead defaults
- * `headerLeft` to a `HeaderBackButton` whenever `navigation.canGoBack()` is true,
- * ignoring `headerBackVisible` entirely. `headerLeft: () => null` is the option the
- * web fallback actually checks, so both are set — one per platform's real code path,
- * neither one alone covers both.
+ * `@react-navigation/elements` falls back to on web, which defaults `headerLeft` to
+ * a `HeaderBackButton` whenever `navigation.canGoBack()` is true. An explicit
+ * `headerLeft` (a circle or `() => null`) is what that web fallback actually checks.
+ *
+ * The title is centred on every screen so the wordmark does not move between screens
+ * that have a back circle and screens that do not.
  */
 function headerOptions(tokens: Tokens) {
   return {
     headerStyle: { backgroundColor: tokens.color.ground },
     headerTintColor: tokens.color.textPrimary,
     headerTitle: () => <HeaderLogo />,
+    headerTitleAlign: 'center' as const,
     headerShadowVisible: false,
     headerBackVisible: false,
-    headerLeft: () => null,
     contentStyle: { backgroundColor: tokens.color.ground },
   };
 }

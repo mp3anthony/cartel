@@ -46,6 +46,14 @@ _Avoid_: Competitor styling
 The hamburger (accessibility label "Menu") opening a popover of Home, Lists, Stores, History and Household. The dashboard is called "Home" here. Decided in #109 (not built yet): the Household item becomes "Settings", see `household.md`. Decided in #139 (not built yet): the hamburger is slated to be replaced by a floating bottom pill nav (Home, Lists, Stores, History) with Settings as a gear at the header's right, see `02-DESIGN-REFERENCE.html`.
 _Avoid_: Drawer, sidebar
 
+**Back circle**:
+The circular chevron button at the header's left (accessibility label "Back"), built in #157. Shown on drill-down screens only: list detail, Shopping Mode, a Store's item catalog, Feedback, Store missing, and the Stores picker when opened to attach a store to a list. Not on Home, Lists, plain Stores, History or Household. It does what the browser Back does.
+_Avoid_: Back arrow, back chevron
+
+**Close circle**:
+The same ringed circle with an X (label "Close"), for dialogs that need a close control. Built in #157 as a shared component, no caller yet.
+_Avoid_: Dismiss button
+
 **Version footer**:
 A `v<version> · Live | Preview | Dev` line at the bottom of the Household screen. See `docs/environment.md`. Decided in #109 (not built yet): it moves to a two-line Settings footer, see Settings footer in `household.md`.
 _Avoid_: Build stamp, About page
