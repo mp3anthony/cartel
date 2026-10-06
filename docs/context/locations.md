@@ -50,7 +50,7 @@ Where an item sits inside a store (an aisle or area, e.g. "Aisle 4"), matched by
 _Avoid_: Section (in the UI), aisle, category, label
 
 **Correction**:
-A proposal to change an item's Item location, made with "Propose" and confirmed with "Confirm". It stays pending until a second, independent user confirms; the proposer cannot confirm their own. Several different pending corrections may exist for one item; applying one clears the rest. There is no reject verb. Shown as a muted "Proposed: X" line; the dashboard lists "Pending corrections".
+A proposal to change an item's Item location, made with "Propose" and confirmed with "Confirm". It stays pending until a second, independent user confirms; the proposer cannot confirm their own. Several different pending corrections may exist for one item; applying one clears the rest. There is no reject verb. Shown as a muted "Proposed: X" line; the dashboard lists "Pending corrections" (decided in #110, not built yet: removed from Home; corrections are seen in the Store's Item catalog only).
 _Avoid_: Edit, suggestion, vote (in the UI)
 
 **Item catalog**:

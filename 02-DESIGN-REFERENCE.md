@@ -10,7 +10,7 @@
    the overall register. Soft-shadowed rounded cards on an off-white ground, one
    saturated accent colour carrying all emphasis (selected chip, active card,
    primary button), everything else near-neutral. Full-width primary CTA at the
-   bottom of a form. Filter chips as a horizontal pill row. This is the closest
+   bottom of a form (amended by "Decided in #110" below). Filter chips as a horizontal pill row. This is the closest
    single match to the agreed tone and should win ties.
 
 2. **Pastel to-do concept** — `design-refs/02-pathum-todo.jpeg` — take: the list-row
@@ -40,6 +40,14 @@
   - Illustration-led onboarding — the app should be usable before it is explained.
   - Gradients on any list or shopping surface.
   - Dense, information-heavy dashboards. Cartel is a list, not an analytics tool.
+
+## Decided in #110, not built yet
+
+Describes the decided design, not the current app.
+
+**Buttons are content-sized by default.** Full-width is kept only for the single main action of a form or an irreversible commit step (for example Finish shopping). In-card actions use a compact pill; a global create may be icon-only or a floating circular +. The 44pt minimum tap target (`docs/conventions.md`) still applies. This amends reference 1's "full-width primary CTA" for everything except those two cases. App-wide rule.
+
+**Home look.** Premium and modern, built so motion can be added. Reference: Copilot Money (hero on top, a row of circular rings, tonal surfaces, graphs). Motion for v1, on mount, 200-300ms: progress rings fill, the donut sweeps in, numbers count up; all of it honours reduce-motion. This is not the "dense analytics dashboard" rejected above: two graph tiles, tap to expand, the rest quiet. Layout and sections: Dashboard in `docs/context/shopping.md`.
 
 ## Glanceability (Shopping Mode only)
 

@@ -37,7 +37,7 @@ Warm and friendly: rounded geometry, soft shadows over hard borders, approachabl
 _Avoid_: Clinical, childish, playful-quirky
 
 **Anti-references**:
-The rejected directions in `02-DESIGN-REFERENCE.md`: neon or glow accents, dark-first theming, illustration-led onboarding, gradients on list or shopping surfaces, and dense analytics-style dashboards. The ring or donut progress shape is the one motif kept.
+The rejected directions in `02-DESIGN-REFERENCE.md`: neon or glow accents, dark-first theming, illustration-led onboarding, gradients on list or shopping surfaces, and dense analytics-style dashboards. The ring or donut progress shape is the one motif kept. How the Home graphs reconcile with the dashboard rejection (decided in #110, not built yet) is in `02-DESIGN-REFERENCE.md`.
 _Avoid_: Competitor styling
 
 ### App shell

@@ -33,6 +33,7 @@ Binding build and design-process rules. Vocabulary lives in `docs/context/`; thi
 - **Stale-write guard:** when an async write resolves, close or clear the editor only if the edited item is still the one the write was for.
 - **Touch targets are at least 44pt** (`minTouchTarget`), and larger in Shopping Mode (`minTouchTargetLarge`, `fontSize.large`, used there only). `hitSlop` does nothing on react-native-web; use real padding or `minHeight` with a negative margin so layout does not grow.
 - **Components:** merge a caller's `style` into the input, never spread props after it. A labelled action beside a row is a sibling of the row, not nested in its trailing slot. Shared primitives are not widened for one caller; compose locally until a second caller exists. Use the `Select` dropdown for type pickers and `SegmentedControl` only for three or fewer short choices.
+- **Button width** (decided in #110, not built yet): content-sized by default; the rule and its two full-width exceptions are in `02-DESIGN-REFERENCE.md`.
 - **Banners render in-flow** (react-native-web has no `Alert`); confirmations that must not be missed do not auto-dismiss; dismiss labels name their target.
 - **Shopping Mode check-off** overlays a map of requested states and lets the Realtime echo reconcile; the reconcile effect reads pending state through a ref.
 - **Screens reached with and without a list to attach to** use one `handleSelect`; do not add a second selection mechanism.
