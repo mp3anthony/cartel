@@ -44,11 +44,10 @@ _Avoid_: Receipts, past lists, trips
 
 **Dashboard**:
 The home screen (menu item "Home"). Sections: Nearby stores, Continue shopping, Where you shop (store-frequency donut), Pending corrections, Recent activity. "Continue shopping" shows only lists with a shop in progress (at least one item checked, not yet finished) and is hidden when there are none. Nearby stores are only checked when the user taps "Check for nearby stores".
-Decided in #110, not built yet (the list above stays true until the build lands). Home stays a dashboard; rejected: retiring it so Lists is the front door. Top to bottom, each section hidden when empty:
+**Decided in #110, not built yet.** (The sections described above stay true until the build lands.) Home stays a dashboard; rejected: retiring it so Lists is the front door. Top to bottom, each section hidden when empty:
 - **Hero**: when a shop is in progress, a card per shop with the list name, Store badge, a progress ring (ticked out of total) and a small Resume button; several shops sit in a horizontally swipeable row. With none, the hero becomes "Start a shop" with a small New list button and a small Nearby stores chip (still checked only on tap). Home never has an empty hero. Rejected: an always-present stats hero (gives no action); a stats hero plus a Resume strip.
-- **Stores row**: circular Store badges in chain colours, labelled "Stores". A tap starts or continues a shop there as the donut tap does today; also opening the Store's own page is left to the plan.
+- **Stores row**: circular Store badges in chain colours, labelled "Stores". A tap starts or continues a shop there as the donut tap does today; opening the Store's own page is left to the plan.
 - **Graphs**: two-up tiles, "Where you shop" (donut) and "How often you shop" (bars, shops over time), tap to expand.
 - **Recent activity**: a quiet, low-density list with "See all history".
-- **Pending corrections is removed from Home.** It belongs in the Store's Item catalog, where corrections already show as "Proposed: X"; the example seen in real data was a case-only rename that normalisation should make unnecessary.
-- **Limits on graphs:** Cartel stores no prices and has no item categories (Item locations are free-text, per-Store tags), so spending or category graphs are not possible yet and are not in v1 (see `CHANGE-LOG.md`). v1 uses existing data only. Later candidates from existing data: most-bought items, items per shop.
-_Avoid_: Overview, feed
+- **Pending corrections is removed from Home.** It belongs in the Store's Item catalog, where corrections already show as "Proposed: X".
+- **Limits on graphs:** Cartel stores no prices and has no item categories (Item locations are free-text, per-Store tags), so spending or category graphs are not possible yet and are not in v1 (see `CHANGE-LOG.md`). v1 uses existing data only._Avoid_: Overview, feed

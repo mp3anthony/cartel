@@ -2,12 +2,13 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-06, end of session 17)
+## Current state (2026-10-06, end of session 18)
 
-- **#109 (Household screen becomes Settings) is grilled and settled, not built.** Outcome is on the issue and recorded in `docs/context/household.md` (Settings section, marked decided-but-not-built); PR #140. Next step is the Planner, which stops at the plan for Ant because it changes the deployed `report-feedback` Edge Function. Build to-dos (stale docs to fix, deploy ordering) are in a comment on #109. No `03-SPEC.md` section was active.
-- **Logged in `CHANGE-LOG.md` as `pending` out-of-spec, for Ant to triage:** members adding a first name or nickname (new column plus RLS read policy), and renaming a household (RLS write, "who may rename" open). Filed **#139**: pull design references from the Hazardous Schematics website into `02-DESIGN-REFERENCE.md`; needs its own grill.
-- **#111 (item quantity) is fully shipped and closed.** Slice A 0.0.44 (PR #135), Slice B 0.0.45 (PR #137). Ant ran the Slice B iPhone checklist and it passed; Slice A's checklist was never run (assumed passed). Last active `03-SPEC.md` section: none.
-- **#106 relationship:** #111 has landed, so #106 is unblocked. #106 still owns location-tag lookup normalisation, merging existing duplicate rows (open: sum quantities clamped to 99? which tick state and position survive?), rename onto an existing name, and copying old History snapshots with duplicate names. If #106 changes name normalisation it must redefine `add_list_item` (it uses `lower(btrim())`).
+- **#110 (Home overhaul) is grilled and settled, not built.** Decisions are recorded in PR #142 (docs, merged). #110 is now the **parent issue**, with sub-issues **#143** (content-sized buttons, shared ui components; the foundation), **#144** (Home hero, Stores row, layout; blocked by #143) and **#145** (graph tiles and motion; blocked by #144). Each stops at the Planner. Ant wants parent issue plus sub-issues as the default way to slice from now on. Pending corrections leaves Home (it stays in the Store's item catalog). Category and spending graphs are logged in `CHANGE-LOG.md` as pending out-of-spec for Ant to triage (needs prices or a category field). #106 got a comment: case-only corrections (bread to Bread) and capitalising item names are for its grill. No `03-SPEC.md` section was active.
+- **#109 (Household screen becomes Settings) is grilled and settled, not built.** Outcome is on the issue and in `docs/context/household.md` (Settings section, decided-but-not-built); PR #140. Next step is the Planner, which stops at the plan for Ant because it changes the deployed `report-feedback` Edge Function. Build to-dos (stale docs to fix, deploy ordering) are in a comment on #109.
+- **Logged in `CHANGE-LOG.md` as `pending` out-of-spec, for Ant to triage:** members adding a first name or nickname (new column plus RLS read policy), renaming a household (RLS write, "who may rename" open), and category and spending graphs. Filed **#139**: pull design references from the Hazardous Schematics website into `02-DESIGN-REFERENCE.md`; needs its own grill.
+- **#111 (item quantity) is fully shipped and closed.** Slice A 0.0.44 (PR #135), Slice B 0.0.45 (PR #137). Ant ran the Slice B iPhone checklist and it passed; Slice A's checklist was never run (assumed passed).
+- **#106 relationship:** #111 has landed, so #106 is unblocked. #106 still owns location-tag lookup normalisation, merging existing duplicate rows (open: sum quantities clamped to 99? which tick state and position survive?), rename onto an existing name, copying old History snapshots with duplicate names, plus the case-only corrections and item-name capitalisation above. If #106 changes name normalisation it must redefine `add_list_item` (it uses `lower(btrim())`).
 - Open nits, deliberately skipped. Slice B review (all cosmetic): the "already ×99" note shows the success tick (`Banner` is positive-only); on list detail the bump note can go stale after a stepper tap (spec: cleared on add or tick only); in Shopping Mode the note survives Finish and Reset. Slice A review: a narrow flicker window if a refetch lands after the last write resolves; a hung request keeps Finish disabled until reload; `writeShown` missing from an effect's deps (lint only). Each tap bumps `lists.last_activity_at`, so lists reload per tap (Ant mentioned lag elsewhere; watch it).
 - **#107 shipped (0.0.43, PR #132).** Stores are read-only to clients (ADR 0007). Ant has not run scenario 1 (real GPS nearby) or a 0.0.43 iPhone smoke check. The S4 tests (`rls_locations*.sql`, fixtures, `store_catalog.sql`) were reviewed statically; Ant reports the quantity tests passed but has not confirmed the S4 ones. Run them (all roll back) before relying on them.
 - Open nits: Store missing reports are public GitHub issues (accepted); no rate limit on that path; comment at `supabase/tests/rls_location_items.sql:23` still names the dropped `locations_insert_own`; `LocationsScreen.tsx` header comments may still describe the old create/edit flow; the badge shape is now a circle (docs only mention it in the `StoreBadge.tsx` comment).
@@ -22,17 +23,18 @@
 Can start now (no blockers):
 
 1. **#106** (unblocked). Production merge, stops at the plan for Ant; grill its open questions first (see relationship note).
-2. Grill #110 (Home overhaul; shares screens with #109), #114, #112, #139 (design reference). #110 unblocks most of the rest.
-3. Plan #109 (grilled; see above).
-4. #123 (low priority, whenever).
+2. Plan #109 (grilled; see above).
+3. Plan #143 (foundation for the Home work).
+4. Grill #114, #112 (no longer blocked since #107 S4 shipped) and #139 (design reference).
+5. #123 (low priority, whenever).
 
 Then:
 
-5. #103, blocked by #110.
-6. #90, blocked by #109 (now grilled, needs building) and #110. Stops at the plan for Ant (RLS, deleting a household). Its Leave household button moves into the Settings Household section.
-7. #112, no longer blocked (#107 S4 shipped); needs grilling first.
+6. #144 after #143; #145 after #144.
+7. #103 after the Home work lands (it was held for #110's grill, which is now done; confirm the exact ordering with Ant when picking it up).
+8. #90, blocked by #109 (needs building) and the Home navigation work. Stops at the plan for Ant (RLS, deleting a household). Its Leave household button moves into the Settings Household section.
 
-Collisions: #103 touches `ListDetailScreen`; whichever lands second rebases onto the drag-handle row, the quantity control and the new wording. #109, #103 and #110 all touch navigation and screens; whichever lands later rebases.
+Collisions: #103 touches `ListDetailScreen`; whichever lands second rebases onto the drag-handle row, the quantity control and the new wording. #109, #103 and #110 (#144, #145) all touch navigation and screens; whichever lands later rebases.
 
 ## Where things live
 
