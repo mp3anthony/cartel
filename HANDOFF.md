@@ -2,10 +2,11 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-06, end of session 25)
+## Current state (2026-10-06, end of session 26)
 
-- **#143 (content-sized buttons) shipped (0.0.46, PR #162, closed).** Ant ran the Preview, dropped his requested changes and merged. The design reference Artifact is republished (version 4).
-- **#156 (HS pill buttons and press feedback) is PLANNED, not built; the plan is the latest comment on #156, labelled `needs-info`.** Next step: get Ant's yes or changes on four design calls, then remove `needs-info`. The planner's recommended default is listed first for each: (A) icon controls have no ring at rest and fill with the accent on press; (B) rows, check circles and cards are excluded from scale and fill; (C) accent fill on press only, no focus fill (keyboard keeps the focus ring); (D) a disabled ghost pill gets a dashed hairline. Then brief the Code Writer from the plan (0.0.47; new `mobile/src/theme/motion.ts`; changes in `ui.tsx`, `RowIcons.tsx`, `HouseholdScreen.tsx`, the design reference and `docs/conventions.md`), then a separate Sonnet Code Reviewer, then the 15-scenario iPhone checklist in the plan (`needs-manual-test`). Risks to watch: accent flash while scrolling, and whether the web transition strings apply (check `getComputedStyle` on the Preview). Build #156 alone; then #157, #158. No `03-SPEC.md` section was active.
+- **#156 (HS pill buttons and press feedback) shipped (0.0.47, PR #164, closed).** Built with Ant's four calls A to D (icon controls: no ring at rest, accent fill on press; rows, check circles and cards excluded from scale and fill; fill on press only, keyboard keeps the focus ring; a disabled ghost pill gets a dashed hairline). A separate Sonnet review came back clean, a browser check on the local dev server passed, and Ant ran the 15-scenario iPhone checklist on the Preview: all passed. New `mobile/src/theme/motion.ts`. The design reference Artifact is republished (version 5). The "Decided in #139, not built" label on the HS house-style section still stands for the back circle and bottom nav; its buttons part is now built, so reword it when #157 or #158 lands.
+- **Next: #157 (circular back button in the header, drill-down screens only), then #158 (floating bottom pill nav).** Neither is planned yet. Next step for #157: brief the `planner` agent (it stops at the plan for Ant; today the app has no back button because `App.tsx` hides the native one). Build #157 alone, then #158. #143 and #156 are both done, so the shared `ui` components are settled. No `03-SPEC.md` section was active.
+- **#143 (content-sized buttons) shipped (0.0.46, PR #162, closed).**
 
 (Earlier state follows.)
 
@@ -21,7 +22,7 @@
 - Open nits, deliberately skipped. Slice B review (all cosmetic): the "already ×99" note shows the success tick (`Banner` is positive-only); on list detail the bump note can go stale after a stepper tap (spec: cleared on add or tick only); in Shopping Mode the note survives Finish and Reset. Slice A review: a narrow flicker window if a refetch lands after the last write resolves; a hung request keeps Finish disabled until reload; `writeShown` missing from an effect's deps (lint only). Each tap bumps `lists.last_activity_at`, so lists reload per tap (Ant mentioned lag elsewhere; watch it).
 - **#107 shipped (0.0.43, PR #132).** Stores are read-only to clients (ADR 0007). Ant has not run scenario 1 (real GPS nearby) or a 0.0.43 iPhone smoke check. The S4 tests (`rls_locations*.sql`, fixtures, `store_catalog.sql`) were reviewed statically; Ant reports the quantity tests passed but has not confirmed the S4 ones. Run them (all roll back) before relying on them.
 - Open nits: Store missing reports are public GitHub issues (accepted); no rate limit on that path; comment at `supabase/tests/rls_location_items.sql:23` still names the dropped `locations_insert_own`; `LocationsScreen.tsx` header comments may still describe the old create/edit flow; the badge shape is now a circle (docs only mention it in the `StoreBadge.tsx` comment).
-- `main` is at 0.0.46 (`mobile/app.json`). Production holds real user data.
+- `main` is at 0.0.47 (`mobile/app.json`). Production holds real user data.
 - #117 shipped (0.0.41); details in `docs/lessons.md`. Open follow-ups: no iPhone check was run, the household screen has no Try again of its own, and which query fails first is still unverified (the next real occurrence shows in the `[cartel:postgrest-retry]` log).
 - #94 shipped (0.0.40): the Stores / Item location vocabulary. The iOS native permission string in `mobile/app.json` (`locationWhenInUsePermission`) still says "location" (native builds only). `mobile/package-lock.json` still says 0.0.36 (never kept in step).
 - Ticket #123: drag auto-scroll near the screen edge on long lists (v1 limit; needs an iPhone check). Unlogged: Ant mentioned a lag issue (some actions slow, others instant); he will log it himself.
@@ -33,7 +34,7 @@ Can start now (no blockers):
 
 1. **#106** (grilled, unblocked). Planner next; the production migration slice stops at the plan for Ant.
 2. Plan #109 (grilled; see above).
-3. Build #156 (planned, awaiting Ant on calls A to D), then plan and build #157, #158 (#139).
+3. Plan and build #157, then #158 (#139). #156 is done.
 4. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 waits for #106's migration plan so both run together.
 5. #123 (low priority, whenever).
 
