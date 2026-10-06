@@ -2,11 +2,12 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-06, end of session 27)
+## Current state (2026-10-06, end of session 28)
 
-- **#157 (circular back button) is built and in review: PR #166 (0.0.48), not merged.** Ant wants the next session to **walk him through PR #166** first; then he runs the 17-scenario iPhone checklist (posted on #157) on the Preview, and merge only after it passes. Plan approved with Ant's three defaults: back circle also on the Stores picker when opened to attach a store; wordmark centred on every screen; close circle and shared `HeaderCircleButton` built now with no caller. A separate Sonnet review came back clean (one docs typo, fixed); `tsc`, web export and the design-reference check pass; a local browser check passed (no Back on Lists, Back on a list returns to Lists, cold load then Back lands on Home). The visual look and wordmark centring were not seen (screenshot timed out); the iPhone test covers them. Labels on #157: `ready-for-agent`, `needs-manual-test`. This handoff commit sits on the PR branch `feat/157-back-circle`. No `03-SPEC.md` section was active.
-- **After the merge:** republish the design reference Artifact (the HTML changed: back circle built, section badge reworded to "Buttons and back circle built; bottom nav decided, not built"; reword again when #158 lands), then brief the `planner` agent for **#158** (floating bottom pill nav; stops at the plan for Ant; reuses `HeaderCircleButton` for the gear).
-- **Known follow-up, not fixed, not filed:** `navigate('Lists')` at `ListDetailScreen.tsx:487`, `:598` and `ShoppingScreen.tsx:836` pushes a duplicate Lists screen (React Navigation 7), so Back can return to a stale or deleted list; fix is `popTo('Lists')`. Offer Ant to file it or fold it into #158. After a reload or deep link, Back goes to Home, not the logical parent (matches Safari Back). The dev console shows React DOM warnings for `accessible` and `importantForAccessibility` on SVG icons (existing pattern from `RowIcons`).
+- **#157 (circular back button) shipped (0.0.48, PR #166, merged).** Ant ran the 17-scenario iPhone checklist on the Preview and it passed. A fresh Sonnet review in session 28 came back clean (`tsc` passes, no blockers); it also noted new `popTo('ListDetail')` calls in `LocationsScreen.tsx` and `ShoppingScreen.tsx`. The design reference Artifact was republished (back circle built; bottom nav still decided, not built; reword the badge again when #158 lands). **Confirm #157 is closed on GitHub** (the merge ran, but the follow-up status check was blocked). No `03-SPEC.md` section was active.
+- **#158 (floating bottom pill nav) is next.** The `planner` agent was briefed at the end of session 28 and its plan had not come back, so **re-brief the planner** (it stops at the plan for Ant). Brief: reuse `HeaderCircleButton` for the gear; address collisions with #109, #103, #110 (#144, #145) and #167.
+- **#167 (Back can return to a stale or deleted list) is filed, `needs-triage`.** `navigate('Lists')` at `ListDetailScreen.tsx:487`, `:598` and `ShoppingScreen.tsx:836` pushes a duplicate Lists screen (React Navigation 7); fix is `popTo('Lists')`. Kept separate from #157 and #158 on purpose. After a reload or deep link, Back goes to Home, not the logical parent (matches Safari Back). The dev console shows React DOM warnings for `accessible` and `importantForAccessibility` on SVG icons (existing pattern from `RowIcons`).
+- **Tooling note:** the auto-mode permission check blocked `gh pr merge` ("Merge Without Review") until a clean review was on record in the same session. Run the Sonnet review in the same session as the merge.
 - **#156 (HS pill buttons and press feedback) shipped (0.0.47, PR #164, closed).** New `mobile/src/theme/motion.ts`; Ant's 15-scenario iPhone checklist passed.
 - **#143 (content-sized buttons) shipped (0.0.46, PR #162, closed).**
 
@@ -24,7 +25,7 @@
 - Open nits, deliberately skipped. Slice B review (all cosmetic): the "already ×99" note shows the success tick (`Banner` is positive-only); on list detail the bump note can go stale after a stepper tap (spec: cleared on add or tick only); in Shopping Mode the note survives Finish and Reset. Slice A review: a narrow flicker window if a refetch lands after the last write resolves; a hung request keeps Finish disabled until reload; `writeShown` missing from an effect's deps (lint only). Each tap bumps `lists.last_activity_at`, so lists reload per tap (Ant mentioned lag elsewhere; watch it).
 - **#107 shipped (0.0.43, PR #132).** Stores are read-only to clients (ADR 0007). Ant has not run scenario 1 (real GPS nearby) or a 0.0.43 iPhone smoke check. The S4 tests (`rls_locations*.sql`, fixtures, `store_catalog.sql`) were reviewed statically; Ant reports the quantity tests passed but has not confirmed the S4 ones. Run them (all roll back) before relying on them.
 - Open nits: Store missing reports are public GitHub issues (accepted); no rate limit on that path; comment at `supabase/tests/rls_location_items.sql:23` still names the dropped `locations_insert_own`; `LocationsScreen.tsx` header comments may still describe the old create/edit flow; the badge shape is now a circle (docs only mention it in the `StoreBadge.tsx` comment).
-- `main` is at 0.0.47 (`mobile/app.json`). Production holds real user data.
+- `main` is at 0.0.48 (`mobile/app.json`). Production holds real user data.
 - #117 shipped (0.0.41); details in `docs/lessons.md`. Open follow-ups: no iPhone check was run, the household screen has no Try again of its own, and which query fails first is still unverified (the next real occurrence shows in the `[cartel:postgrest-retry]` log).
 - #94 shipped (0.0.40): the Stores / Item location vocabulary. The iOS native permission string in `mobile/app.json` (`locationWhenInUsePermission`) still says "location" (native builds only). `mobile/package-lock.json` still says 0.0.36 (never kept in step).
 - Ticket #123: drag auto-scroll near the screen edge on long lists (v1 limit; needs an iPhone check). Unlogged: Ant mentioned a lag issue (some actions slow, others instant); he will log it himself.
@@ -36,7 +37,7 @@ Can start now (no blockers):
 
 1. **#106** (grilled, unblocked). Planner next; the production migration slice stops at the plan for Ant.
 2. Plan #109 (grilled; see above).
-3. Merge #157 (PR #166, after Ant's iPhone test), then plan and build #158 (#139).
+3. Plan and build #158 (#139); then #167.
 4. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 waits for #106's migration plan so both run together.
 5. #123 (low priority, whenever).
 
