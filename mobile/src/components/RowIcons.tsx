@@ -14,8 +14,10 @@ import { useTheme } from '../theme/ThemeProvider';
  */
 const SIZE = 20;
 
-export function PinIcon() {
+/** `color` lets a pressed `IconButton` recolour the glyph (#156); at rest it is `textSecondary`. */
+export function PinIcon({ color }: { color?: string } = {}) {
   const tokens = useTheme();
+  const stroke = color ?? tokens.color.textSecondary;
 
   return (
     <Svg
@@ -28,7 +30,7 @@ export function PinIcon() {
     >
       <Path
         d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"
-        stroke={tokens.color.textSecondary}
+        stroke={stroke}
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -38,7 +40,7 @@ export function PinIcon() {
         cx={12}
         cy={9.5}
         r={2.5}
-        stroke={tokens.color.textSecondary}
+        stroke={stroke}
         strokeWidth={2}
         fill="none"
       />

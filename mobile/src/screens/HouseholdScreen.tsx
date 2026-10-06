@@ -18,6 +18,7 @@ import {
 import { appVersion, buildChannel, buildChannelLabel } from '../lib/buildInfo';
 import { createInvite, type Invite } from '../lib/household';
 import type { RootStackParamList } from '../navigation/types';
+import { pressFill, pressScaleFill, useReduceMotion } from '../theme/motion';
 import { useTheme, useThemeMode } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
@@ -47,6 +48,7 @@ export function HouseholdScreen({
   navigation: NavigationProp<RootStackParamList>;
 }) {
   const tokens = useTheme();
+  const reduceMotion = useReduceMotion();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const insets = useSafeAreaInsets();
   const { mode, setMode } = useThemeMode();
@@ -139,10 +141,23 @@ export function HouseholdScreen({
           styles.reportFab,
           { bottom: insets.bottom + tokens.space.lg },
           pressed && styles.reportFabPressed,
+          pressScaleFill(pressed, reduceMotion),
         ]}
       >
-        <BugIcon color={tokens.color.textPrimary} />
-        <Text style={styles.reportFabLabel}>Report</Text>
+        {({ pressed }) => (
+          <>
+            <BugIcon color={pressed ? tokens.color.accentContrast : tokens.color.textPrimary} />
+            <Text
+              style={[
+                styles.reportFabLabel,
+                pressed && styles.reportFabLabelPressed,
+                pressFill(pressed, reduceMotion),
+              ]}
+            >
+              Report
+            </Text>
+          </>
+        )}
       </Pressable>
     </View>
   );
@@ -204,7 +219,11 @@ function createStyles(tokens: Tokens) {
       ...tokens.elevation.card,
     },
     reportFabPressed: {
-      backgroundColor: tokens.color.surfaceSunken,
+      backgroundColor: tokens.color.accent,
+      borderColor: tokens.color.accent,
+    },
+    reportFabLabelPressed: {
+      color: tokens.color.accentContrast,
     },
     reportFabLabel: {
       color: tokens.color.textPrimary,
