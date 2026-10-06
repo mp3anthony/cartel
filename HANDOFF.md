@@ -4,7 +4,7 @@
 
 ## Current state (2026-10-06, end of session 24)
 
-- **#143 (content-sized buttons) is built (0.0.46) and reviewed clean; the PR is open, labelled `needs-manual-test`, NOT merged.** Branch `143-content-sized-buttons`. Built to the plan on #143 with no deviations; a separate Sonnet reviewer found no issues (tsc and the design-reference check pass; no live-browser or iPhone check was run, no dev server by Ant's choice). Next: Ant runs the 15-scenario iPhone checklist from the plan comment on #143 against the Preview build, then the orchestrator merges. After merge: republish the design reference HTML Artifact (already edited in the PR, four places). Then #156 (never in parallel). No `03-SPEC.md` section was active.
+- **#143 (content-sized buttons) is built (0.0.46) and reviewed clean; the PR is open, labelled `needs-manual-test`, NOT merged.** Branch `143-content-sized-buttons`. Built to the plan on #143 with no deviations; a separate Sonnet reviewer found no issues (tsc and the design-reference check pass; no live-browser or iPhone check was run, no dev server by Ant's choice). Ant has already tried the Preview and says most things work but he wants some changes. **Next session: open the checklist (the latest comment on PR #162, same text on #143), walk through it with Ant on his iPhone, and collect his requested changes as he goes; apply them on this branch (Code Writer, separate Code Reviewer), no further version bump, then merge when he is happy.** Don't merge before he signs off. After merge: republish the design reference HTML Artifact (already edited in the PR, four places). Then #156 (never in parallel). No `03-SPEC.md` section was active.
 
 (Session 22 state follows.)
 
