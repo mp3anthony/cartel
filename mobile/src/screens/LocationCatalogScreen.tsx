@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
   Body,
+  ButtonRow,
   EmptyState,
   ErrorNote,
   Field,
@@ -256,17 +257,19 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
                         onSubmitEditing={() => void submitCorrection(item)}
                         returnKeyType="done"
                       />
-                      <PrimaryButton
-                        label="Propose"
-                        onPress={() => void submitCorrection(item)}
-                        busy={pending.has(item.id)}
-                        disabled={correctionDraft.trim().length === 0}
-                      />
-                      <SecondaryButton
-                        label="Cancel"
-                        onPress={cancelCorrecting}
-                        disabled={pending.has(item.id)}
-                      />
+                      <ButtonRow>
+                        <PrimaryButton
+                          label="Propose"
+                          onPress={() => void submitCorrection(item)}
+                          busy={pending.has(item.id)}
+                          disabled={correctionDraft.trim().length === 0}
+                        />
+                        <SecondaryButton
+                          label="Cancel"
+                          onPress={cancelCorrecting}
+                          disabled={pending.has(item.id)}
+                        />
+                      </ButtonRow>
                     </View>
                   ) : (
                     <View style={styles.itemRow}>
@@ -285,12 +288,15 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
                       {corrections.map((correction) => (
                         <View key={correction.proposedSection} style={styles.pendingCorrectionRow}>
                           <Body>{`Proposed new item location: "${correction.proposedSection}"`}</Body>
-                          <PrimaryButton
-                            label="Confirm"
-                            onPress={() => void confirmCorrection(item, correction.proposedSection)}
-                            busy={pending.has(item.id)}
-                            disabled={pending.has(item.id)}
-                          />
+                          {/* Bare View: a content-sized button's alignSelf would pin it to the top of this centred row. */}
+                          <View>
+                            <PrimaryButton
+                              label="Confirm"
+                              onPress={() => void confirmCorrection(item, correction.proposedSection)}
+                              busy={pending.has(item.id)}
+                              disabled={pending.has(item.id)}
+                            />
+                          </View>
                         </View>
                       ))}
                     </View>

@@ -273,7 +273,7 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
       {error ? <ErrorNote message={error} /> : null}
 
       <View style={{ gap: 8 }}>
-        <PrimaryButton label="Send" onPress={submit} busy={busy} disabled={!canSubmit} />
+        <PrimaryButton label="Send" onPress={submit} busy={busy} disabled={!canSubmit} fullWidth />
       </View>
     </Screen>
   );

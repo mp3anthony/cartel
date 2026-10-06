@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
+  ButtonRow,
   Card,
   CheckTarget,
   Confirm,
@@ -446,13 +447,15 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
                         }
                       />
                     ) : null}
-                    <PrimaryButton
-                      label="Create"
-                      onPress={() => void submitCopy(session)}
-                      busy={busy}
-                      disabled={copyName.trim().length === 0}
-                    />
-                    <SecondaryButton label="Cancel" onPress={cancelCopy} disabled={busy} />
+                    <ButtonRow>
+                      <PrimaryButton
+                        label="Create"
+                        onPress={() => void submitCopy(session)}
+                        busy={busy}
+                        disabled={copyName.trim().length === 0}
+                      />
+                      <SecondaryButton label="Cancel" onPress={cancelCopy} disabled={busy} />
+                    </ButtonRow>
                   </View>
                 ) : confirmingDelete ? (
                   <Confirm
@@ -463,7 +466,7 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
                     busy={busy}
                   />
                 ) : (
-                  <View style={styles.cardActions}>
+                  <ButtonRow>
                     <SecondaryButton
                       label="Start new list from this"
                       onPress={() => beginCopy(session)}
@@ -474,7 +477,7 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
                       onPress={() => beginDeleteSession(session)}
                       disabled={busy}
                     />
-                  </View>
+                  </ButtonRow>
                 )}
               </>
             ) : null}
@@ -543,9 +546,6 @@ function createStyles(tokens: Tokens) {
       fontSize: tokens.fontSize.body,
     },
     composer: {
-      gap: tokens.space.sm,
-    },
-    cardActions: {
       gap: tokens.space.sm,
     },
   });

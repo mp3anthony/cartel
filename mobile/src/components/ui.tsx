@@ -119,6 +119,11 @@ export function Card({ children }: { children: ReactNode }) {
  * glyph for the busy spinner never shifts the row's layout. Pair it with
  * `accessibilityLabel`, since a bare glyph has no useful spoken name. Reusable by
  * any screen that wants the same one-line add composer.
+ *
+ * Buttons are content-sized by default (left-aligned, like text). `fullWidth` is only
+ * for the single main action of a form or an irreversible commit step
+ * (`02-DESIGN-REFERENCE.html`, "Decided in #110"). It is meaningless inside a row parent
+ * such as `ButtonRow`, and `compact` ignores it.
  */
 export function PrimaryButton({
   label,
@@ -128,6 +133,7 @@ export function PrimaryButton({
   keepFocus = false,
   accessibilityLabel,
   compact = false,
+  fullWidth = false,
 }: {
   label: string;
   onPress: () => void;
@@ -135,6 +141,8 @@ export function PrimaryButton({
   disabled?: boolean;
   accessibilityLabel?: string;
   compact?: boolean;
+  /** Stretch to the parent's width instead of hugging the label. See the component comment. */
+  fullWidth?: boolean;
   /**
    * For a button sitting next to a "keep typing to add the next one" composer field
    * (add an item, create a list/location) — a plain tap on this button would
@@ -170,7 +178,8 @@ export function PrimaryButton({
         : null)}
       style={({ pressed }) => [
         styles.primaryButton,
-        compact && styles.primaryButtonCompact,
+        // Compact gets no alignSelf at all so a composer row keeps centring it vertically.
+        compact ? styles.primaryButtonCompact : fullWidth ? styles.buttonFullWidth : styles.buttonContent,
         pressed && styles.primaryButtonPressed,
         inactive && styles.buttonInactive,
       ]}
@@ -186,14 +195,28 @@ export function PrimaryButton({
   );
 }
 
+/**
+ * A wrapping row for content-sized buttons: an action beside its Cancel, or a short
+ * cluster of related actions. No `overflow` on purpose, so a press-scale effect is
+ * never clipped.
+ */
+export function ButtonRow({ children }: { children: ReactNode }) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+  return <View style={styles.buttonRow}>{children}</View>;
+}
+
 export function SecondaryButton({
   label,
   onPress,
   disabled = false,
+  fullWidth = false,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  /** Stretch to the parent's width instead of hugging the label. See `PrimaryButton`. */
+  fullWidth?: boolean;
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -206,6 +229,7 @@ export function SecondaryButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.secondaryButton,
+        fullWidth ? styles.buttonFullWidth : styles.buttonContent,
         pressed && styles.secondaryButtonPressed,
         disabled && styles.buttonInactive,
       ]}
@@ -1024,7 +1048,7 @@ export function Confirm({
       <Card>
         <Body>{message}</Body>
         <View style={styles.confirmActions}>
-          <PrimaryButton label={confirmLabel} onPress={onConfirm} busy={busy} />
+          <PrimaryButton label={confirmLabel} onPress={onConfirm} busy={busy} fullWidth />
           {/* Fixed copy, unlike every other label in this file. "Cancel" is the one
               word a reader never has to read twice, and a configurable version only
               invites each caller to invent its own way of saying nothing happened. */}
@@ -1296,6 +1320,18 @@ function createStyles(tokens: Tokens) {
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: tokens.space.lg,
+    },
+    buttonContent: {
+      alignSelf: 'flex-start',
+    },
+    buttonFullWidth: {
+      alignSelf: 'stretch',
+    },
+    buttonRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'flex-start',
+      gap: tokens.space.sm,
     },
     primaryButtonCompact: {
       width: tokens.minTouchTarget,
