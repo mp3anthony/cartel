@@ -35,7 +35,7 @@ export function BackIcon({ color }: { color: string }) {
   return <HeaderGlyph color={color} d="M14.5 6l-6 6 6 6" />;
 }
 
-/** The gear (#158): a dashed outer ring for the teeth, a ring and a hub; same as the design reference. */
+/** The gear (#158): a dashed outer ring for the teeth, a ring and a hub; same as the design reference. Drawn in the bottom Settings circle (`BottomNav`). */
 export function SettingsIcon({ color }: { color: string }) {
   return (
     <Svg

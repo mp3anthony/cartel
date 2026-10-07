@@ -14,7 +14,7 @@ import { Body, ErrorNote, Heading, PrimaryButton, Screen } from './src/component
 import { BackCircle, isDrillDown } from './src/components/BackCircle';
 import { AppErrorBoundary } from './src/components/ErrorBoundary';
 import { HeaderLogo } from './src/components/HeaderLogo';
-import { BottomNav, SettingsCircle } from './src/components/BottomNav';
+import { BottomNav } from './src/components/BottomNav';
 import { useAnonymousSession } from './src/hooks/useAnonymousSession';
 import { useHousehold } from './src/hooks/useHousehold';
 import { useLists } from './src/hooks/useLists';
@@ -200,17 +200,9 @@ function Bootstrapped({ env }: { env: Env }) {
   const lists = useLists(client, ready);
   const tokens = useTheme();
 
-  // Computed safely ahead of the early returns below (view.state only exists once
-  // view.status === 'loaded') so the Settings gear — wired globally here, not
-  // per-screen — always knows whether "Household" or "Join or create a household" is
-  // correct, on every screen, including the ones rendered before a household loads.
-  const hasHousehold = view.status === 'loaded' && view.state.status === 'member';
-
-  // A function, not a plain object, as of #24: the Settings gear it installs via
-  // headerRight needs each screen's own `navigation` to call popTo on, which
-  // only this function form of screenOptions is handed. #157's back circle needs the
-  // `route` too, to tell a drill-down screen from a top-level one. Shopping Mode keeps
-  // only the back circle (#158), so its headerRight is empty.
+  // A function, not a plain object: #157's back circle needs each screen's own `navigation`
+  // to pop with, and the `route` to tell a drill-down screen from a top-level one. The
+  // header has no right control (#158: Settings lives beside the bottom pill).
   const screenOptions = useCallback(
     ({
       navigation,
@@ -223,12 +215,8 @@ function Bootstrapped({ env }: { env: Env }) {
       headerLeft: isDrillDown(route)
         ? () => <BackCircle navigation={navigation} />
         : () => null,
-      headerRight:
-        route.name === 'Shopping'
-          ? () => null
-          : () => <SettingsCircle navigation={navigation} hasHousehold={hasHousehold} />,
     }),
-    [tokens, hasHousehold],
+    [tokens],
   );
 
   // The bottom pill (#158) is drawn once here, in flow under the active screen, rather
@@ -241,7 +229,7 @@ function Bootstrapped({ env }: { env: Env }) {
       navigation,
     }: {
       children: ReactNode;
-      state: { routes: { name: string }[]; index: number };
+      state: { routes: { name: string }[]; index: number; routeNames: string[] };
       navigation: { dispatch: (action: ReturnType<typeof StackActions.popTo>) => void };
     }) => {
       const focused = state.routes[state.index]?.name;
@@ -423,15 +411,15 @@ function Bootstrapped({ env }: { env: Env }) {
  * a `HeaderBackButton` whenever `navigation.canGoBack()` is true. An explicit
  * `headerLeft` (a circle or `() => null`) is what that web fallback actually checks.
  *
- * The title is centred on every screen so the wordmark does not move between screens
- * that have a back circle and screens that do not.
+ * The wordmark is left-aligned (Ant, 2026-10-07), beside the back circle on drill-down
+ * screens; the header has no right control.
  */
 function headerOptions(tokens: Tokens) {
   return {
     headerStyle: { backgroundColor: tokens.color.ground },
     headerTintColor: tokens.color.textPrimary,
     headerTitle: () => <HeaderLogo />,
-    headerTitleAlign: 'center' as const,
+    headerTitleAlign: 'left' as const,
     headerShadowVisible: false,
     headerBackVisible: false,
     contentStyle: { backgroundColor: tokens.color.ground },

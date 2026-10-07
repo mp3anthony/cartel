@@ -43,15 +43,15 @@ _Avoid_: Competitor styling
 ### App shell
 
 **Bottom nav**:
-The floating pill at the bottom of every screen (built in #158, replacing the hamburger): Home, Lists, Stores, History. The current section is ringed (Settings and Feedback ring nothing). It hides while the on-screen keyboard is up and in Shopping Mode, which keeps only the back circle. The dashboard is called "Home" here.
+The floating pill at the bottom of every screen (built in #158, replacing the hamburger): Home, Lists, Stores, History, with the Settings gear as a separate circle at its right in the same row. The current section is ringed (Settings and Feedback ring nothing). The row hides while the on-screen keyboard is up and in Shopping Mode, which keeps only the back circle. The dashboard is called "Home" here.
 _Avoid_: Tab bar, menu, drawer, sidebar
 
 **Settings gear**:
-The circular gear button at the header's right (accessibility label "Settings"), in the slot the hamburger used to hold. Until #109 lands it opens the Household screen (or "Join or create a household" without one); #109 turns that into Settings, see `household.md`. Absent in Shopping Mode.
+The circular gear button beside the bottom nav, at its right, in the same floating row (accessibility label "Settings"); not a nav link, never ringed. Hides with the bottom nav. Until #109 lands it opens the Household screen (or "Join or create a household" without one); #109 turns that into Settings, see `household.md`.
 _Avoid_: Menu, cog
 
 **Back circle**:
-The circular chevron button at the header's left (accessibility label "Back"), built in #157. Shown on drill-down screens only: list detail, Shopping Mode, a Store's item catalog, Feedback, Store missing, and the Stores picker when opened to attach a store to a list. Not on Home, Lists, plain Stores, History or Household (the bottom-nav destinations and the screen behind the gear). It does what the browser Back does.
+The circular chevron button at the header's left, before the wordmark (accessibility label "Back"), built in #157. Shown on drill-down screens only: list detail, Shopping Mode, a Store's item catalog, Feedback, Store missing, and the Stores picker when opened to attach a store to a list. Not on Home, Lists, plain Stores, History or Household (the bottom-nav destinations and the screen behind the gear). It does what the browser Back does.
 _Avoid_: Back arrow, back chevron
 
 **Close circle**:

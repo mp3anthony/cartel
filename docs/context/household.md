@@ -7,7 +7,7 @@ Who you shop with. A household is optional: the app is fully usable alone, and s
 ### The group
 
 **Household**:
-The small group of people who share lists, reached today from the gear at the header's right (the Household screen, or "Join or create a household" when you are not in one); decided in #109 (not built yet), it is reached through Settings. A user belongs to at most one household. Created with "Create a household", joined with "Join household".
+The small group of people who share lists, reached today from the Settings gear beside the bottom nav (the Household screen, or "Join or create a household" when you are not in one); decided in #109 (not built yet), it is reached through Settings. A user belongs to at most one household. Created with "Create a household", joined with "Join household".
 _Avoid_: Family, team, group, account
 
 **Member**:
@@ -23,7 +23,7 @@ _Avoid_: Free mode, single-user mode
 Today the Household screen also holds Appearance, the version footer and the feedback pill, none of which are household things; #109 turns it into a Settings page. This section describes the decided design, not the current app.
 
 **Settings**:
-The page behind the gear at the header's right, labelled "Settings", shown whether or not you are in a household (it replaces the two states "Household" and "Join or create a household"). Sections: Household, Appearance, a Report issue control top right, and the version footer pinned to the bottom. Rejected: keeping a Household screen and moving Appearance, version and reporting elsewhere.
+The page behind the Settings gear beside the bottom nav, labelled "Settings", shown whether or not you are in a household (it replaces the two states "Household" and "Join or create a household"). Sections: Household, Appearance, a Report issue control top right, and the version footer pinned to the bottom. Rejected: keeping a Household screen and moving Appearance, version and reporting elsewhere.
 _Avoid_: Household screen, Profile, Account
 
 **Household section**:

@@ -4,11 +4,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackActions, type NavigationProp } from '@react-navigation/native';
 
 import { SettingsIcon } from './HeaderIcons';
-import { HeaderCircleButton } from './ui';
 import { useKeyboardVisible } from '../hooks/useKeyboardVisible';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
-import { pressScale, slideTransform, useReduceMotion } from '../theme/motion';
+import { pressScale, pressScaleFill, slideTransform, useReduceMotion } from '../theme/motion';
 import type { Tokens } from '../theme/tokens';
 
 type Navigation = NavigationProp<RootStackParamList>;
@@ -45,30 +44,14 @@ export function navSection(routeName: keyof RootStackParamList): Destination | n
   }
 }
 
-/**
- * The gear at the header's right (#158), replacing the hamburger. Opens the Household
- * screen (or the join-or-create screen without a household) until #109 renames it
- * Settings. `popTo`, never `navigate`: see the navigation rule in `docs/conventions.md`.
- */
-export function SettingsCircle({
-  navigation,
-  hasHousehold,
-}: {
-  navigation: Navigation;
-  hasHousehold: boolean;
-}) {
-  return (
-    <HeaderCircleButton
-      icon={(color) => <SettingsIcon color={color} />}
-      accessibilityLabel="Settings"
-      onPress={() => navigation.dispatch(StackActions.popTo(hasHousehold ? 'Household' : 'HouseholdSetup'))}
-    />
-  );
-}
+/** Pill hairline; part of the shared height the Settings circle matches. */
+const PILL_BORDER = 1;
 
 /**
- * The floating bottom pill (#158): Home, Lists, Stores, History, the current section
- * ringed. Rendered once through the navigator `layout` in `App.tsx`, in flow under the
+ * The floating bottom row (#158): the pill (Home, Lists, Stores, History, the current
+ * section ringed) and, at its right, the Settings circle. The circle is a button, not a
+ * fifth link, and is never ringed; `aria-current` on it is for assistive tech only. Its
+ * diameter is the pill's height (`navHeight` in `createStyles`). Rendered once through the navigator `layout` in `App.tsx`, in flow under the
  * screens, so nothing is ever hidden behind it. Hidden entirely on Shopping Mode; faded
  * out (kept in layout, so nothing jumps) while the keyboard is up.
  */
@@ -76,7 +59,7 @@ export function BottomNav({
   state,
   navigation,
 }: {
-  state: { routes: { name: string }[]; index: number };
+  state: { routes: { name: string }[]; index: number; routeNames: string[] };
   navigation: { dispatch: (action: ReturnType<typeof StackActions.popTo>) => void };
 }) {
   const tokens = useTheme();
@@ -91,6 +74,8 @@ export function BottomNav({
     return null;
   }
 
+  const hasHousehold = state.routeNames.includes('Household');
+  const onSettings = routeName === 'Household' || routeName === 'HouseholdSetup';
   const section = navSection(routeName);
   const currentIndex = LINKS.findIndex((link) => link.destination === section);
   const linkWidth = rowWidth / LINKS.length;
@@ -109,6 +94,7 @@ export function BottomNav({
       pointerEvents={keyboardVisible ? 'none' : 'box-none'}
       aria-hidden={keyboardVisible}
     >
+      <View style={styles.bar}>
       <View style={styles.pill} role="navigation" aria-label="Main">
         <View style={styles.row} onLayout={onLayout}>
           {rowWidth > 0 && currentIndex >= 0 ? (
@@ -143,11 +129,30 @@ export function BottomNav({
           })}
         </View>
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Settings"
+        aria-current={onSettings ? 'page' : undefined}
+        onPress={() =>
+          navigation.dispatch(StackActions.popTo(hasHousehold ? 'Household' : 'HouseholdSetup'))
+        }
+        style={({ pressed }) => [
+          styles.settings,
+          pressed && styles.settingsPressed,
+          pressScaleFill(pressed, reduceMotion),
+        ]}
+      >
+        {({ pressed }) => (
+          <SettingsIcon color={pressed ? tokens.color.accentContrast : tokens.color.textPrimary} />
+        )}
+      </Pressable>
+      </View>
     </View>
   );
 }
 
 function createStyles(tokens: Tokens) {
+  const navHeight = tokens.minTouchTarget + 2 * tokens.space.xs + 2 * PILL_BORDER;
   return StyleSheet.create({
     wrapper: {
       alignItems: 'center',
@@ -158,18 +163,42 @@ function createStyles(tokens: Tokens) {
     hidden: {
       opacity: 0,
     },
-    pill: {
+    bar: {
+      flexDirection: 'row',
+      alignItems: 'center',
       width: '100%',
       maxWidth: 480,
+    },
+    pill: {
+      flex: 1,
+      height: navHeight,
       backgroundColor: tokens.color.surface,
-      borderWidth: 1,
+      borderWidth: PILL_BORDER,
       borderColor: tokens.color.border,
       borderRadius: tokens.radius.pill,
       padding: tokens.space.xs,
       ...tokens.elevation.card,
     },
     row: {
+      flex: 1,
       flexDirection: 'row',
+    },
+    settings: {
+      width: navHeight,
+      height: navHeight,
+      flexShrink: 0,
+      marginLeft: tokens.space.sm,
+      borderRadius: tokens.radius.pill,
+      borderWidth: PILL_BORDER,
+      borderColor: tokens.color.border,
+      backgroundColor: tokens.color.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...tokens.elevation.card,
+    },
+    settingsPressed: {
+      backgroundColor: tokens.color.accent,
+      borderColor: tokens.color.accent,
     },
     ring: {
       position: 'absolute',
