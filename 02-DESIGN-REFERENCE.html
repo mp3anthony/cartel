@@ -97,7 +97,7 @@ td{min-width:7rem}
 .sp-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 .sp-btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accentContrast)}
 .sp-btn.chip.selected{background:var(--accentWash);border-color:var(--accent)}
-.sp-btn.ghost:active,.sp-btn.chip:active,.sp-btn.circle:active,.sp-btn.navgear:active{background:var(--accent);border-color:var(--accent);color:var(--accentContrast);transition:transform 0s,background-color var(--t-feedback) var(--ease-enter),color var(--t-feedback) var(--ease-enter),border-color var(--t-feedback) var(--ease-enter)}
+.sp-btn.ghost:active,.sp-btn.chip:active,.sp-btn.circle:active{background:var(--accent);border-color:var(--accent);color:var(--accentContrast);transition:transform 0s,background-color var(--t-feedback) var(--ease-enter),color var(--t-feedback) var(--ease-enter),border-color var(--t-feedback) var(--ease-enter)}
 .sp-btn.primary:active{background:var(--accentPressed);border-color:var(--accentPressed)}
 .sp-btn:active{transform:scale(.97);transition-duration:0s,var(--t-feedback),var(--t-feedback),var(--t-feedback)}
 .sp-btn:disabled{opacity:.5;cursor:not-allowed;border-style:dashed}
@@ -122,11 +122,11 @@ td{min-width:7rem}
 .tick.on{background:var(--accent);border-color:var(--accent);color:var(--accentContrast)}
 .tick svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .mnote{font-size:.82rem;color:var(--textSecondary);margin:1.2rem 0 0;max-width:none}
-.navrow{--nav-h:54px;position:absolute;left:16px;right:16px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:center}
-.pillnav{flex:1;position:relative;display:grid;grid-template-columns:repeat(4,1fr);height:var(--nav-h);border-radius:999px;background:var(--surface);border:1px solid var(--border);box-shadow:0 8px 24px var(--shadow)}
-.sp-btn.navgear{width:var(--nav-h);height:var(--nav-h);padding:0;border-radius:50%;display:inline-grid;place-items:center;flex:none;box-shadow:0 8px 24px var(--shadow)}
+.pillnav{position:absolute;left:16px;right:16px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(5,1fr);height:54px;border-radius:999px;background:var(--surface);border:1px solid var(--border);box-shadow:0 8px 24px var(--shadow)}
+.pillnav svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;vertical-align:middle}
+.pillnav svg circle:first-child{stroke-width:3.2}
 .pillnav button{position:relative;z-index:1;font:600 .9rem/1 var(--f-body);color:var(--textPrimary);background:none;border:0;border-radius:999px;min-height:44px;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
-.pillnav .ring{position:absolute;top:0;bottom:0;left:0;width:25%;border-radius:999px;box-shadow:inset 0 0 0 2px var(--accent);transform:translateX(calc(var(--i) * 100%));transition:transform var(--t-feedback) var(--ease-enter);pointer-events:none}
+.pillnav .ring{position:absolute;top:0;bottom:0;left:0;width:20%;border-radius:999px;box-shadow:inset 0 0 0 2px var(--accent);transform:translateX(calc(var(--i) * 100%));transition:transform var(--t-feedback) var(--ease-enter);pointer-events:none}
 .pillnav button:focus-visible{outline:2px solid var(--textPrimary);outline-offset:-4px}
 dl.defs{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.4rem 1.2rem}
 dl.defs dt{font-weight:650}dl.defs dd{margin:0}
@@ -220,7 +220,7 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <h2>HS house style for controls <span class="st decided">Buttons, back circle and bottom nav built</span></h2>
 <p>Decided in #139 on 2026-10-06. Hazardous Schematics (HS) is Ant's brand for apps and software. Cartel adopts the HS website's control language so it reads as an HS-built app.</p>
 <div class="callout">
-<p><strong>This section describes the decided design, not the current app.</strong> Ant stated directly: the bottom pill replaces the hamburger because the hamburger is hard to reach, the palette stays, no glass, and only the shape and style of buttons change. Those are decided.</p><p>The following were not directly stated by Ant. They were the orchestrator's reading of his answers. Ant reviewed the specimens below on 2026-10-06 ("looks great") and accepted them: the back circle placement (drill-down screens only) and the hairline look; the close circle (X) for dialogs; the 2px accent ring and 300ms slide on the current nav link (taken from the HS website's nav); the soft shadow on the floating pill; the exact split of four destinations plus a gear; Shopping Mode showing only the back circle. The gear later moved from the header to the bottom row, beside the pill, on 2026-10-07 at Ant's direction.</p>
+<p><strong>This section describes the decided design, not the current app.</strong> Ant stated directly: the bottom pill replaces the hamburger because the hamburger is hard to reach, the palette stays, no glass, and only the shape and style of buttons change. Those are decided.</p><p>The following were not directly stated by Ant. They were the orchestrator's reading of his answers. Ant reviewed the specimens below on 2026-10-06 ("looks great") and accepted them: the back circle placement (drill-down screens only) and the hairline look; the close circle (X) for dialogs; the 2px accent ring and 300ms slide on the current nav link (taken from the HS website's nav); the soft shadow on the floating pill; the exact split of four text destinations plus the gear; Shopping Mode showing only the back circle. On 2026-10-07, at Ant's direction, the gear moved from the header into the bottom pill as a fifth, icon-only item.</p>
 </div>
 
 <h3 id="hs-scope">Scope</h3>
@@ -273,12 +273,12 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <h3 id="hs-nav">Bottom pill nav</h3>
 <ul>
 <li>Built in #158 (0.0.49): the hamburger <code>NavMenu</code> popover is replaced by a floating pill nav at the bottom of every screen, clear of the iPhone home-bar safe-area inset. Reason: thumb reach, the hamburger is awkward to reach. The pill sits in layout flow under the screen rather than overlaying it, so content never scrolls beneath it (no scroll-under); it only looks floating, through side margins, the surface fill, the hairline and the shadow.</li>
-<li>Four text destinations: Home, Lists, Stores, History.</li>
-<li>Settings (the current Household screen, renamed in #109) is a circular gear button at the bottom, right of the nav pill in the same floating row. Its diameter equals the pill height, with the same surface, hairline, shadow and press feedback; label "Settings". It is a button, not a fifth link, never ringed, and nothing changes on the Settings screen. The header has no right control. It opens the current Household screen until #109 lands. Changed 2026-10-07 at Ant's review of the running app.</li>
+<li>Four text destinations: Home, Lists, Stores, History, then the Settings gear.</li>
+<li>Settings (the current Household screen, renamed in #109) is the fifth item in the pill: the gear icon, no text, accessibility label "Settings". It is a nav link like the others: ringed, with the ring sliding to it, while Settings is open. The header has no right control. It opens the current Household screen (or Join or create a household) until #109 lands. Changed 2026-10-07 at Ant's review of the running app.</li>
 <li>Look: solid <code>surface</code> pill, 1px hairline, soft shadow only because it floats. No glass.</li>
 <li>Current destination: a 2px accent ring drawn flush inside that link's capsule, no fill. It slides to the new link on change (300ms, transform only, ease-out). Static under reduce-motion.</li>
-<li>The row (pill and gear) hides while the on-screen keyboard is up, and in Shopping Mode. Shopping Mode keeps only the back circle: oversized targets, no decoration.</li>
-<li>Link tap targets stay at 44pt or larger. Five labels do not fit comfortably at 375px, hence four links plus the gear circle; at 375px each link is about 68pt wide.</li>
+<li>The pill hides while the on-screen keyboard is up, and in Shopping Mode. Shopping Mode keeps only the back circle: oversized targets, no decoration.</li>
+<li>Link tap targets stay at 44pt or larger. Five text labels do not fit comfortably at 375px, hence four text links plus the icon-only gear, in five equal slots; at 375px each slot is about 67pt wide.</li>
 </ul>
 
 <h3 id="hs-collisions">Status and collisions</h3>
@@ -303,7 +303,6 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <button type="button" class="sp-btn chip hit selected" aria-pressed="true">Chip, selected</button>
 <button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
 <button type="button" class="sp-btn circle hit" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
-<button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
 </div>
 <p class="note">Press and hold, or tab to a control. Ghost pill and chips fill with the accent on press only; keyboard focus shows the focus ring, with no fill. Every control scales to 0.97 on press.</p>
 </div>
@@ -319,37 +318,30 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <button type="button" class="sp-btn chip hit selected" aria-pressed="true">Chip, selected</button>
 <button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
 <button type="button" class="sp-btn circle hit" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
-<button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
 </div>
 <p class="note">Press and hold, or tab to a control. Ghost pill and chips fill with the accent on press only; keyboard focus shows the focus ring, with no fill. Every control scales to 0.97 on press.</p>
 </div>
 </div>
 <h4>Phone mock: drill-down screen with bottom pill nav</h4>
-<p>Placeholder content. Back circle and wordmark at the left, nav pill at the bottom with the Settings circle at its right. Tap a nav link to see the ring slide.</p>
+<p>Placeholder content. Back circle and wordmark at the left, nav pill at the bottom with the Settings gear as its last item. Tap a nav item to see the ring slide.</p>
 <div class="mocks">
 <div class="scroll"><div class="cartel-light phone" role="group" aria-label="Phone mock, light theme. Placeholder content.">
 <header class="mhead"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark left">Cartel</span><span class="spacer"></span></header>
 <p class="mtitle">Placeholder list</p>
 <ul class="mlist"><li class="mrow"><span>Placeholder item one</span><span class="tick on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></span></li><li class="mrow"><span>Placeholder item two</span><span class="tick"></span></li><li class="mrow"><span>Placeholder item three</span><span class="tick"></span></li></ul>
-<div class="navrow">
 <nav class="pillnav" aria-label="Primary navigation (specimen)" style="--i:1">
 <span class="ring" aria-hidden="true"></span>
-<button type="button" data-i="0">Home</button><button type="button" data-i="1" aria-current="page">Lists</button><button type="button" data-i="2">Stores</button><button type="button" data-i="3">History</button>
+<button type="button" data-i="0">Home</button><button type="button" data-i="1" aria-current="page">Lists</button><button type="button" data-i="2">Stores</button><button type="button" data-i="3">History</button><button type="button" data-i="4" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
 </nav>
-<button type="button" class="sp-btn navgear" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
-</div>
 </div></div>
 <div class="scroll"><div class="cartel-dark phone" role="group" aria-label="Phone mock, dark theme. Placeholder content.">
 <header class="mhead"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark left">Cartel</span><span class="spacer"></span></header>
 <p class="mtitle">Placeholder list</p>
 <ul class="mlist"><li class="mrow"><span>Placeholder item one</span><span class="tick on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></span></li><li class="mrow"><span>Placeholder item two</span><span class="tick"></span></li><li class="mrow"><span>Placeholder item three</span><span class="tick"></span></li></ul>
-<div class="navrow">
 <nav class="pillnav" aria-label="Primary navigation (specimen)" style="--i:1">
 <span class="ring" aria-hidden="true"></span>
-<button type="button" data-i="0">Home</button><button type="button" data-i="1" aria-current="page">Lists</button><button type="button" data-i="2">Stores</button><button type="button" data-i="3">History</button>
+<button type="button" data-i="0">Home</button><button type="button" data-i="1" aria-current="page">Lists</button><button type="button" data-i="2">Stores</button><button type="button" data-i="3">History</button><button type="button" data-i="4" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
 </nav>
-<button type="button" class="sp-btn navgear" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
-</div>
 </div></div>
 </div>
 <h4>Phone mock: Shopping Mode</h4>

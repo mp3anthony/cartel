@@ -202,7 +202,7 @@ function Bootstrapped({ env }: { env: Env }) {
 
   // A function, not a plain object: #157's back circle needs each screen's own `navigation`
   // to pop with, and the `route` to tell a drill-down screen from a top-level one. The
-  // header has no right control (#158: Settings lives beside the bottom pill).
+  // header has no right control (#158: Settings is the gear in the bottom pill).
   const screenOptions = useCallback(
     ({
       navigation,

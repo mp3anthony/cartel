@@ -550,7 +550,7 @@ export function IconButton({
 
 /**
  * The ringed circle for header controls (#157): the back circle, and the close circle for
- * dialogs. The Settings circle lives beside the bottom pill (`BottomNav`). Unlike `IconButton`, which has no ring at rest, this one
+ * dialogs. Settings is an item in the bottom pill (`BottomNav`), not a circle. Unlike `IconButton`, which has no ring at rest, this one
  * always shows a hairline ring on the surface colour, as the HS site's header controls do.
  * Same 44pt hit box with a 36pt circle inside; press feedback (scale, accent fill) comes
  * only from `motion.ts`, and focus never fills (keyboard focus keeps the ring).

@@ -7,24 +7,25 @@ import { SettingsIcon } from './HeaderIcons';
 import { useKeyboardVisible } from '../hooks/useKeyboardVisible';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
-import { pressScale, pressScaleFill, slideTransform, useReduceMotion } from '../theme/motion';
+import { pressScale, slideTransform, useReduceMotion } from '../theme/motion';
 import type { Tokens } from '../theme/tokens';
 
 type Navigation = NavigationProp<RootStackParamList>;
-type Destination = 'Dashboard' | 'Lists' | 'Locations' | 'History';
+type Destination = 'Dashboard' | 'Lists' | 'Locations' | 'History' | 'Settings';
 
-/** Pill order; the ring's slot index is the position here. */
-const LINKS: { label: string; destination: Destination }[] = [
+/** Pill order; the ring's slot index is the position here. Settings is the icon-only gear. */
+const ITEMS: { label: string; destination: Destination; icon?: boolean }[] = [
   { label: 'Home', destination: 'Dashboard' },
   { label: 'Lists', destination: 'Lists' },
   { label: 'Stores', destination: 'Locations' },
   { label: 'History', destination: 'History' },
+  { label: 'Settings', destination: 'Settings', icon: true },
 ];
 
 /**
- * Which pill link a route belongs to (#158), or null when it belongs to none (Settings,
- * Feedback: the pill shows but nothing is ringed). `Shopping` is handled by the caller:
- * it gets no pill at all.
+ * Which pill item a route belongs to (#158), or null when it belongs to none (Feedback:
+ * the pill shows but nothing is ringed). `Shopping` is handled by the caller: it gets no
+ * pill at all.
  */
 export function navSection(routeName: keyof RootStackParamList): Destination | null {
   switch (routeName) {
@@ -39,21 +40,21 @@ export function navSection(routeName: keyof RootStackParamList): Destination | n
       return 'Locations';
     case 'History':
       return 'History';
+    case 'Household':
+    case 'HouseholdSetup':
+      return 'Settings';
     default:
       return null;
   }
 }
 
-/** Pill hairline; part of the shared height the Settings circle matches. */
-const PILL_BORDER = 1;
-
 /**
- * The floating bottom row (#158): the pill (Home, Lists, Stores, History, the current
- * section ringed) and, at its right, the Settings circle. The circle is a button, not a
- * fifth link, and is never ringed; `aria-current` on it is for assistive tech only. Its
- * diameter is the pill's height (`navHeight` in `createStyles`). Rendered once through the navigator `layout` in `App.tsx`, in flow under the
- * screens, so nothing is ever hidden behind it. Hidden entirely on Shopping Mode; faded
- * out (kept in layout, so nothing jumps) while the keyboard is up.
+ * The floating bottom pill (#158): Home, Lists, Stores, History and the Settings gear
+ * (icon-only, the fifth link), in equal-width slots. The current section is ringed,
+ * Settings included while Household or HouseholdSetup is open. Rendered once through the
+ * navigator `layout` in `App.tsx`, in flow under the screens, so nothing is ever hidden
+ * behind it. Hidden entirely on Shopping Mode; faded out (kept in layout, so nothing
+ * jumps) while the keyboard is up.
  */
 export function BottomNav({
   state,
@@ -75,10 +76,9 @@ export function BottomNav({
   }
 
   const hasHousehold = state.routeNames.includes('Household');
-  const onSettings = routeName === 'Household' || routeName === 'HouseholdSetup';
   const section = navSection(routeName);
-  const currentIndex = LINKS.findIndex((link) => link.destination === section);
-  const linkWidth = rowWidth / LINKS.length;
+  const currentIndex = ITEMS.findIndex((link) => link.destination === section);
+  const linkWidth = rowWidth / ITEMS.length;
 
   function onLayout(event: LayoutChangeEvent) {
     setRowWidth(event.nativeEvent.layout.width);
@@ -94,7 +94,6 @@ export function BottomNav({
       pointerEvents={keyboardVisible ? 'none' : 'box-none'}
       aria-hidden={keyboardVisible}
     >
-      <View style={styles.bar}>
       <View style={styles.pill} role="navigation" aria-label="Main">
         <View style={styles.row} onLayout={onLayout}>
           {rowWidth > 0 && currentIndex >= 0 ? (
@@ -107,7 +106,7 @@ export function BottomNav({
               ]}
             />
           ) : null}
-          {LINKS.map((link) => {
+          {ITEMS.map((link) => {
             const current = link.destination === section;
             return (
               <Pressable
@@ -115,44 +114,41 @@ export function BottomNav({
                 accessibilityRole="link"
                 accessibilityLabel={link.label}
                 aria-current={current ? 'page' : undefined}
-                onPress={() => navigation.dispatch(StackActions.popTo(link.destination))}
+                onPress={() =>
+                  navigation.dispatch(
+                    StackActions.popTo(
+                      link.destination === 'Settings'
+                        ? hasHousehold
+                          ? 'Household'
+                          : 'HouseholdSetup'
+                        : link.destination,
+                    ),
+                  )
+                }
                 style={({ pressed }) => [styles.link, pressScale(pressed, reduceMotion)]}
               >
-                <Text
-                  numberOfLines={1}
-                  style={[styles.label, current ? styles.labelCurrent : styles.labelOther]}
-                >
-                  {link.label}
-                </Text>
+                {link.icon ? (
+                  <SettingsIcon
+                    color={current ? tokens.color.textPrimary : tokens.color.textSecondary}
+                  />
+                ) : (
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.label, current ? styles.labelCurrent : styles.labelOther]}
+                  >
+                    {link.label}
+                  </Text>
+                )}
               </Pressable>
             );
           })}
         </View>
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Settings"
-        aria-current={onSettings ? 'page' : undefined}
-        onPress={() =>
-          navigation.dispatch(StackActions.popTo(hasHousehold ? 'Household' : 'HouseholdSetup'))
-        }
-        style={({ pressed }) => [
-          styles.settings,
-          pressed && styles.settingsPressed,
-          pressScaleFill(pressed, reduceMotion),
-        ]}
-      >
-        {({ pressed }) => (
-          <SettingsIcon color={pressed ? tokens.color.accentContrast : tokens.color.textPrimary} />
-        )}
-      </Pressable>
       </View>
     </View>
   );
 }
 
 function createStyles(tokens: Tokens) {
-  const navHeight = tokens.minTouchTarget + 2 * tokens.space.xs + 2 * PILL_BORDER;
   return StyleSheet.create({
     wrapper: {
       alignItems: 'center',
@@ -163,17 +159,11 @@ function createStyles(tokens: Tokens) {
     hidden: {
       opacity: 0,
     },
-    bar: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    pill: {
       width: '100%',
       maxWidth: 480,
-    },
-    pill: {
-      flex: 1,
-      height: navHeight,
       backgroundColor: tokens.color.surface,
-      borderWidth: PILL_BORDER,
+      borderWidth: 1,
       borderColor: tokens.color.border,
       borderRadius: tokens.radius.pill,
       padding: tokens.space.xs,
@@ -182,23 +172,6 @@ function createStyles(tokens: Tokens) {
     row: {
       flex: 1,
       flexDirection: 'row',
-    },
-    settings: {
-      width: navHeight,
-      height: navHeight,
-      flexShrink: 0,
-      marginLeft: tokens.space.sm,
-      borderRadius: tokens.radius.pill,
-      borderWidth: PILL_BORDER,
-      borderColor: tokens.color.border,
-      backgroundColor: tokens.color.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      ...tokens.elevation.card,
-    },
-    settingsPressed: {
-      backgroundColor: tokens.color.accent,
-      borderColor: tokens.color.accent,
     },
     ring: {
       position: 'absolute',

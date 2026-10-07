@@ -33,7 +33,7 @@ import type { Tokens } from '../theme/tokens';
  * The household's name is missing here on purpose: it's still this screen's tab
  * title (`Stack.Screen`'s own `title` in App.tsx), just no longer drawn in the
  * header itself — the header shows the `HeaderLogo` wordmark instead of screen
- * names, and the bottom nav and its Settings circle (#158) are how you get here and
+ * names, and the bottom nav and its Settings gear (#158) are how you get here and
  * away. Naming the household again here would only repeat what the tab title
  * already carries, not fill a gap.
  */

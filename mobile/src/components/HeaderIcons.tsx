@@ -1,7 +1,7 @@
 import Svg, { Circle, Path } from 'react-native-svg';
 
 /**
- * Glyphs for the circular header controls (#157): a back chevron and a close X, drawn at
+ * Glyphs for the circular header controls (#157) and the bottom pill's Settings item: a back chevron and a close X, drawn at
  * the weight of the HS site's header icons. `react-native-svg` paths like `RowIcons`, so
  * nothing loads and both themes work on first paint. `color` is required: the control
  * recolours the glyph on press, so there is no sensible default. The control that holds
@@ -35,7 +35,7 @@ export function BackIcon({ color }: { color: string }) {
   return <HeaderGlyph color={color} d="M14.5 6l-6 6 6 6" />;
 }
 
-/** The gear (#158): a dashed outer ring for the teeth, a ring and a hub; same as the design reference. Drawn in the bottom Settings circle (`BottomNav`). */
+/** The gear (#158): a dashed outer ring for the teeth, a ring and a hub; same as the design reference. Drawn as the Settings item in the bottom pill (`BottomNav`). */
 export function SettingsIcon({ color }: { color: string }) {
   return (
     <Svg

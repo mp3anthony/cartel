@@ -43,11 +43,11 @@ _Avoid_: Competitor styling
 ### App shell
 
 **Bottom nav**:
-The floating pill at the bottom of every screen (built in #158, replacing the hamburger): Home, Lists, Stores, History, with the Settings gear as a separate circle at its right in the same row. The current section is ringed (Settings and Feedback ring nothing). The row hides while the on-screen keyboard is up and in Shopping Mode, which keeps only the back circle. The dashboard is called "Home" here.
+The floating pill at the bottom of every screen (built in #158, replacing the hamburger): Home, Lists, Stores, History and the Settings gear (icon only) as its last item. The current section is ringed, the gear included on Settings (Feedback rings nothing). The pill hides while the on-screen keyboard is up and in Shopping Mode, which keeps only the back circle. The dashboard is called "Home" here.
 _Avoid_: Tab bar, menu, drawer, sidebar
 
 **Settings gear**:
-The circular gear button beside the bottom nav, at its right, in the same floating row (accessibility label "Settings"); not a nav link, never ringed. Hides with the bottom nav. Until #109 lands it opens the Household screen (or "Join or create a household" without one); #109 turns that into Settings, see `household.md`.
+The icon-only fifth item in the bottom nav (accessibility label "Settings"); a nav link like the others, ringed while Settings is open. Hides with the bottom nav. Until #109 lands it opens the Household screen (or "Join or create a household" without one); #109 turns that into Settings, see `household.md`.
 _Avoid_: Menu, cog
 
 **Back circle**:
