@@ -2,10 +2,15 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-07, end of session 30)
+## Current state (2026-10-07, end of session 31)
+
+- **#167 (Back can return to a stale or deleted list) shipped (0.0.50, PR #171, closed).** New `mobile/src/navigation/backToLists.ts` replaces the three `navigate('Lists')` calls: pops to an existing Lists screen, else resets the stack cut at the dead list's screens with Lists in their place (spreads current state to keep the navigator key so Safari history stays in step; plain `popTo` alone left Shopping-from-Home on the dead list). Reviewed clean by a separate Sonnet agent; `tsc` clean. Ant accepted it without running the iPhone checklist (8 scenarios on issue #167; scenarios 3 and 6 exercise the stack cut) and will raise it if anything misbehaves. In-app browser check: only scenario 4 (cold link to a missing list, "Back to your lists" lands on `/lists`) was run, at desktop size; phone-size emulation did not register clicks (tooling), so scenarios 1-3, 5 and 6 were not run. No `03-SPEC.md` section was active. Lesson added to `docs/lessons.md`.
+- **Next: #106 (case-duplicates, Planner) or #109 (Settings, Planner); Ant picks.** See Blocking order.
+
+## Session 30 state (2026-10-07)
 
 - **#158 (floating bottom pill nav) shipped (0.0.49, PR #169, closed) and its parent #139 (HS house style) is closed.** Ant ran the iPhone checklist on the preview and it passed. At his review the design changed from the plan: the wordmark is **left-aligned** (beside the back circle on drill-down screens), the header has **no right control**, and Settings is the pill's **fifth, icon-only gear item** (equal slots, ringed on Household/HouseholdSetup, same press feel as the links). A separate circle beside the pill was tried and rejected. The design reference Artifact is republished (see `docs/environment.md`). Lessons added to `docs/lessons.md`. Open nits, skipped: "History" has about 3-5pt spare at 375px and would truncate under larger Dynamic Type; links stay Tab-focusable while the pill is hidden; the ring pops in rather than slides after Feedback; the "Header, today" schematic mocks in the design reference are intentionally unchanged. No `03-SPEC.md` section was active.
-- **#167 (Back can return to a stale or deleted list) is filed, `needs-triage`; it is next.** `navigate('Lists')` at `ListDetailScreen.tsx:487`, `:598` and `ShoppingScreen.tsx:836` pushes a duplicate Lists screen; fix is `popTo('Lists')`. After a reload or deep link, Back goes to Home (matches Safari Back). Dev console shows React DOM warnings for `accessible` and `importantForAccessibility` on SVG icons (existing pattern).
+- After a reload or deep link, Back goes to Home (matches Safari Back). Dev console shows React DOM warnings for `accessible` and `importantForAccessibility` on SVG icons (existing pattern).
 - **#157 (circular back button) shipped (0.0.48, PR #166).** Passed the iPhone checklist.
 - **#156 (HS pill buttons and press feedback) shipped (0.0.47, PR #164, closed).** New `mobile/src/theme/motion.ts`; iPhone checklist passed.
 - **#143 (content-sized buttons) shipped (0.0.46, PR #162, closed).**
@@ -24,7 +29,7 @@
 - Open nits, deliberately skipped. Slice B review (all cosmetic): the "already ×99" note shows the success tick (`Banner` is positive-only); on list detail the bump note can go stale after a stepper tap (spec: cleared on add or tick only); in Shopping Mode the note survives Finish and Reset. Slice A review: a narrow flicker window if a refetch lands after the last write resolves; a hung request keeps Finish disabled until reload; `writeShown` missing from an effect's deps (lint only). Each tap bumps `lists.last_activity_at`, so lists reload per tap (Ant mentioned lag elsewhere; watch it).
 - **#107 shipped (0.0.43, PR #132).** Stores are read-only to clients (ADR 0007). Ant has not run scenario 1 (real GPS nearby) or a 0.0.43 iPhone smoke check. The S4 tests (`rls_locations*.sql`, fixtures, `store_catalog.sql`) were reviewed statically; Ant reports the quantity tests passed but has not confirmed the S4 ones. Run them (all roll back) before relying on them.
 - Open nits: Store missing reports are public GitHub issues (accepted); no rate limit on that path; comment at `supabase/tests/rls_location_items.sql:23` still names the dropped `locations_insert_own`; `LocationsScreen.tsx` header comments may still describe the old create/edit flow; the badge shape is now a circle (docs only mention it in the `StoreBadge.tsx` comment).
-- `main` is at 0.0.49 (`mobile/app.json`). Production holds real user data.
+- `main` is at 0.0.50 (`mobile/app.json`). Production holds real user data.
 - #117 shipped (0.0.41); details in `docs/lessons.md`. Open follow-ups: no iPhone check was run, the household screen has no Try again of its own, and which query fails first is still unverified (the next real occurrence shows in the `[cartel:postgrest-retry]` log).
 - #94 shipped (0.0.40): the Stores / Item location vocabulary. The iOS native permission string in `mobile/app.json` (`locationWhenInUsePermission`) still says "location" (native builds only). `mobile/package-lock.json` still says 0.0.36 (never kept in step).
 - Ticket #123: drag auto-scroll near the screen edge on long lists (v1 limit; needs an iPhone check). Unlogged: Ant mentioned a lag issue (some actions slow, others instant); he will log it himself.
@@ -36,15 +41,14 @@ Can start now (no blockers):
 
 1. **#106** (grilled, unblocked). Planner next; the production migration slice stops at the plan for Ant.
 2. Plan #109 (grilled; see above).
-3. **#167** (triage, Planner, build; fix is `popTo('Lists')`).
-4. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 waits for #106's migration plan so both run together.
-5. #123 (low priority, whenever).
+3. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 waits for #106's migration plan so both run together.
+4. #123 (low priority, whenever).
 
 Then:
 
-6. #144 after #143; #145 after #144.
-7. #103 after the Home work lands (it was held for #110's grill, which is now done; confirm the exact ordering with Ant when picking it up).
-8. #90, blocked by #109 (needs building) and the Home navigation work. Stops at the plan for Ant (RLS, deleting a household). Its Leave household button moves into the Settings Household section.
+5. #144 after #143; #145 after #144.
+6. #103 after the Home work lands (it was held for #110's grill, which is now done; confirm the exact ordering with Ant when picking it up).
+7. #90, blocked by #109 (needs building) and the Home navigation work. Stops at the plan for Ant (RLS, deleting a household). Its Leave household button moves into the Settings Household section.
 
 Collisions: #103 touches `ListDetailScreen`; whichever lands second rebases onto the drag-handle row, the quantity control and the new wording. #109, #103 and #110 (#144, #145) all touch navigation and screens; whichever lands later rebases.
 
