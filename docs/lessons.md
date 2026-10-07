@@ -49,6 +49,8 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - Subagents cannot reach the Browser pane (it reads 0x0, screenshots fail); do not spawn a Verifier expecting it to.
 - iOS PWA status bar: `expo-status-bar` is a no-op on web; chrome colour comes from the `theme-color` meta, the manifest `theme_color` and the top element's background. Its icon colour is one static choice (unverified).
 - Generating icons: use resvg-js rather than sharp's librsvg for SVG with a data-URI `@font-face`.
+- react-native-web's `Keyboard` module does nothing on web, so keyboard show/hide listeners never fire there (#158).
+- iOS Safari only exposes safe-area insets when the viewport meta has `viewport-fit=cover`; without it `env(safe-area-inset-*)` is 0 (#158).
 
 ## Process
 
