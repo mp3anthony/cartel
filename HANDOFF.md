@@ -2,10 +2,14 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-07, end of session 31)
+## Current state (2026-10-07, end of session 32)
+
+- **#106 (case-duplicates) is planned and reviewed, not built; stops for Ant's decisions.** The v2 plan is posted as a comment on issue #106 (https://github.com/mp3anthony/cartel/issues/106#issuecomment-6035970194): slices 1, 2a, 2b, 3, 4a, 4b, with iPhone checklists and decisions D1-D13. A separate Sonnet review of v1 found no blockers; its fixes are in v2, which was not re-reviewed. **Ant must answer D1-D3 (fold by NFD-strip not `unaccent`; also fold curly quotes and dashes; first-character capitalise so "iPhone cable" becomes "IPhone cable") before slice 1, and D4-D13 before slices 3, 4a, 4b.** Slices 3, 4a and 4b each stop at their production migration for Ant to apply by hand; 4b waits for #155's plan. Build in a fresh session: read the issue comment, then Code Writer for slice 1, separate reviewer. Standing rule saved: after a plan is reviewed, pause and send PC + mobile notification before the Code Writer. No `03-SPEC.md` section was active.
+
+## Session 31 state (2026-10-07)
 
 - **#167 (Back can return to a stale or deleted list) shipped (0.0.50, PR #171, closed).** New `mobile/src/navigation/backToLists.ts` replaces the three `navigate('Lists')` calls: pops to an existing Lists screen, else resets the stack cut at the dead list's screens with Lists in their place (spreads current state to keep the navigator key so Safari history stays in step; plain `popTo` alone left Shopping-from-Home on the dead list). Reviewed clean by a separate Sonnet agent; `tsc` clean. Ant accepted it without running the iPhone checklist (8 scenarios on issue #167; scenarios 3 and 6 exercise the stack cut) and will raise it if anything misbehaves. In-app browser check: only scenario 4 (cold link to a missing list, "Back to your lists" lands on `/lists`) was run, at desktop size; phone-size emulation did not register clicks (tooling), so scenarios 1-3, 5 and 6 were not run. No `03-SPEC.md` section was active. Lesson added to `docs/lessons.md`.
-- **Next: #106 (case-duplicates, Planner) or #109 (Settings, Planner); Ant picks.** See Blocking order.
+- **Next after #106: #109 (Settings, Planner).** See Blocking order.
 
 ## Session 30 state (2026-10-07)
 
@@ -39,7 +43,7 @@
 
 Can start now (no blockers):
 
-1. **#106** (grilled, unblocked). Planner next; the production migration slice stops at the plan for Ant.
+1. **#106** (planned and reviewed; awaiting Ant's D1-D13, see Current state). Slice 1 next once D1-D3 are answered.
 2. Plan #109 (grilled; see above).
 3. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 waits for #106's migration plan so both run together.
 4. #123 (low priority, whenever).
