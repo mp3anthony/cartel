@@ -112,7 +112,7 @@ td{min-width:7rem}
 .mhead.flat{border:1px solid var(--border);background:var(--ground);padding:0 8px}
 .mark{text-align:center;font-weight:700;font-size:1.1rem;letter-spacing:.01em}
 .mark.left{text-align:left;padding-left:.4rem}
-.mhead.flat .mark.left{grid-column:1/3}
+.mhead.flat>.mark.left:first-child{grid-column:1/3}
 .mtitle{font-size:1.4rem;font-weight:700;margin:1.2rem 0 .2rem}
 .mlist{list-style:none;padding:0;margin:.9rem 0 0;display:grid;gap:.7rem;max-width:none}
 .mrow{display:flex;justify-content:space-between;align-items:center;margin:0;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:.8rem 1rem;box-shadow:0 4px 16px var(--shadow)}
@@ -122,9 +122,11 @@ td{min-width:7rem}
 .tick.on{background:var(--accent);border-color:var(--accent);color:var(--accentContrast)}
 .tick svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .mnote{font-size:.82rem;color:var(--textSecondary);margin:1.2rem 0 0;max-width:none}
-.pillnav{position:absolute;left:16px;right:16px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(4,1fr);height:48px;border-radius:999px;background:var(--surface);border:1px solid var(--border);box-shadow:0 8px 24px var(--shadow)}
+.pillnav{position:absolute;left:16px;right:16px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(5,1fr);height:54px;border-radius:999px;background:var(--surface);border:1px solid var(--border);box-shadow:0 8px 24px var(--shadow)}
+.pillnav svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;vertical-align:middle}
+.pillnav svg circle:first-child{stroke-width:3.2}
 .pillnav button{position:relative;z-index:1;font:600 .9rem/1 var(--f-body);color:var(--textPrimary);background:none;border:0;border-radius:999px;min-height:44px;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
-.pillnav .ring{position:absolute;top:0;bottom:0;left:0;width:25%;border-radius:999px;box-shadow:inset 0 0 0 2px var(--accent);transform:translateX(calc(var(--i) * 100%));transition:transform var(--t-feedback) var(--ease-enter);pointer-events:none}
+.pillnav .ring{position:absolute;top:0;bottom:0;left:0;width:20%;border-radius:999px;box-shadow:inset 0 0 0 2px var(--accent);transform:translateX(calc(var(--i) * 100%));transition:transform var(--t-feedback) var(--ease-enter);pointer-events:none}
 .pillnav button:focus-visible{outline:2px solid var(--textPrimary);outline-offset:-4px}
 dl.defs{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.4rem 1.2rem}
 dl.defs dt{font-weight:650}dl.defs dd{margin:0}
@@ -215,10 +217,10 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 </section>
 
 <section id="house-style">
-<h2>HS house style for controls <span class="st decided">Buttons and back circle built; bottom nav decided, not built</span></h2>
+<h2>HS house style for controls <span class="st decided">Buttons, back circle and bottom nav built</span></h2>
 <p>Decided in #139 on 2026-10-06. Hazardous Schematics (HS) is Ant's brand for apps and software. Cartel adopts the HS website's control language so it reads as an HS-built app.</p>
 <div class="callout">
-<p><strong>This section describes the decided design, not the current app.</strong> Ant stated directly: the bottom pill replaces the hamburger because the hamburger is hard to reach, the palette stays, no glass, and only the shape and style of buttons change. Those are decided.</p><p>The following were not directly stated by Ant. They were the orchestrator's reading of his answers. Ant reviewed the specimens below on 2026-10-06 ("looks great") and accepted them: the back circle placement (drill-down screens only) and the hairline look; the close circle (X) for dialogs; the 2px accent ring and 300ms slide on the current nav link (taken from the HS website's nav); the soft shadow on the floating pill; the exact split of four destinations plus a gear; Shopping Mode showing only the back circle.</p>
+<p><strong>This section describes the decided design, not the current app.</strong> Ant stated directly: the bottom pill replaces the hamburger because the hamburger is hard to reach, the palette stays, no glass, and only the shape and style of buttons change. Those are decided.</p><p>The following were not directly stated by Ant. They were the orchestrator's reading of his answers. Ant reviewed the specimens below on 2026-10-06 ("looks great") and accepted them: the back circle placement (drill-down screens only) and the hairline look; the close circle (X) for dialogs; the 2px accent ring and 300ms slide on the current nav link (taken from the HS website's nav); the soft shadow on the floating pill; the exact split of four text destinations plus the gear; Shopping Mode showing only the back circle. On 2026-10-07, at Ant's direction, the gear moved from the header into the bottom pill as a fifth, icon-only item.</p>
 </div>
 
 <h3 id="hs-scope">Scope</h3>
@@ -265,23 +267,23 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <li>Shown on drill-down screens only: list detail, Shopping Mode, a Store's item catalog, Feedback and similar.</li>
 <li>Not shown on the four bottom-nav destinations.</li>
 <li>A matching close circle (X) is used for dialogs.</li>
-<li>Built in #157 (0.0.48). The wordmark is centred on every screen, so it does not move between screens with and without a back circle.</li>
+<li>Built in #157 (0.0.48). The wordmark sits at the left, beside the back circle on drill-down screens (changed in #158 at Ant's review, 2026-10-07).</li>
 </ul>
 
 <h3 id="hs-nav">Bottom pill nav</h3>
 <ul>
-<li>The hamburger <code>NavMenu</code> popover is to be replaced by a floating pill nav fixed at the bottom of every screen, clear of the iPhone home-bar safe-area inset. Reason: thumb reach, the hamburger is awkward to reach.</li>
-<li>Four text destinations: Home, Lists, Stores, History.</li>
-<li>Settings (the current Household screen, renamed in #109) moves to a circular gear icon button at the header's right, in the hamburger's slot.</li>
+<li>Built in #158 (0.0.49): the hamburger <code>NavMenu</code> popover is replaced by a floating pill nav at the bottom of every screen, clear of the iPhone home-bar safe-area inset. Reason: thumb reach, the hamburger is awkward to reach. The pill sits in layout flow under the screen rather than overlaying it, so content never scrolls beneath it (no scroll-under); it only looks floating, through side margins, the surface fill, the hairline and the shadow.</li>
+<li>Four text destinations: Home, Lists, Stores, History, then the Settings gear.</li>
+<li>Settings (the current Household screen, renamed in #109) is the fifth item in the pill: the gear icon, no text, accessibility label "Settings". It is a nav link like the others: ringed, with the ring sliding to it, while Settings is open. The header has no right control. It opens the current Household screen (or Join or create a household) until #109 lands. Changed 2026-10-07 at Ant's review of the running app.</li>
 <li>Look: solid <code>surface</code> pill, 1px hairline, soft shadow only because it floats. No glass.</li>
 <li>Current destination: a 2px accent ring drawn flush inside that link's capsule, no fill. It slides to the new link on change (300ms, transform only, ease-out). Static under reduce-motion.</li>
-<li>Hides while the on-screen keyboard is up, and in Shopping Mode. Shopping Mode keeps only the back circle: oversized targets, no decoration.</li>
-<li>Link tap targets stay at 44pt or larger. Five labels do not fit comfortably at 375px, hence four plus the gear.</li>
+<li>The pill hides while the on-screen keyboard is up, and in Shopping Mode. Shopping Mode keeps only the back circle: oversized targets, no decoration.</li>
+<li>Link tap targets stay at 44pt or larger. Five text labels do not fit comfortably at 375px, hence four text links plus the icon-only gear, in five equal slots; at 375px each slot is about 67pt wide.</li>
 </ul>
 
 <h3 id="hs-collisions">Status and collisions</h3>
 <ul>
-<li>Status: buttons, chips and press feedback built in #156 (0.0.47). The back circle built in #157 (0.0.48). The bottom pill nav (#158) is decided, not built.</li>
+<li>Status: buttons, chips and press feedback built in #156 (0.0.47). The back circle built in #157 (0.0.48). The bottom pill nav is built in #158 (0.0.49).</li>
 <li>Navigation collides with #109, #103 and #110 (#144, #145). Whichever lands later rebases.</li>
 </ul>
 
@@ -301,7 +303,6 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <button type="button" class="sp-btn chip hit selected" aria-pressed="true">Chip, selected</button>
 <button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
 <button type="button" class="sp-btn circle hit" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
-<button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
 </div>
 <p class="note">Press and hold, or tab to a control. Ghost pill and chips fill with the accent on press only; keyboard focus shows the focus ring, with no fill. Every control scales to 0.97 on press.</p>
 </div>
@@ -317,30 +318,29 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <button type="button" class="sp-btn chip hit selected" aria-pressed="true">Chip, selected</button>
 <button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
 <button type="button" class="sp-btn circle hit" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
-<button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
 </div>
 <p class="note">Press and hold, or tab to a control. Ghost pill and chips fill with the accent on press only; keyboard focus shows the focus ring, with no fill. Every control scales to 0.97 on press.</p>
 </div>
 </div>
 <h4>Phone mock: drill-down screen with bottom pill nav</h4>
-<p>Placeholder content. Back circle at the left, wordmark in the middle, gear at the right, nav pill at the bottom with the current link ringed. Tap a nav link to see the ring slide.</p>
+<p>Placeholder content. Back circle and wordmark at the left, nav pill at the bottom with the Settings gear as its last item. Tap a nav item to see the ring slide.</p>
 <div class="mocks">
 <div class="scroll"><div class="cartel-light phone" role="group" aria-label="Phone mock, light theme. Placeholder content.">
-<header class="mhead"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button></header>
+<header class="mhead"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark left">Cartel</span><span class="spacer"></span></header>
 <p class="mtitle">Placeholder list</p>
 <ul class="mlist"><li class="mrow"><span>Placeholder item one</span><span class="tick on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></span></li><li class="mrow"><span>Placeholder item two</span><span class="tick"></span></li><li class="mrow"><span>Placeholder item three</span><span class="tick"></span></li></ul>
 <nav class="pillnav" aria-label="Primary navigation (specimen)" style="--i:1">
 <span class="ring" aria-hidden="true"></span>
-<button type="button" data-i="0">Home</button><button type="button" data-i="1" aria-current="page">Lists</button><button type="button" data-i="2">Stores</button><button type="button" data-i="3">History</button>
+<button type="button" data-i="0">Home</button><button type="button" data-i="1" aria-current="page">Lists</button><button type="button" data-i="2">Stores</button><button type="button" data-i="3">History</button><button type="button" data-i="4" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
 </nav>
 </div></div>
 <div class="scroll"><div class="cartel-dark phone" role="group" aria-label="Phone mock, dark theme. Placeholder content.">
-<header class="mhead"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button></header>
+<header class="mhead"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark left">Cartel</span><span class="spacer"></span></header>
 <p class="mtitle">Placeholder list</p>
 <ul class="mlist"><li class="mrow"><span>Placeholder item one</span><span class="tick on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></span></li><li class="mrow"><span>Placeholder item two</span><span class="tick"></span></li><li class="mrow"><span>Placeholder item three</span><span class="tick"></span></li></ul>
 <nav class="pillnav" aria-label="Primary navigation (specimen)" style="--i:1">
 <span class="ring" aria-hidden="true"></span>
-<button type="button" data-i="0">Home</button><button type="button" data-i="1" aria-current="page">Lists</button><button type="button" data-i="2">Stores</button><button type="button" data-i="3">History</button>
+<button type="button" data-i="0">Home</button><button type="button" data-i="1" aria-current="page">Lists</button><button type="button" data-i="2">Stores</button><button type="button" data-i="3">History</button><button type="button" data-i="4" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button>
 </nav>
 </div></div>
 </div>
@@ -361,16 +361,16 @@ dl.defs dt{font-weight:650}dl.defs dd{margin:0}
 <h4>Header, today and decided</h4>
 <div class="stage-pair">
 <div class="cartel-light stage">
-<p class="cap">Header, today (schematic)</p>
+<p class="cap">Header, before #158 (schematic)</p>
 <div class="mhead flat"><span class="mark left">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></button></div>
 <p class="cap" style="margin-top:1.25rem">Header, decided</p>
-<div class="mhead flat"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button></div>
+<div class="mhead flat"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark left">Cartel</span><span class="spacer"></span></div>
 </div>
 <div class="cartel-dark stage">
-<p class="cap">Header, today (schematic)</p>
+<p class="cap">Header, before #158 (schematic)</p>
 <div class="mhead flat"><span class="mark left">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></button></div>
 <p class="cap" style="margin-top:1.25rem">Header, decided</p>
-<div class="mhead flat"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark">Cartel</span><button type="button" class="sp-btn circle hit" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2" stroke-width="3.2" stroke-dasharray="2.43 2.43" stroke-linecap="butt"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.6"/></svg></button></div>
+<div class="mhead flat"><button type="button" class="sp-btn circle hit" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><span class="mark left">Cartel</span><span class="spacer"></span></div>
 </div>
 </div>
 </section>

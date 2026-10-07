@@ -17,6 +17,7 @@ import {
 } from '../components/ui';
 import { appVersion, buildChannel, buildChannelLabel } from '../lib/buildInfo';
 import { createInvite, type Invite } from '../lib/household';
+import { useBottomNavReserved } from '../navigation/bottomNavReserve';
 import type { RootStackParamList } from '../navigation/types';
 import { pressFill, pressScaleFill, useReduceMotion } from '../theme/motion';
 import { useTheme, useThemeMode } from '../theme/ThemeProvider';
@@ -32,8 +33,8 @@ import type { Tokens } from '../theme/tokens';
  * The household's name is missing here on purpose: it's still this screen's tab
  * title (`Stack.Screen`'s own `title` in App.tsx), just no longer drawn in the
  * header itself — the header shows the `HeaderLogo` wordmark instead of screen
- * names, and its back chevron is suppressed in favor of the hamburger `NavMenu`
- * (#41). Naming the household again here would only repeat what the tab title
+ * names, and the bottom nav and its Settings gear (#158) are how you get here and
+ * away. Naming the household again here would only repeat what the tab title
  * already carries, not fill a gap.
  */
 export function HouseholdScreen({
@@ -51,6 +52,7 @@ export function HouseholdScreen({
   const reduceMotion = useReduceMotion();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const insets = useSafeAreaInsets();
+  const reserved = useBottomNavReserved();
   const { mode, setMode } = useThemeMode();
   const [invite, setInvite] = useState<Invite | null>(null);
   const [busy, setBusy] = useState(false);
@@ -126,20 +128,19 @@ export function HouseholdScreen({
           asked for a floating pill, bug outline + "Report", bottom of the
           screen, matching Claude desktop's own bug-report affordance.
           Deliberately local to this screen (confirmed with the user, not
-          global like NavMenu) — a plain sibling of `Screen` inside this
+          global) — a plain sibling of `Screen` inside this
           screen's own root `View` rather than a `Modal`, since it only ever
-          needs to float over this one screen's content, not escape the
-          native-stack header layer the way NavMenu's popover has to. Insets
-          its own bottom offset with `useSafeAreaInsets` directly (matching
-          NavMenu's own top-inset handling) since it sits outside `Screen`'s
-          SafeAreaView here. */}
+          needs to float over this one screen's content. It sits outside
+          `Screen`'s SafeAreaView, so it insets its own bottom offset with
+          `useSafeAreaInsets`, except when the bottom pill (#158) is mounted:
+          the pill already owns the home-bar inset. */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Report a bug or idea"
         onPress={() => navigation.navigate('Feedback', { fromScreen: 'Household' })}
         style={({ pressed }) => [
           styles.reportFab,
-          { bottom: insets.bottom + tokens.space.lg },
+          { bottom: (reserved ? 0 : insets.bottom) + tokens.space.lg },
           pressed && styles.reportFabPressed,
           pressScaleFill(pressed, reduceMotion),
         ]}

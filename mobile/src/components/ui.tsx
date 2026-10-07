@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
+import { useBottomNavReserved } from '../navigation/bottomNavReserve';
 import { useTheme } from '../theme/ThemeProvider';
 import { pressFill, pressScale, pressScaleFill, useReduceMotion } from '../theme/motion';
 import { scrimColor, type Tokens } from '../theme/tokens';
@@ -45,7 +46,7 @@ import { PinIcon } from './RowIcons';
  */
 export function Screen({
   children,
-  edges = ['top', 'bottom', 'left', 'right'],
+  edges: edgesProp = ['top', 'bottom', 'left', 'right'],
   align = 'center',
   scroll = false,
   scrollRef,
@@ -60,6 +61,9 @@ export function Screen({
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const centred = align === 'center';
+  // The bottom pill (#158) sits below the screen and already clears the home-bar inset.
+  const pillReserved = useBottomNavReserved();
+  const edges = pillReserved ? edgesProp.filter((edge) => edge !== 'bottom') : edgesProp;
 
   if (scroll) {
     return (
@@ -546,7 +550,7 @@ export function IconButton({
 
 /**
  * The ringed circle for header controls (#157): the back circle, and the close circle for
- * dialogs. #158's gear reuses it. Unlike `IconButton`, which has no ring at rest, this one
+ * dialogs. Settings is an item in the bottom pill (`BottomNav`), not a circle. Unlike `IconButton`, which has no ring at rest, this one
  * always shows a hairline ring on the surface colour, as the HS site's header controls do.
  * Same 44pt hit box with a 36pt circle inside; press feedback (scale, accent fill) comes
  * only from `motion.ts`, and focus never fills (keyboard focus keeps the ring).
@@ -1325,17 +1329,17 @@ export function SegmentedControl<T extends string>({
 
 /**
  * A single-select dropdown: a Field-shaped trigger showing the current value,
- * opening a Modal list of options on tap. Reuses `NavMenu`'s established
- * Modal-popover shape (the same reason it uses `Modal` rather than an
- * absolutely-positioned `View` — see that component's own doc comment)
- * instead of `SegmentedControl`, which stays reserved for a bounded 2-3
+ * opening a Modal list of options on tap. A `Modal` rather than an
+ * absolutely-positioned `View`: it renders as its own top-level layer on every
+ * platform, over the native-stack header.
+ * Used instead of `SegmentedControl`, which stays reserved for a bounded 2-3
  * option exclusive choice shown inline (Light/Dark/System, the chain
  * picker). This is for a caller that wants the choice to read as a real
  * dropdown/picker, closed until tapped.
  *
- * Centred on screen rather than anchored under the trigger like NavMenu's
- * popover — this dropdown can open from anywhere in a scrolling form, not
- * just a fixed header icon, so there's no one corner to hang it from.
+ * Centred on screen rather than anchored under the trigger — this dropdown
+ * can open from anywhere in a scrolling form, so there's no one corner to
+ * hang it from.
  */
 export function Select<T extends string>({
   label,

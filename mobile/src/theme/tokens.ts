@@ -139,7 +139,7 @@ export const darkTokens: Tokens = {
   minTouchTarget,
 };
 
-/** The hamburger popover's full-screen dim (`NavMenu.tsx`). Deliberately
+/** The dialog scrim's full-screen dim (`ui.tsx`). Deliberately
  * theme-invariant, unlike every color above: a modal scrim's job is to dim
  * whatever is behind it, not to carry theme color — Material's own scrim is
  * a fixed near-black in both its light and dark themes. Kept at its

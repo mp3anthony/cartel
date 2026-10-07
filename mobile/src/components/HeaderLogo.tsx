@@ -14,7 +14,7 @@ const HEIGHT = 32;
 /**
  * The header's title area everywhere in the app (wired once, in App.tsx's
  * shared `headerOptions`, not per-screen) — replaces the plain text screen
- * name with the wordmark, swapped light/orange vs dark/gold by the *in-app*
+ * name with the wordmark, left-aligned (#158), swapped light/orange vs dark/gold by the *in-app*
  * resolved theme (`useThemeMode()`), not the raw OS scheme, so an explicit
  * Light/Dark override is honoured here too, not just System.
  *

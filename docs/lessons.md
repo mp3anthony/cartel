@@ -49,6 +49,8 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - Subagents cannot reach the Browser pane (it reads 0x0, screenshots fail); do not spawn a Verifier expecting it to.
 - iOS PWA status bar: `expo-status-bar` is a no-op on web; chrome colour comes from the `theme-color` meta, the manifest `theme_color` and the top element's background. Its icon colour is one static choice (unverified).
 - Generating icons: use resvg-js rather than sharp's librsvg for SVG with a data-URI `@font-face`.
+- react-native-web's `Keyboard` module does nothing on web, so keyboard show/hide listeners never fire there (#158).
+- iOS Safari only exposes safe-area insets when the viewport meta has `viewport-fit=cover`; without it `env(safe-area-inset-*)` is 0 (#158).
 
 ## Process
 
@@ -67,7 +69,7 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - Version footer was verified live in all three environments on its first release: `Dev`, `Preview`, `Live`.
 - "JWT issued at future" (#117) is PostgREST error PGRST303 (HTTP 401), not an auth-js error: the token's `iat` is later than PostgREST's cached clock. Known upstream bug (supabase discussion #48123, PostgREST #5172), intermittent, not region-specific, not device clock skew. Most likely raised by the first PostgREST query after a fresh sign-in (household or lists load), not by `signInAnonymously`; a reload clears it because another thread answers. Unverified: the project's PostgREST version, and whether the failing call is the first query (a `household` rather than `session` diagnostic stage would confirm it). Shipped in 0.0.41: `retryOnJwtIssuedAtFuture` (`lib/postgrestRetry.ts`) retries the household and lists read loaders on `code === 'PGRST303'` only, after 300/800/1500 ms, logging `[cartel:postgrest-retry]` with a `label`. When retries run out, a friendly message shows and the Lists screen offers "Try again". Never re-run `signInAnonymously` or clear the session on error (ADR 0003).
 - Scroll-to-top on error can push a focused editor in another row off-screen (accepted). Rapid double-taps in list detail are dropped, not queued.
-- `PrimaryButton` lacks `aria-busy` (react-native-web does not map `busy`). `NavMenu`'s scrim has one pre-existing hardcoded colour.
+- `PrimaryButton` lacks `aria-busy` (react-native-web does not map `busy`). The dialog scrim in `ui.tsx` uses the one theme-invariant `scrimColor`.
 - A denied location permission is sticky until remount, with no retry button or settings link; a "check settings" flow would be new scope.
 - `SHOP_SESSION_HISTORY_CAP` (5) was not live-stress-tested (bulk insert to production was blocked); it rests on code review. The 8 MB screenshot cap is unconfirmed with Ant.
 - Unverified or cosmetic: the iOS status-bar icon colour (one static choice), and nested-button hydration warnings from `ListDetailScreen` rows.
