@@ -42,6 +42,7 @@ import {
   type FinishEnding,
   type ListItemRow,
 } from '../lib/lists';
+import { backToLists } from '../navigation/backToLists';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -833,7 +834,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
           heading="This list isn’t here"
           body="It may have been removed, or it may belong to someone else."
           actionLabel="Back to your lists"
-          onAction={() => navigation.navigate('Lists')}
+          onAction={() => backToLists(navigation, listId)}
         />
       </Screen>
     );

@@ -49,6 +49,7 @@ import {
   setChecked,
   type ListItemRow,
 } from '../lib/lists';
+import { backToLists } from '../navigation/backToLists';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -484,7 +485,7 @@ export function ListDetailScreen({
         // A removed list has nothing left on this screen to show — reload the index
         // so it drops out there too, and leave for the one that still does.
         await onListsChanged();
-        navigation.navigate('Lists');
+        backToLists(navigation, listId);
       },
     );
   }
@@ -595,7 +596,7 @@ export function ListDetailScreen({
           heading="This list isn’t here"
           body="It may have been removed, or it may belong to someone else — lists are private until they are shared with a household."
           actionLabel="Back to your lists"
-          onAction={() => navigation.navigate('Lists')}
+          onAction={() => backToLists(navigation, listId)}
         />
       </Screen>
     );
