@@ -2,9 +2,15 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-07, end of session 32)
+## Current state (2026-10-09, end of session 33)
 
-- **#106 (case-duplicates) is planned and reviewed, not built; blocked on Ant's decisions.** The v2 plan (slices 1, 2a, 2b, 3, 4a, 4b, iPhone checklists, decisions D1-D13) is a comment on the issue: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6035970194. v1 had a separate agent review (no blockers); its fixes are in v2, which was not re-reviewed. Ant answers D1-D3 before slice 1 and D4-D13 before slices 3, 4a, 4b; those three each stop at a production migration Ant applies by hand. Build in a fresh session. No `03-SPEC.md` section was active.
+- **#106 slice 1 is built and reviewed; PR #174 is open, NOT merged.** Branch `feat/106-slice1-item-name-fold`, version 0.0.51. Ant answered D1-D3 (all as recommended: NFD-strip accent fold, quote/dash folding included, first-code-point capitalise); posted on the issue. A separate Sonnet agent reviewed it: no blockers, two should-fix items fixed (PG17 `datlocale` rename in the pre-flight, raw non-ASCII in the fixtures); the fixes were not re-reviewed. The SQL has never been run (no local Postgres).
+- **Ant's next steps, in order (he returns in a fresh session):** (1) run STATEMENT 1 of `supabase/checks/106_slice1_preflight_and_counts.sql` alone in the Supabase SQL editor and paste the result to the orchestrator; encoding must be UTF8 and the provider ICU (the final-sigma and ß->SS fixtures need ICU); (2) merge PR #174 (additive, no behaviour change; the orchestrator merges on Ant's word); (3) Ant applies `supabase/migrations/20261008000000_item_name_fold.sql` by hand; (4) run `supabase/tests/item_name_fold.sql` (rolls back); a failing fixture is explained by the step 1 locale evidence; (5) run STATEMENT 2 (the counts) and post the result on #106; (6) run the six-scenario slice 1 iPhone checklist (in the plan comment) on Live and note results on #106.
+- **Then slice 2a.** The v2 plan (slices, checklists, D1-D13) is a comment on the issue: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6035970194. D4-D13 are still unanswered; needed before slices 3, 4a, 4b (each stops at a production migration Ant applies by hand). Slice 1 docs (glossary "not built" markers, ADR 0008) are not written yet; the plan puts them with the later slices. No `03-SPEC.md` section was active.
+
+## Session 32 state (2026-10-07)
+
+- **#106 was planned and reviewed** (v2 plan; see Current state for progress).
 
 ## Session 31 state (2026-10-07)
 
@@ -40,9 +46,9 @@
 
 ## Blocking order
 
-Can start now (no blockers; #106 is blocked on Ant's decisions D1-D13 and listed first for visibility):
+Can start now:
 
-1. **#106** (planned and reviewed; awaiting Ant's D1-D13, see Current state). Slice 1 next once D1-D3 are answered.
+1. **#106**: slice 1 built (PR #174 awaiting Ant's pre-flight and merge, see Current state); slice 2a next; D4-D13 still to answer before slices 3, 4a, 4b.
 2. Plan #109 (grilled; see above).
 3. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 needs its own plan before #106's slice 4b, and ships inside it.
 4. #123 (low priority, whenever).
