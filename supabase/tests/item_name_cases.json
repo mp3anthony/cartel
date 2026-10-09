@@ -1,0 +1,170 @@
+{
+  "_comment": "Shared fixtures for the item-name fold (#106). scripts/check-item-name-parity.mjs asserts mobile/src/lib/itemName.ts against fold/capitalise and generates the matching assertions in supabase/tests/item_name_fold.sql. mergeSameItems and findNameClash are JS only. Non-ASCII is written as \\u escapes so the file survives any editor or encoding.",
+  "fold": [
+    { "label": "plain", "input": "Milk", "expected": "milk" },
+    { "label": "trim", "input": "  milk  ", "expected": "milk" },
+    { "label": "upper", "input": "MILK", "expected": "milk" },
+    { "label": "inner double space", "input": "trim  milk", "expected": "trim milk" },
+    { "label": "trailing space", "input": "milk ", "expected": "milk" },
+    { "label": "tab and newline inside", "input": "a\tb\nc", "expected": "a b c" },
+    { "label": "trailing NBSP (JS trims it, btrim does not)", "input": "milk\u00a0", "expected": "milk" },
+    { "label": "ideographic space, em space, BOM at edges", "input": "\ufeff\u2003milk\u3000", "expected": "milk" },
+    { "label": "jalapeno NFC", "input": "Jalape\u00f1o", "expected": "jalapeno" },
+    { "label": "jalapeno NFD", "input": "Jalapen\u0303o", "expected": "jalapeno" },
+    { "label": "Creme Fraiche", "input": "Cr\u00e8me Fra\u00eeche", "expected": "creme fraiche" },
+    { "label": "A with ring (Angstrom sign)", "input": "\u212b", "expected": "a" },
+    { "label": "dotted capital I: lower gives i + U+0307, stripped", "input": "\u0130stanbul", "expected": "istanbul" },
+    { "label": "short i with breve folds to plain i (documented)", "input": "\u0419", "expected": "\u0438" },
+    { "label": "sharp s is not folded", "input": "Stra\u00dfe", "expected": "stra\u00dfe" },
+    { "label": "ae ligature is not folded", "input": "\u00c6ble", "expected": "\u00e6ble" },
+    { "label": "o with stroke is not folded", "input": "\u00d8l", "expected": "\u00f8l" },
+    { "label": "l with stroke is not folded", "input": "\u0141\u00f3d\u017a", "expected": "\u0142odz" },
+    { "label": "Greek final sigma", "input": "\u039f\u0394\u039f\u03a3", "expected": "\u03bf\u03b4\u03bf\u03c2" },
+    { "label": "Hangul survives NFD then NFC", "input": "\ud55c\uae00", "expected": "\ud55c\uae00" },
+    { "label": "emoji", "input": "\ud83c\udf4e Apples", "expected": "\ud83c\udf4e apples" },
+    { "label": "straight apostrophe", "input": "Lee's", "expected": "lee's" },
+    { "label": "right single quote", "input": "Lee\u2019s", "expected": "lee's" },
+    { "label": "left single quote", "input": "Lee\u2018s", "expected": "lee's" },
+    { "label": "reversed and modifier apostrophes", "input": "a\u201bb\u02bcc", "expected": "a'b'c" },
+    { "label": "curly double quotes", "input": "\u201cHot\u201d sauce", "expected": "\"hot\" sauce" },
+    { "label": "low double quote", "input": "\u201eHot\"", "expected": "\"hot\"" },
+    { "label": "en and em dash", "input": "Half\u2013and\u2014half", "expected": "half-and-half" },
+    { "label": "empty", "input": "", "expected": "" },
+    { "label": "spaces only", "input": "   ", "expected": "" },
+    { "label": "only combining marks", "input": "\u0301\u0302", "expected": "" }
+  ],
+  "capitalise": [
+    { "label": "plain", "input": "bread", "expected": "Bread" },
+    { "label": "rest as typed", "input": "mILK", "expected": "MILK" },
+    { "label": "digit first is unchanged", "input": "2 litres milk", "expected": "2 litres milk" },
+    { "label": "first character only (documented, D3)", "input": "iPhone cable", "expected": "IPhone cable" },
+    { "label": "accented first letter", "input": "\u00e9clair", "expected": "\u00c9clair" },
+    { "label": "trims first", "input": "  bread ", "expected": "Bread" },
+    { "label": "trims NBSP too", "input": "\u00a0bread\u00a0", "expected": "Bread" },
+    { "label": "inner spaces kept", "input": "a  b", "expected": "A  b" },
+    { "label": "sharp s upper-cases to SS", "input": "\u00df", "expected": "SS" },
+    { "label": "emoji first is unchanged", "input": "\ud83c\udf4e apples", "expected": "\ud83c\udf4e apples" },
+    { "label": "astral letter (Deseret) is one code point", "input": "\ud801\udc28x", "expected": "\ud801\udc00x" },
+    { "label": "empty", "input": "", "expected": "" },
+    { "label": "spaces only", "input": "   ", "expected": "" }
+  ],
+  "mergeSameItems": [
+    {
+      "label": "empty list",
+      "input": [],
+      "expected": []
+    },
+    {
+      "label": "no duplicates: order kept, names capitalised",
+      "input": [
+        { "name": "milk", "quantity": 1 },
+        { "name": "Bread", "quantity": 2 }
+      ],
+      "expected": [
+        { "name": "Milk", "quantity": 1 },
+        { "name": "Bread", "quantity": 2 }
+      ]
+    },
+    {
+      "label": "case, accent and spacing variants merge into the first place; quantities sum",
+      "input": [
+        { "name": "Jalape\u00f1o", "quantity": 2 },
+        { "name": "Bread", "quantity": 1 },
+        { "name": "  JALAPENO ", "quantity": 3 }
+      ],
+      "expected": [
+        { "name": "Jalape\u00f1o", "quantity": 5 },
+        { "name": "Bread", "quantity": 1 }
+      ]
+    },
+    {
+      "label": "first spelling wins even when lower-case, and is capitalised",
+      "input": [
+        { "name": "milk", "quantity": 1 },
+        { "name": "MILK", "quantity": 1 }
+      ],
+      "expected": [
+        { "name": "Milk", "quantity": 2 }
+      ]
+    },
+    {
+      "label": "sum clamps to 99",
+      "input": [
+        { "name": "Water", "quantity": 60 },
+        { "name": "water", "quantity": 60 }
+      ],
+      "expected": [
+        { "name": "Water", "quantity": 99 }
+      ]
+    },
+    {
+      "label": "names that fold to nothing are dropped",
+      "input": [
+        { "name": "   ", "quantity": 1 },
+        { "name": "\u0301", "quantity": 1 },
+        { "name": "Eggs", "quantity": 1 }
+      ],
+      "expected": [
+        { "name": "Eggs", "quantity": 1 }
+      ]
+    },
+    {
+      "label": "curly and straight apostrophes merge",
+      "input": [
+        { "name": "Lee's sauce", "quantity": 1 },
+        { "name": "lee\u2019s sauce", "quantity": 1 }
+      ],
+      "expected": [
+        { "name": "Lee's sauce", "quantity": 2 }
+      ]
+    }
+  ],
+  "findNameClash": [
+    {
+      "label": "different item with the same folded name clashes",
+      "items": [
+        { "id": "a", "name": "Milk" },
+        { "id": "b", "name": "Bread" }
+      ],
+      "itemId": "b",
+      "name": "  MILK ",
+      "expectedId": "a"
+    },
+    {
+      "label": "accent variant clashes",
+      "items": [
+        { "id": "a", "name": "Jalape\u00f1o" },
+        { "id": "b", "name": "Bread" }
+      ],
+      "itemId": "b",
+      "name": "jalapeno",
+      "expectedId": "a"
+    },
+    {
+      "label": "case-only rename of the item itself does not clash",
+      "items": [
+        { "id": "a", "name": "Milk" },
+        { "id": "b", "name": "Bread" }
+      ],
+      "itemId": "b",
+      "name": "BREAD",
+      "expectedId": null
+    },
+    {
+      "label": "new name that matches nothing",
+      "items": [
+        { "id": "a", "name": "Milk" }
+      ],
+      "itemId": "a",
+      "name": "Oat milk",
+      "expectedId": null
+    },
+    {
+      "label": "no items",
+      "items": [],
+      "itemId": "x",
+      "name": "Milk",
+      "expectedId": null
+    }
+  ]
+}
