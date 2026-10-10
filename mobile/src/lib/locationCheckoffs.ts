@@ -105,7 +105,9 @@ export function computeRouteOrder<T extends { name: string }>(
   // 1. Every position a name has ever been checked at, across every shop.
   const positionsByName = new Map<string, number[]>();
   for (const checkoff of checkoffs) {
-    checkoff.itemNames.forEach((name, index) => {
+    checkoff.itemNames.forEach((recorded, index) => {
+      // Folded, so records written before the #106 fold still meet today's keys.
+      const name = normalizeItemName(recorded);
       const positions = positionsByName.get(name);
       if (positions) {
         positions.push(index);
@@ -124,7 +126,7 @@ export function computeRouteOrder<T extends { name: string }>(
   // 3. The section each name is tagged with, if any.
   const sectionByName = new Map<string, string>();
   for (const tag of locationItems) {
-    sectionByName.set(tag.name, tag.section);
+    sectionByName.set(normalizeItemName(tag.name), tag.section);
   }
 
   // 4. Every position recorded for names sharing a section, pooled together.

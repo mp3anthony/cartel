@@ -99,7 +99,7 @@ export function pendingCorrectionsForItemName(
   const groups = new Map<string, { voteCount: number; earliestCreatedAt: string }>();
 
   for (const vote of votes) {
-    if (vote.itemName !== key || vote.proposedSection === currentSection) {
+    if (normalizeItemName(vote.itemName) !== key ||vote.proposedSection === currentSection) {
       continue;
     }
     const existing = groups.get(vote.proposedSection);
@@ -196,7 +196,7 @@ export async function loadPendingCorrectionCounts(
   const tuplesByLocation = new Map<string, Set<string>>();
   for (const row of rows) {
     const tuples = tuplesByLocation.get(row.location_id) ?? new Set<string>();
-    tuples.add(`${row.item_name} ${row.proposed_section}`);
+    tuples.add(`${normalizeItemName(row.item_name)} ${row.proposed_section}`);
     tuplesByLocation.set(row.location_id, tuples);
   }
 
@@ -217,7 +217,8 @@ export async function voteLocationItemCorrection(
 ): Promise<Outcome<void>> {
   const { error } = await client.rpc('vote_location_item_correction', {
     p_location_id: locationId,
-    p_item_name: itemName,
+    // Tags are stored folded; the old RPC only does lower(btrim), so send the fold.
+    p_item_name: normalizeItemName(itemName),
     p_proposed_section: proposedSection,
   });
 
