@@ -29,6 +29,7 @@ import { useLocations } from '../hooks/useLocations';
 import { useLocationCheckoffs } from '../hooks/useLocationCheckoffs';
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocationItemVotes } from '../hooks/useLocationItemVotes';
+import { capitaliseFirst } from '../lib/itemName';
 import { computeRouteOrder } from '../lib/locationCheckoffs';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
@@ -632,7 +633,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
         client,
         list.locationId,
         item.name,
-        locationDraft,
+        capitaliseFirst(locationDraft),
       );
 
       if (!outcome.ok) {
@@ -941,6 +942,8 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
             onChangeText={setAddDraft}
             placeholder="Add an item"
             autoCapitalize="sentences"
+            autoCorrect
+            spellCheck
             maxLength={120}
             onSubmitEditing={() => void addNewItem()}
             returnKeyType="done"

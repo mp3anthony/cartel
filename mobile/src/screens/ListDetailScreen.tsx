@@ -32,6 +32,7 @@ import type { ListsView } from '../hooks/useLists';
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocations } from '../hooks/useLocations';
 import type { Household, Outcome } from '../lib/household';
+import { capitaliseFirst } from '../lib/itemName';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { voteLocationItemCorrection } from '../lib/locationItemVotes';
 import {
@@ -39,6 +40,7 @@ import {
   addItems,
   attachLocation,
   createList,
+  findNameClash,
   MAX_QUANTITY,
   moveItem,
   promoteList,
@@ -78,6 +80,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ListDetail'> & {
  * edited at a time (`editingId` plus `editingMode`). The location mode's ✓ tags the item when it has no section at
  * this store yet and proposes a correction when it has, the same two writes Shopping
  * Mode makes. No section pill here, which keeps room for the quantity control (#111).
+ * A rename onto another item's name (same fold) is refused in the error note and the
+ * editor stays open with the draft (#106).
  *
  * Issue #111: each row carries a `QuantityControl` (a "+" at 1, a "×N" chip above it)
  * through the row's `stepper` slot; the chip opens `QuantityEditor` ("− N + Done") in the
@@ -374,6 +378,12 @@ export function ListDetailScreen({
       return;
     }
 
+    const clash = findNameClash(view.status === 'loaded' ? view.items : [], id, editingName);
+    if (clash) {
+      setError(`${clash.name} is already on this list.`);
+      return;
+    }
+
     void mutate(
       () => renameItem(client, id, editingName),
       () => finishEditing(id),
@@ -389,7 +399,7 @@ export function ListDetailScreen({
     }
 
     const locationId = list.locationId;
-    const proposed = editingName;
+    const proposed = section !== null ? capitaliseFirst(editingName) : editingName;
 
     void mutate(
       () =>
@@ -664,6 +674,8 @@ export function ListDetailScreen({
             onChangeText={setDraft}
             placeholder="Add an item"
             autoCapitalize="sentences"
+            autoCorrect
+            spellCheck
             maxLength={120}
             onSubmitEditing={() => add(items)}
             returnKeyType="done"
@@ -769,7 +781,10 @@ export function ListDetailScreen({
                   onSubmit={() =>
                     editingMode === 'location' ? commitLocation(item, section) : commitRename()
                   }
-                  onCancel={cancelEditing}
+                  onCancel={() => {
+                    setError(null);
+                    cancelEditing();
+                  }}
                   busy={busy}
                   submitDisabled={editingName.trim().length === 0}
                   maxLength={editingMode === 'location' ? 60 : 120}
