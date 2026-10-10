@@ -18,7 +18,11 @@
 --     definitions the migration logged.
 -- Votes cast since the run are repointed to the restored spelling of their tag (a
 -- vote that would then duplicate another, or that matches no tag, is dropped).
--- Tags added or corrections applied since the run are kept as they are.
+-- Tags added or corrections applied since the run are kept, but every tag, vote and
+-- check-off element written since the run is also normalised to lower(btrim()), so the
+-- old CHECKs can be re-added over it (a row that then collides on a unique key is
+-- deleted, keeping the older one; check-off arrays lose repeated elements). The undo
+-- therefore works after post-run writes, not only straight after the run.
 -- Use it only before Migration C2 is applied; C2 changes the vote function and the
 -- label data again, and this script does not know about that.
 -- It leaves schema migration_106 in place, including migration_106.c1_run and every
@@ -169,9 +173,10 @@ grant execute on function public.vote_location_item_correction(uuid, text, text)
   to authenticated;
 
 -- ---------------------------------------------------------------------------
--- 3. Data back. Names first (no constraint or trigger is in the way now), then the
--- votes that point at them (including votes cast since the run), then the deleted
--- tags and their votes, then check-offs.
+-- 3. Data back. Names first (no constraint or trigger is in the way now), then
+-- post-run rows normalised to lower(btrim), then the votes that point at the tags
+-- (including votes cast since the run), then the deleted tags and their votes, then
+-- check-offs (restored, then post-run ones normalised).
 -- ---------------------------------------------------------------------------
 
 update public.location_items l
@@ -187,6 +192,68 @@ from migration_106.location_item_votes_before b
 where v.id = b.id
   and v.item_name <> b.item_name
   and v.item_name = public.fold_item_name(b.item_name);
+
+-- Rows written since the run (and any row the two updates above did not restore) hold
+-- the folded spelling, which step 4's old CHECKs can refuse (they test
+-- name = lower(btrim(name)), the fold does not always satisfy that). Normalise them to
+-- lower(btrim()) now, before the repoint below and before step 4. Where two rows then
+-- collide on the unique key, the row that already satisfied the old rule wins, then the
+-- older one (created_at, id); the others are deleted. Nothing to do right after the run.
+do $$
+declare
+  n_fixed bigint;
+  n_dropped bigint;
+begin
+  create temp table c1_revert_norm_items on commit drop as
+  select id,
+         lower(btrim(name)) as new_name,
+         row_number() over (
+           partition by location_id, lower(btrim(name))
+           order by (name = lower(btrim(name))) desc, created_at, id) as rn
+  from public.location_items;
+
+  delete from public.location_items l
+  using c1_revert_norm_items r
+  where r.id = l.id
+    and r.rn > 1;
+  get diagnostics n_dropped = row_count;
+
+  update public.location_items l
+  set name = r.new_name
+  from c1_revert_norm_items r
+  where r.id = l.id
+    and r.rn = 1
+    and l.name <> r.new_name;
+  get diagnostics n_fixed = row_count;
+
+  raise notice 'revert: % tag(s) normalised to lower(btrim), % duplicate tag(s) dropped',
+    n_fixed, n_dropped;
+
+  create temp table c1_revert_norm_votes on commit drop as
+  select id,
+         lower(btrim(item_name)) as new_name,
+         row_number() over (
+           partition by location_id, lower(btrim(item_name)), proposed_section, voter_id
+           order by (item_name = lower(btrim(item_name))) desc, created_at, id) as rn
+  from public.location_item_votes;
+
+  delete from public.location_item_votes v
+  using c1_revert_norm_votes r
+  where r.id = v.id
+    and r.rn > 1;
+  get diagnostics n_dropped = row_count;
+
+  update public.location_item_votes v
+  set item_name = r.new_name
+  from c1_revert_norm_votes r
+  where r.id = v.id
+    and r.rn = 1
+    and v.item_name <> r.new_name;
+  get diagnostics n_fixed = row_count;
+
+  raise notice 'revert: % vote(s) normalised to lower(btrim), % duplicate vote(s) dropped',
+    n_fixed, n_dropped;
+end $$;
 
 -- Votes cast after the run carry the FOLDED item_name. Where no tag has exactly
 -- that name any more (its tag just got its old spelling back), repoint the vote to
@@ -265,6 +332,44 @@ where c.id = b.id
   and c.item_names = (
     select array_agg(public.fold_item_name(e.x) order by e.ord)
     from unnest(b.item_names) with ordinality as e(x, ord));
+
+-- Check-offs written since the run (or not restored above) can hold elements the old
+-- item_names_are_normalized (back in place since step 2) refuses, and the final check
+-- below would fail on them. Normalise each element to lower(btrim()) and drop repeated
+-- elements, keeping the order of first occurrence. Rows that already pass are left
+-- alone. This runs after the restore so it cannot disturb the folded-equals-backup test.
+do $$
+declare
+  n_fixed bigint;
+  n_dropped bigint;
+begin
+  with before_rows as (
+    select id, cardinality(item_names) as n_old
+    from public.location_checkoffs
+    where not public.item_names_are_normalized(item_names)
+  ),
+  fixed as (
+    update public.location_checkoffs c
+    set item_names = (
+      select array_agg(d.x order by d.first_ord)
+      from (
+        select lower(btrim(e.x)) as x, min(e.ord) as first_ord
+        from unnest(c.item_names) with ordinality as e(x, ord)
+        group by lower(btrim(e.x))
+      ) d
+    )
+    from before_rows br
+    where br.id = c.id
+    returning c.id, cardinality(c.item_names) as n_new
+  )
+  select count(*), coalesce(sum(br.n_old - f.n_new), 0)
+  into n_fixed, n_dropped
+  from fixed f
+  join before_rows br on br.id = f.id;
+
+  raise notice 'revert: % check-off(s) normalised to lower(btrim), % duplicate element(s) dropped',
+    n_fixed, n_dropped;
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- 4. Re-add the three dropped constraints from the logged definitions. The two
