@@ -18,6 +18,7 @@ import {
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocationItemVotes } from '../hooks/useLocationItemVotes';
 import { useLocations } from '../hooks/useLocations';
+import { capitaliseFirst } from '../lib/itemName';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
 import type { LocationItemRow } from '../lib/locationItems';
 import type { RootStackParamList } from '../navigation/types';
@@ -124,7 +125,7 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
         client,
         locationId,
         item.name,
-        correctionDraft,
+        capitaliseFirst(correctionDraft),
       );
 
       if (!outcome.ok) {

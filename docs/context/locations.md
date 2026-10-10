@@ -46,7 +46,7 @@ _Avoid_: Assign, link, select
 ### Item locations
 
 **Item location**:
-Where an item sits inside a store (an aisle or area, e.g. "Aisle 4"), matched by the item's normalised name (old UI words: Section, section tag; code: section tag). One per item per store, and anonymous: it records no creator. _Decided in #106, not built:_ matched by the same folded name as list items (case, inner spaces, accents), and labels are stored with a leading capital. _Decided in #112, not built:_ labels come only from the **Layout order sequence** below (typing free text is removed), and existing free-text labels are migrated (see below). The first one for an item is made from Shopping Mode or from the list screen's Location pin; the Item catalog can only correct existing ones.
+Where an item sits inside a store (an aisle or area, e.g. "Aisle 4"), matched by the item's normalised name (old UI words: Section, section tag; code: section tag). One per item per store, and anonymous: it records no creator. Labels are stored with a leading capital, applied by the client on tag and on a typed correction. _Decided in #106, not built:_ matched by the same folded name as list items (case, inner spaces, accents), and existing labels migrated to the capitalised form. _Decided in #112, not built:_ labels come only from the **Layout order sequence** below (typing free text is removed), and existing free-text labels are migrated (see below). The first one for an item is made from Shopping Mode or from the list screen's Location pin; the Item catalog can only correct existing ones.
 _Avoid_: Section (in the UI), aisle (as a name for the whole concept; **Aisle** below is one option in the set), category, label
 
 **Layout order sequence**:

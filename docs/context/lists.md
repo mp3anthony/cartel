@@ -55,11 +55,11 @@ _Avoid_: Delete (for the user-facing action)
 ### Editing and rows
 
 **Add-item composer**:
-The one-line field at the top of a list: "Add an item" with a "+" button. Enter or "+" adds and keeps focus for the next item. Adding a name already on the list (same name matching as **Item**) does not create a second item: it raises that item's Quantity by 1 and shows a note under the composer ("Milk is now ×2", or "Milk is already ×99" at the ceiling) that stays until the next add or tick. If that item was ticked, it is unticked and raised. The same composer appears in Shopping Mode, at the top. _Decided in #106, not built:_ the field uses iOS autocorrect and suggestions, and the name is capitalised on add.
+The one-line field at the top of a list: "Add an item" with a "+" button. Enter or "+" adds and keeps focus for the next item. Adding a name already on the list (same name matching as **Item**) does not create a second item: it raises that item's Quantity by 1 and shows a note under the composer ("Milk is now ×2", or "Milk is already ×99" at the ceiling) that stays until the next add or tick. If that item was ticked, it is unticked and raised. The same composer appears in Shopping Mode, at the top. The field uses iOS autocorrect and suggestions, and the name is capitalised on add.
 _Avoid_: Quick add, input bar
 
 **Rename**:
-Tapping the name on list detail turns that row into a small field (Return or ✓ saves, ✕ cancels). One editor is open at a time, and dragging is off while it is open. _Decided in #106, not built:_ renaming onto another item's name on the list is rejected with a message and the name stays unchanged; a case-only change to the item's own name (bread to Bread) is allowed.
+Tapping the name on list detail turns that row into a small field (Return or ✓ saves, ✕ cancels). One editor is open at a time, and dragging is off while it is open. Renaming onto another item's name on the list is rejected with a message and the editor stays open; a case-only change to the item's own name (bread to Bread) is allowed.
 _Avoid_: Edit mode, inline edit sheet
 
 **Location pin**:
