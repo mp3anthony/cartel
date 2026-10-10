@@ -170,7 +170,8 @@ grant execute on function public.vote_location_item_correction(uuid, text, text)
 
 -- ---------------------------------------------------------------------------
 -- 3. Data back. Names first (no constraint or trigger is in the way now), then the
--- votes that point at them, then the deleted tags and their votes, then check-offs.
+-- votes that point at them (including votes cast since the run), then the deleted
+-- tags and their votes, then check-offs.
 -- ---------------------------------------------------------------------------
 
 update public.location_items l
@@ -187,30 +188,14 @@ where v.id = b.id
   and v.item_name <> b.item_name
   and v.item_name = public.fold_item_name(b.item_name);
 
-insert into public.location_items (id, location_id, name, section, created_at)
-select b.id, b.location_id, b.name, b.section, b.created_at
-from migration_106.location_items_before b
-where b.id in (select loser_id from migration_106.location_item_merges)
-  and not exists (select 1 from public.location_items x where x.id = b.id)
-  and exists (select 1 from public.locations loc where loc.id = b.location_id);
-
-insert into public.location_item_votes
-  (id, location_id, item_name, proposed_section, voter_id, created_at)
-select b.id, b.location_id, b.item_name, b.proposed_section, b.voter_id, b.created_at
-from migration_106.location_item_votes_before b
-join migration_106.location_item_votes_deleted d on d.id = b.id
-where exists (select 1 from auth.users u where u.id = b.voter_id)
-  and exists (
-    select 1 from public.location_items t
-    where t.location_id = b.location_id and t.name = b.item_name)
-on conflict do nothing;
-
 -- Votes cast after the run carry the FOLDED item_name. Where no tag has exactly
--- that name any more (its tag got its old spelling back), repoint the vote to the
--- oldest tag in that store whose fold is the vote's name (the survivor of any merge
--- group). A repointed vote that would duplicate an existing vote on the same
--- (store, item, section, voter) is dropped, and so is any vote that matches no tag
--- at all, so the foreign key can be re-added in step 4.
+-- that name any more (its tag just got its old spelling back), repoint the vote to
+-- the oldest tag in that store whose fold is the vote's name. This runs BEFORE the
+-- merge losers are re-inserted, so in a store that had a merge group the only match
+-- is the survivor, which is where the vote was cast. A repointed vote that would
+-- duplicate an existing vote on the same (store, item, section, voter) is dropped,
+-- and so is any vote that matches no tag at all (a notice gives that count), so the
+-- foreign key can be re-added in step 4.
 create temp table c1_revert_repoint on commit drop as
 select v.id,
        (select t.name
@@ -242,10 +227,35 @@ where r.id = v.id
   and r.new_name is not null
   and v.item_name <> r.new_name;
 
-delete from public.location_item_votes v
-using c1_revert_repoint r
-where r.id = v.id
-  and r.new_name is null;
+do $$
+declare
+  n bigint;
+begin
+  delete from public.location_item_votes v
+  using c1_revert_repoint r
+  where r.id = v.id
+    and r.new_name is null;
+  get diagnostics n = row_count;
+  raise notice 'revert: % vote(s) deleted because they match no tag', n;
+end $$;
+
+insert into public.location_items (id, location_id, name, section, created_at)
+select b.id, b.location_id, b.name, b.section, b.created_at
+from migration_106.location_items_before b
+where b.id in (select loser_id from migration_106.location_item_merges)
+  and not exists (select 1 from public.location_items x where x.id = b.id)
+  and exists (select 1 from public.locations loc where loc.id = b.location_id);
+
+insert into public.location_item_votes
+  (id, location_id, item_name, proposed_section, voter_id, created_at)
+select b.id, b.location_id, b.item_name, b.proposed_section, b.voter_id, b.created_at
+from migration_106.location_item_votes_before b
+join migration_106.location_item_votes_deleted d on d.id = b.id
+where exists (select 1 from auth.users u where u.id = b.voter_id)
+  and exists (
+    select 1 from public.location_items t
+    where t.location_id = b.location_id and t.name = b.item_name)
+on conflict do nothing;
 
 update public.location_checkoffs c
 set item_names = b.item_names
