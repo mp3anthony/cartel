@@ -23,7 +23,7 @@ Turning a personal list into a shared list. One-way: a shared list can never be 
 _Avoid_: Promote (older spec wording), publish, unshare, demote
 
 **Start new list from this** (copy):
-Copies a finished shop or a current list into a new, unchecked list, with a prefilled name and the same "Share with" choice. Each item keeps its Quantity on both routes. From History it copies the full original snapshot of the shop and always attaches that shop's store; from list detail it copies current items and attaches a store only if the source has one. The source is never changed. _Decided in #106, not built:_ copying from History folds items that are the same (per **Item**) into one, Quantities summed and clamped to 99; old snapshots are never rewritten.
+Copies a finished shop or a current list into a new, unchecked list, with a prefilled name and the same "Share with" choice. Each item keeps its Quantity on both routes. From History it copies the full original snapshot of the shop and always attaches that shop's store; from list detail it copies current items and attaches a store only if the source has one. The source is never changed. Copying from History folds items that are the same (per **Item**) into one, Quantities summed and clamped to 99; old snapshots are never rewritten.
 _Avoid_: Duplicate, clone, template, re-shop
 
 **Remove list**:
@@ -33,7 +33,7 @@ _Avoid_: Delete list (the list is not erased)
 ### Items
 
 **Item**:
-One entry on a list, identified to the rest of the app by its normalised name. It carries a **Quantity**. _Decided in #106, not built:_ "same item" folds case, repeated inner spaces and accents ("jalapeno" = "jalapeño"), one definition used by lists, renames, copies and Item location matching. Names are stored with a leading capital (first letter upper-cased, the rest as typed), on add and rename. Existing duplicates are merged once: the oldest row survives with its position, ticked if any copy was ticked, Quantity the sum clamped to 99. Only one live item per name per list, enforced by the database.
+One entry on a list, identified to the rest of the app by its normalised name. It carries a **Quantity**. "Same item" folds case, repeated inner spaces and accents ("jalapeno" = "jalapeño"), one definition used by lists, renames, copies and Item location matching. Names are stored with a leading capital (first letter upper-cased, the rest as typed), on add and rename. Only one live item per name per list, enforced by the database (`docs/adr/0008-item-name-fold-one-per-list.md`). _Decided in #106, location side not built:_ Item location matching and check-offs still move to the same fold in later migrations.
 _Avoid_: Product, entry, row (for the data)
 
 **Quantity**:
