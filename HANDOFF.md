@@ -9,7 +9,6 @@
 - **Open PR to merge: this handoff PR (docs-only).** Per protocol a fresh Sonnet agent reviews it, then the orchestrator merges; no version bump. A new session does this.
 - **Next: slices 4a and 4b (C1/C2, location side).** Ant must answer the open decisions D5, D6, D11, D13 before planning. #155 (production label migration) ships inside 4b and needs its own plan. The Planner is always the `planner` agent. v2 plan: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6035970194; slice 3 decisions: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6093247385.
 - Slices 1 (0.0.51, PR #174), 2a (0.0.52, PR #177) and 2b (0.0.53, PR #179) are merged and applied. Slice 1 pre-flight data: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6090934192. No `03-SPEC.md` section was active.
-- Supabase SQL editor quirks seen in slice 3: on `rls_finish_shopping.sql` (it creates a temp table) choose "Run without RLS" in the warning dialog; "Run and enable RLS" gave `relation "snap" does not exist`. A test that ends showing a `set_config` result row with no red error is a pass.
 
 ## Older state, condensed
 
