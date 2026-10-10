@@ -6,9 +6,10 @@
 
 - **#106 slice 3 is applied in production and merged (0.0.54, PR #181).** List-side item-name fold: unique live index `list_items_live_name_key`, tidy trigger (capitalise, reject empty folds), fold-aware `add_list_item` and `finish_shopping`; one duplicate merged (131 live items became 130, 4 renamed). ADR 0008 written. Ant ran PRE-1..3, the dry run, the real run, POST-1, all four SQL tests and the revert dry run: all passed. The backup is in schema `migration_106` (drop 30 days after C2; see `docs/environment.md`).
 - **Not yet run by Ant on iPhone:** the slice 3 checklist (add "Milk" then "milk": no second row, quantity 2; add "bread": shows "Bread"; a rename onto another item's name is refused; finish shopping works and History looks right; start a new list from History copies items without duplicates), plus the slice 2b 8-scenario checklist (https://github.com/mp3anthony/cartel/issues/106#issuecomment-6093116009) and the six-scenario slice 1 checklist. Ant notes results on #106. Nothing is blocked on them, but a failure on the Live site would matter.
-- **Open PR to merge: this handoff PR (docs-only).** Per protocol a fresh Sonnet agent reviews it, then the orchestrator merges; no version bump. A new session does this.
-- **Next: slices 4a and 4b (C1/C2, location side).** Ant must answer the open decisions D5, D6, D11, D13 before planning. #155 (production label migration) ships inside 4b and needs its own plan. The Planner is always the `planner` agent. v2 plan: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6035970194; slice 3 decisions: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6093247385.
-- Slices 1 (0.0.51, PR #174), 2a (0.0.52, PR #177) and 2b (0.0.53, PR #179) are merged and applied. Slice 1 pre-flight data: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6090934192. No `03-SPEC.md` section was active.
+- **#106 slices 4a and 4b are PLANNED and REVIEWED, NOT built.** Ant answered D5 (keep oldest tag), D6 (APPLY the correction when a tuple reaches 2 voters, then clear that item's votes; changes the 4b plan), D11 (accept folded keys in the Item catalog only if #148 fixes it with a proper display name) and D13 (delete votes on losing tags): https://github.com/mp3anthony/cartel/issues/106#issuecomment-6094235636. Plans, each with the Sonnet review corrections at the end: 4a (C1, v0.0.55) https://github.com/mp3anthony/cartel/issues/106#issuecomment-6095309812 ; 4b with #155 (C2, v0.0.56) https://github.com/mp3anthony/cartel/issues/106#issuecomment-6095309976 . Both are production migrations Ant applies BY HAND; merge only after the real run.
+- **Ant still owes (blocks 4b only):** run the read-only PRE-0 label-count query in production and post the result on #155 (https://github.com/mp3anthony/cartel/issues/155#issuecomment-6095310805), then answer 4b Q1 (final label mapping: map or clear each unusual label), Q2 (clear in C2 or move clearing to #154; the plan defaults to C2), Q3 (delete unmapped proposals on surviving tags; recommend yes), Q4 (D6 also for tuples converging through C2's mapping; recommend yes) and Q5 (keep case-only corrections applying at once; recommend yes). 4a open question: Q1, fold the item name in the vote function now in C1 (recommend yes).
+- **How to start:** fresh session, build 4a first (Code Writer from the 4a plan plus its review corrections, then a separate Sonnet review; write the plan to a scratchpad file for the reviewer, see `docs/lessons.md`). 4b waits for Ant's PRE-0 result and answers, and must read 4a's merged migration first.
+- Slices 1 (0.0.51, PR #174), 2a (0.0.52, PR #177), 2b (0.0.53, PR #179) and 3 are merged and applied. Slice 1 pre-flight data: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6090934192. No `03-SPEC.md` section was active.
 
 ## Older state, condensed
 
@@ -16,7 +17,7 @@
 - **Grilled and settled, not built (decisions on the issues and in `docs/context/`):**
   - #109 Household screen becomes Settings; the Planner stops at the plan for Ant (changes the deployed `report-feedback` Edge Function). Build to-dos are in a comment on #109.
   - #110 Home overhaul: parent with sub-issues #143 (done), #144 (blocked by #143's merge, now unblocked), #145 (after #144). Each stops at the Planner.
-  - #112 Shopping order: parent with #153 (fixed layout order), #154 (Item location picker; touches `report-feedback`, so rebase against #109 whichever lands second), #155 (production label migration; stops at the plan for Ant, needs its own plan, ships inside #106's slice 4b). #151 (learned walking order) is parked and needs its own grill.
+  - #112 Shopping order: parent with #153 (fixed layout order), #154 (Item location picker; touches `report-feedback`, so rebase against #109 whichever lands second), #155 (production label migration; plan done, inside the #106 4b plan, ships in 4b). #151 (learned walking order) is parked and needs its own grill.
   - #114 Item catalog redesign: parent with #147, #148, #149 (149 builds on 148). #147 and #148 may rebase onto #143.
   - #139 sub-issues are all shipped. `02-DESIGN-REFERENCE.html` is the design source (see `docs/environment.md`).
 - **Logged in `CHANGE-LOG.md` as `pending` out-of-spec, for Ant to triage:** members adding a first name or nickname, renaming a household, category and spending graphs.
@@ -30,9 +31,9 @@
 
 Can start now:
 
-1. **#106**: slices 4a and 4b once Ant answers D5, D6, D11, D13.
+1. **#106**: build slice 4a (planned and reviewed), then slice 4b once Ant has posted PRE-0 on #155 and answered its Q1-Q5.
 2. Plan #109 (grilled).
-3. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 needs its own plan before #106's slice 4b, and ships inside it.
+3. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155's plan is inside the 4b plan; it ships in 4b.
 4. #123 (low priority, whenever).
 
 Then:
