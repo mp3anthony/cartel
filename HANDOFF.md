@@ -2,11 +2,11 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-09, end of session 33)
+## Current state (2026-10-10, end of session 34)
 
-- **#106 slice 1 is built and reviewed; PR #174 is open, NOT merged.** Branch `feat/106-slice1-item-name-fold`, version 0.0.51. Ant answered D1-D3 (all as recommended: NFD-strip accent fold, quote/dash folding included, first-code-point capitalise); posted on the issue. A separate Sonnet agent reviewed it: no blockers, two should-fix items fixed (PG17 `datlocale` rename in the pre-flight, raw non-ASCII in the fixtures); the fixes were not re-reviewed. The SQL has never been run (no local Postgres).
-- **Ant's next steps, in order (he returns in a fresh session):** (1) run STATEMENT 1 of `supabase/checks/106_slice1_preflight_and_counts.sql` alone in the Supabase SQL editor and paste the result to the orchestrator; encoding must be UTF8 and the provider ICU (the final-sigma and ß->SS fixtures need ICU); (2) merge PR #174 (additive, no behaviour change; the orchestrator merges on Ant's word); (3) Ant applies `supabase/migrations/20261008000000_item_name_fold.sql` by hand; (4) run `supabase/tests/item_name_fold.sql` (rolls back); a failing fixture is explained by the step 1 locale evidence; (5) run STATEMENT 2 (the counts) and post the result on #106; (6) run the six-scenario slice 1 iPhone checklist (in the plan comment) on Live and note results on #106.
-- **Then slice 2a.** The v2 plan (slices, checklists, D1-D13) is a comment on the issue: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6035970194. D4-D13 are still unanswered; needed before slices 3, 4a, 4b (each stops at a production migration Ant applies by hand). Slice 1 docs (glossary "not built" markers, ADR 0008) are not written yet; the plan puts them with the later slices. No `03-SPEC.md` section was active.
+- **#106 slice 1 is merged and applied (0.0.51, PR #174).** Ant applied `20261008000000_item_name_fold.sql` to production by hand, and `supabase/tests/item_name_fold.sql` passed. Pre-flight: PostgreSQL 17.6, UTF8, ICU. The STATEMENT 2 counts are posted on #106 (https://github.com/mp3anthony/cartel/issues/106#issuecomment-6090934192): 131 live items with 1 case-only duplicate group (1 extra row), 47 store tags with no collisions (1 re-keyed), 1 vote, nothing orphaned. Small data set, so the later merge migrations look low-risk.
+- **Still open for slice 1:** Ant has not run the six-scenario slice 1 iPhone checklist (in the plan comment on #106) on Live; he notes results on #106. The slice is additive with no behaviour change, so nothing is blocked on it.
+- **Next: slice 2a.** The v2 plan (slices, checklists, D1-D13) is a comment on the issue: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6035970194. D4-D13 are still unanswered; needed before slices 3, 4a, 4b (each stops at a production migration Ant applies by hand). Slice 1 docs (glossary "not built" markers, ADR 0008) are not written yet; the plan puts them with the later slices. No `03-SPEC.md` section was active.
 
 ## Session 32 state (2026-10-07)
 
@@ -38,7 +38,7 @@
 - Open nits, deliberately skipped. Slice B review (all cosmetic): the "already ×99" note shows the success tick (`Banner` is positive-only); on list detail the bump note can go stale after a stepper tap (spec: cleared on add or tick only); in Shopping Mode the note survives Finish and Reset. Slice A review: a narrow flicker window if a refetch lands after the last write resolves; a hung request keeps Finish disabled until reload; `writeShown` missing from an effect's deps (lint only). Each tap bumps `lists.last_activity_at`, so lists reload per tap (Ant mentioned lag elsewhere; watch it).
 - **#107 shipped (0.0.43, PR #132).** Stores are read-only to clients (ADR 0007). Ant has not run scenario 1 (real GPS nearby) or a 0.0.43 iPhone smoke check. The S4 tests (`rls_locations*.sql`, fixtures, `store_catalog.sql`) were reviewed statically; Ant reports the quantity tests passed but has not confirmed the S4 ones. Run them (all roll back) before relying on them.
 - Open nits: Store missing reports are public GitHub issues (accepted); no rate limit on that path; comment at `supabase/tests/rls_location_items.sql:23` still names the dropped `locations_insert_own`; `LocationsScreen.tsx` header comments may still describe the old create/edit flow; the badge shape is now a circle (docs only mention it in the `StoreBadge.tsx` comment).
-- `main` is at 0.0.50 (`mobile/app.json`). Production holds real user data.
+- `main` is at 0.0.51 (`mobile/app.json`). Production holds real user data.
 - #117 shipped (0.0.41); details in `docs/lessons.md`. Open follow-ups: no iPhone check was run, the household screen has no Try again of its own, and which query fails first is still unverified (the next real occurrence shows in the `[cartel:postgrest-retry]` log).
 - #94 shipped (0.0.40): the Stores / Item location vocabulary. The iOS native permission string in `mobile/app.json` (`locationWhenInUsePermission`) still says "location" (native builds only). `mobile/package-lock.json` still says 0.0.36 (never kept in step).
 - Ticket #123: drag auto-scroll near the screen edge on long lists (v1 limit; needs an iPhone check). Unlogged: Ant mentioned a lag issue (some actions slow, others instant); he will log it himself.
@@ -48,7 +48,7 @@
 
 Can start now:
 
-1. **#106**: slice 1 built (PR #174 awaiting Ant's pre-flight and merge, see Current state); slice 2a next; D4-D13 still to answer before slices 3, 4a, 4b.
+1. **#106**: slice 1 shipped (see Current state); slice 2a next; D4-D13 still to answer before slices 3, 4a, 4b.
 2. Plan #109 (grilled; see above).
 3. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 needs its own plan before #106's slice 4b, and ships inside it.
 4. #123 (low priority, whenever).
