@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { humanise, type Outcome } from './household';
+import { capitaliseFirst, foldItemName } from './itemName';
 
 /**
  * One crowdsourced tag: an item name, normalized, paired with the section a
@@ -30,13 +31,13 @@ type LocationItemRecord = {
 };
 
 /**
- * Trims and lowercases an item name into the form `location_items.name` is
- * stored in and matched against. The one call site for this transform, so
- * "what counts as the same item" is decided once rather than re-derived by
- * every caller that needs to compare a typed name against a stored one.
+ * Folds an item name into the form `location_items.name` is stored in and
+ * matched against (`foldItemName`, #106). Delegates so "what counts as the same
+ * item" is decided once rather than re-derived by every caller that needs to
+ * compare a typed name against a stored one.
  */
 export function normalizeItemName(name: string): string {
-  return name.trim().toLowerCase();
+  return foldItemName(name);
 }
 
 /**
@@ -54,7 +55,9 @@ export function sectionForItemName(
   itemName: string,
 ): string | null {
   const key = normalizeItemName(itemName);
-  return items.find((item) => item.name === key)?.section ?? null;
+  // Both sides fold: stored names are folded after the #106 migration, but a
+  // client running ahead of it still meets old lower-cased rows.
+  return items.find((item) => foldItemName(item.name) === key)?.section ?? null;
 }
 
 /**
@@ -115,7 +118,7 @@ export async function tagItemLocation(
   const { error } = await client.from('location_items').insert({
     location_id: locationId,
     name: normalizeItemName(itemName),
-    section: section.trim(),
+    section: capitaliseFirst(section),
   });
 
   if (error && error.code !== '23505') {

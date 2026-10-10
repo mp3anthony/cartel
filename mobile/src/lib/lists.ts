@@ -2,7 +2,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateKeyBetween } from 'fractional-indexing';
 
 import { humanise, type Outcome } from './household';
+import { capitaliseFirst, mergeSameItems } from './itemName';
 import { retryOnJwtIssuedAtFuture } from './postgrestRetry';
+
+export { findNameClash } from './itemName';
 
 export type ListRow = {
   id: string;
@@ -466,7 +469,7 @@ export async function addOrBumpItem(
   }
 
   const { data, error } = await client
-    .rpc('add_list_item', { p_list_id: listId, p_name: name.trim(), p_position: key.value })
+    .rpc('add_list_item', { p_list_id: listId, p_name: capitaliseFirst(name), p_position: key.value })
     .single();
 
   if (error) {
@@ -515,9 +518,12 @@ export async function addOrBumpItem(
 export async function addItems(
   client: SupabaseClient,
   listId: string,
-  items: readonly { name: string; quantity: number }[],
+  source: readonly { name: string; quantity: number }[],
   afterPosition: string | null,
 ): Promise<Outcome<void>> {
+  // A History snapshot can hold names that now fold to the same item; the live-name
+  // unique index would reject the whole insert, so they are merged first (#106).
+  const items = mergeSameItems(source);
   if (items.length === 0) {
     return { ok: true, value: undefined };
   }
@@ -536,7 +542,7 @@ export async function addItems(
   const { error } = await client.from('list_items').insert(
     items.map((item, i) => ({
       list_id: listId,
-      name: item.name.trim(),
+      name: item.name,
       position: keys[i],
       quantity: clampQuantity(item.quantity),
     })),
@@ -556,7 +562,7 @@ export async function renameItem(
 ): Promise<Outcome<void>> {
   const { error } = await client
     .from('list_items')
-    .update({ name: name.trim() })
+    .update({ name: capitaliseFirst(name) })
     .eq('id', itemId);
 
   if (error) {

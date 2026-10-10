@@ -52,6 +52,7 @@ const MESSAGES: Record<string, string> = {
   invalid_delta: "Couldn't change the quantity. Try again.",
   invalid_name: "That item name isn't valid. Check it and try again.",
   invalid_position: 'Could not work out where that goes. Reload the list and try again.',
+  list_items_live_name_key: 'That item is already on this list.',
 };
 
 /**
