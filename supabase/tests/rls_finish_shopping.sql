@@ -169,12 +169,12 @@ begin
   select * into s from public.shop_sessions
   where list_id = '70000000-0000-4000-8000-000000000581';
 
-  if s.item_names <> array['item1', 'item2', 'item3'] then
-    raise exception 'FAIL: list 1 session item_names is %, expected {item1,item2,item3}', s.item_names;
+  if s.item_names <> array['Item1', 'Item2', 'Item3'] then
+    raise exception 'FAIL: list 1 session item_names is %, expected {Item1,Item2,Item3}', s.item_names;
   end if;
 
-  if s.checked_item_names <> array['item1', 'item2'] then
-    raise exception 'FAIL: list 1 session checked_item_names is %, expected {item1,item2}', s.checked_item_names;
+  if s.checked_item_names <> array['Item1', 'Item2'] then
+    raise exception 'FAIL: list 1 session checked_item_names is %, expected {Item1,Item2}', s.checked_item_names;
   end if;
 
   if (select count(*) from public.location_checkoffs
@@ -282,8 +282,8 @@ begin
   select * into s from public.shop_sessions
   where list_id = '70000000-0000-4000-8000-000000000582';
 
-  if s.item_names <> array['item4', 'item5', 'item6'] or s.checked_item_names <> array['item4'] then
-    raise exception 'FAIL: list 2 first session is (%, %), expected ({item4,item5,item6}, {item4})',
+  if s.item_names <> array['Item4', 'Item5', 'Item6'] or s.checked_item_names <> array['Item4'] then
+    raise exception 'FAIL: list 2 first session is (%, %), expected ({Item4,Item5,Item6}, {Item4})',
       s.item_names, s.checked_item_names;
   end if;
 end $$;
@@ -329,14 +329,14 @@ begin
   -- by content rather than by time.
   select * into s from public.shop_sessions
   where list_id = '70000000-0000-4000-8000-000000000582'
-    and checked_item_names = array['item5'];
+    and checked_item_names = array['Item5'];
 
   if not found then
-    raise exception 'FAIL: no list 2 session with checked_item_names {item5}';
+    raise exception 'FAIL: no list 2 session with checked_item_names {Item5}';
   end if;
 
-  if s.item_names <> array['item5', 'item6'] then
-    raise exception 'FAIL: second Continue item_names is %, expected {item5,item6} (store 2''s "Not bought" must not list store 1''s purchases)',
+  if s.item_names <> array['Item5', 'Item6'] then
+    raise exception 'FAIL: second Continue item_names is %, expected {Item5,Item6} (store 2''s "Not bought" must not list store 1''s purchases)',
       s.item_names;
   end if;
 end $$;
@@ -442,9 +442,9 @@ begin
 
   if (select count(*) from public.shop_sessions
       where list_id = '70000000-0000-4000-8000-000000000582'
-        and item_names = array['item4', 'item6']
-        and checked_item_names = array['item4']) <> 1 then
-    raise exception 'FAIL: D''s Done session must have item_names {item4,item6} and checked_item_names {item4}';
+        and item_names = array['Item4', 'Item6']
+        and checked_item_names = array['Item4']) <> 1 then
+    raise exception 'FAIL: D''s Done session must have item_names {Item4,Item6} and checked_item_names {Item4}';
   end if;
 end $$;
 
