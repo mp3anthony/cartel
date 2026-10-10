@@ -32,7 +32,10 @@
 -- Assertion 11 checks the composite foreign key does real work against a raw
 -- (bypass-role) insert. Assertion 12 checks that FK's `on delete cascade` actually
 -- fires. Assertion 13 checks the two check constraints (non-empty
--- `proposed_section`, normalized `item_name`) do real enforcement work.
+-- `proposed_section`, folded `item_name` -- `item_name = fold_item_name(item_name)`
+-- since #106 slice 4a, migration 20261011000000) do real enforcement work: each is
+-- caught by its own SQLSTATE and constraint name, so a different failure (such as the
+-- foreign key) cannot make it pass.
 --
 -- Fixtures are the premise, not the thing under test, so the location and
 -- location_items rows are inserted as the owning role, which bypasses RLS. Only
@@ -468,7 +471,7 @@ begin
     insert into public.location_item_votes (location_id, item_name, proposed_section, voter_id)
     values ('81000000-0000-4000-8000-000000000001', 'nonexistent-item', 'Aisle 1',
             '00000000-0000-4000-8000-0000000000e8');
-  exception when others then
+  exception when foreign_key_violation then
     raised := true;
   end;
 
@@ -499,42 +502,54 @@ end $$;
 -- ---------------------------------------------------------------------------
 -- Assertion 13 — the two check constraints do real work. As the owning
 -- (bypass) role, against the still-existing milk row: (a) an empty
--- proposed_section must raise; (b) an unnormalized item_name ('Milk') must
--- raise.
+-- proposed_section must raise a check violation from the proposed_section check;
+-- (b) a non-folded item_name ('Milk', and an accented 'milk') must raise a check
+-- violation from location_item_votes_item_name_folded. The check runs before the
+-- foreign key (which only fires once the row is formed), so (b) fails on the check
+-- itself and not on the missing tag; the SQLSTATE and the constraint name are
+-- asserted so no other failure can make these pass.
 -- ---------------------------------------------------------------------------
 
 do $$
 declare
-  raised boolean := false;
+  st text;
+  cn text;
 begin
   begin
     insert into public.location_item_votes (location_id, item_name, proposed_section, voter_id)
     values ('81000000-0000-4000-8000-000000000001', 'milk', '',
             '00000000-0000-4000-8000-0000000000e8');
   exception when others then
-    raised := true;
+    get stacked diagnostics cn = constraint_name;
+    st := sqlstate;
   end;
 
-  if not raised then
-    raise exception 'FAIL: an empty proposed_section was accepted — the length(trim(proposed_section)) between 1 and 60 check constraint is not enforced';
+  if st is distinct from '23514' or cn not like 'location_item_votes_proposed_section%' then
+    raise exception 'FAIL: an empty proposed_section gave (sqlstate %, constraint %), expected (23514, location_item_votes_proposed_section...) — the length(trim(proposed_section)) between 1 and 60 check constraint is not enforced', st, cn;
   end if;
 end $$;
 
 do $$
 declare
-  raised boolean := false;
+  st text;
+  cn text;
+  v text;
 begin
-  begin
-    insert into public.location_item_votes (location_id, item_name, proposed_section, voter_id)
-    values ('81000000-0000-4000-8000-000000000001', 'Milk', 'Aisle 30',
-            '00000000-0000-4000-8000-0000000000e8');
-  exception when others then
-    raised := true;
-  end;
+  foreach v in array array['Milk', U&'m\00EDlk'] loop
+    st := null; cn := null;
+    begin
+      insert into public.location_item_votes (location_id, item_name, proposed_section, voter_id)
+      values ('81000000-0000-4000-8000-000000000001', v, 'Aisle 30',
+              '00000000-0000-4000-8000-0000000000e8');
+    exception when others then
+      get stacked diagnostics cn = constraint_name;
+      st := sqlstate;
+    end;
 
-  if not raised then
-    raise exception 'FAIL: an unnormalized item_name (''Milk'') was accepted — the item_name = lower(btrim(item_name)) check constraint is not enforced';
-  end if;
+    if st is distinct from '23514' or cn is distinct from 'location_item_votes_item_name_folded' then
+      raise exception 'FAIL: a non-folded item_name gave (sqlstate %, constraint %), expected (23514, location_item_votes_item_name_folded) — the item_name = fold_item_name(item_name) check constraint is not enforced', st, cn;
+    end if;
+  end loop;
 end $$;
 
 rollback;

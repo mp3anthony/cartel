@@ -20,9 +20,11 @@
 -- untagged item, so this checks both halves — the loser's INSERT actually raises,
 -- and the winner's section text is genuinely undisturbed afterwards, not merely
 -- that an error was thrown. Assertion 4 checks that tagging needs no household at
--- all, matching `locations_insert_own`'s own "are you authenticated" bar.
--- Assertions 5-6 check the two check/foreign-key constraints do real enforcement
--- work rather than being decorative.
+-- all, matching this table's own "are you authenticated" bar
+-- (`location_items_insert_all`). Assertion 5 checks the foreign key does real
+-- enforcement work. Assertion 6 checks names are stored folded (#106 slice 4a,
+-- migration 20261011000000): a differently spelled twin of an existing tag hits the
+-- unique key instead of becoming a second tag, and a new name is stored as its fold.
 --
 -- Fixtures are the premise, not the thing under test, so the location row is
 -- inserted as the owning role, which bypasses RLS. Only the assertions run as
@@ -126,7 +128,7 @@ begin
   begin
     insert into public.location_items (location_id, name, section)
     values ('80000000-0000-4000-8000-000000000001', 'milk', 'Aisle 7');
-  exception when others then
+  exception when unique_violation then
     raised := true;
   end;
 
@@ -190,7 +192,7 @@ begin
   begin
     insert into public.location_items (location_id, name, section)
     values ('99999999-0000-4000-8000-000000000000', 'eggs', 'Aisle 2');
-  exception when others then
+  exception when foreign_key_violation then
     raised := true;
   end;
 
@@ -202,9 +204,10 @@ end $$;
 reset role;
 
 -- ---------------------------------------------------------------------------
--- Assertion 6 — the normalization check constraint does real work. A
--- not-yet-used name inserted with capitals must be rejected, not silently
--- stored or silently lowercased.
+-- Assertion 6 — names are stored folded (location_items_tidy, then the
+-- location_items_name_folded check). As E, 'Milk' next to the existing 'milk' is
+-- the same item and must fail with a unique violation (not be stored as a second
+-- tag); 'Eggs ' (capital, trailing space) is stored as 'eggs'.
 -- ---------------------------------------------------------------------------
 
 select set_config('request.jwt.claims',
@@ -218,12 +221,27 @@ begin
   begin
     insert into public.location_items (location_id, name, section)
     values ('80000000-0000-4000-8000-000000000001', 'Milk', 'Aisle 9');
-  exception when others then
+  exception when unique_violation then
     raised := true;
   end;
 
   if not raised then
-    raise exception 'FAIL: an uppercase name was accepted — the name = lower(btrim(name)) check constraint is not enforced';
+    raise exception 'FAIL: Milk was accepted next to milk (or failed for another reason) — the folded name must hit the unique key';
+  end if;
+
+  if (select count(*) from public.location_items
+      where location_id = '80000000-0000-4000-8000-000000000001'
+        and name = 'milk') <> 1 then
+    raise exception 'FAIL: the refused Milk insert left a second milk tag behind';
+  end if;
+
+  insert into public.location_items (location_id, name, section)
+  values ('80000000-0000-4000-8000-000000000001', 'Eggs ', 'Aisle 2');
+
+  if (select count(*) from public.location_items
+      where location_id = '80000000-0000-4000-8000-000000000001'
+        and name = 'eggs') <> 1 then
+    raise exception 'FAIL: Eggs with a trailing space was not stored as eggs';
   end if;
 end $$;
 
