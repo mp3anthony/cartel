@@ -62,6 +62,7 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - #102 slice 3 drag (0.0.39): hand-rolled `PanResponder` handle with `touch-action: none`, `user-select: none` and a non-terminable responder, no gesture library. iPhone (iOS Safari) result: Ant tried the drag and said it looked pretty good; scenarios 3-7 (page scroll, small nudge, Shopping Mode, live sync, drag while editing) and the divider/callout checks were NOT tested, by his choice; he will raise a bug if any fails.
 - Do not chase an unreproducible symptom (a 12 s check-off stall measured about 210 ms locally); fix perceived latency and say the cause was not reproduced.
 - Parallel PRs bumping the same version field conflict trivially; bump inside the PR, not after merge.
+- A subagent's output file is not readable until it finishes, and its transcript is huge JSONL. A plan that a second agent must review is written to a file (scratchpad) and the path goes in the reviewer's brief; a reviewer briefed with only the transcript path found nothing and had to be re-run.
 
 ## Known non-blocking
 
