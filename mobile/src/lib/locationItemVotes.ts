@@ -217,7 +217,9 @@ export async function voteLocationItemCorrection(
 ): Promise<Outcome<void>> {
   const { error } = await client.rpc('vote_location_item_correction', {
     p_location_id: locationId,
-    // Tags are stored folded; the old RPC only does lower(btrim), so send the fold.
+    // Tags are stored folded. The RPC folds the name itself since migration
+    // 20261011000000; the fold is still sent so this works against the old
+    // lower(btrim) function too.
     p_item_name: normalizeItemName(itemName),
     p_proposed_section: proposedSection,
   });

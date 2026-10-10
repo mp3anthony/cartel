@@ -1,6 +1,6 @@
 # One live item per folded name per list, enforced by the database
 
-Decided 2026-10-10 in #106 (slices 1 to 3). Vocabulary is in `docs/context/lists.md` (**Item**); the migration is `20261010000000_list_items_fold.sql`.
+Decided 2026-10-10 in #106 (slices 1 to 4a). Vocabulary is in `docs/context/lists.md` (**Item**) and `docs/context/locations.md` (**Item location**); the migrations are `20261010000000_list_items_fold.sql` (list side) and `20261011000000_location_items_fold.sql` (location side, below).
 
 Items that differed only by case, inner spacing or accents ("milk", "Milk", "jalapeno", "Jalapeño") sat side by side and fragmented Quantity, ticks and Item location matching. Every layer now uses one definition of "same item", `fold_item_name` (Migration A, `20261008000000`; mirrored in the client and kept in step by `scripts/check-item-name-parity.mjs`), and the database enforces it:
 
@@ -18,7 +18,18 @@ Items that differed only by case, inner spacing or accents ("milk", "Milk", "jal
 
 ## Split
 
-The location side is not in this migration. The work is Migration B (list side, this one), C1 (location_items and votes fold) and C2 (check-offs and the retire step), so each production apply is small enough to verify by hand (D4).
+The location side is not in the list-side migration. The work is Migration B (list side, `20261010000000`), C1 (tags, votes and check-offs fold, `20261011000000`, below) and C2 (labels, the vote function's apply rule and #155), so each production apply is small enough to verify by hand (D4).
+
+## Location side (Migration C1, slice 4a)
+
+Item locations are matched by the same fold, so the location tables store it:
+
+- `location_items.name` and `location_item_votes.item_name` hold `fold_item_name(...)`, enforced by CHECKs (`name = fold_item_name(name)`) in place of the old `lower(btrim)` ones, and by a `BEFORE INSERT OR UPDATE OF name` trigger, `location_items_tidy`, that stores the fold, refuses an empty fold (`invalid_name`) and capitalises a new tag's section. Because a BEFORE trigger runs before the CHECKs, an old client that sends `lower(btrim(name))` is rescued rather than refused, and a twin of an existing tag still hits `unique (location_id, name)` (23505, which the client treats as success).
+- `item_names_are_normalized` now requires each check-off element to equal its fold, and the existing check-off arrays were re-folded element by element (order kept; no rows to change are expected in production). `finish_shopping` already wrote folds.
+- `vote_location_item_correction` folds the item name it is given (the one change to its body), so a cached client that sends a raw name still finds its tag.
+- Tags that share a fold key within a store are merged: the oldest by `(created_at, id)` survives (D5), and correction votes cast on a losing tag are deleted with it (D13). Unlike the list side, the losing tags are hard-deleted (the table has no `deleted_at`, and adding one for a one-off merge would be schema nothing reads); the backup in `migration_106` and the merge log are the audit trail, and the revert script re-inserts them by id. Production is expected to have no such group (the slice 1 pre-flight found none among 47 tags); the slice 4a PRE-1 confirms it before the run.
+- The three `lower(btrim)` constraints were auto-named, so the migration finds them by definition in `pg_constraint` (exactly one of each or it aborts), logs their names and definitions, and re-adds the foreign key under its old name; the revert rebuilds them from that log.
+- Edge until C2: a case-only correction still needs a second user; Item catalog names lose their accents (D11, fixed in #148 with a proper display name).
 
 ## Rejected
 
@@ -26,7 +37,7 @@ The location side is not in this migration. The work is Migration B (list side, 
 - **Case-insensitive index on `lower(name)`:** misses accents and inner spaces, and would not match the client fold.
 - **Rewriting old shop history snapshots:** they are records of what was shopped; copy folds at read time instead.
 - **A new column holding the folded key:** one more thing to keep in sync; an expression index on the immutable function needs no new data.
-- **Hard-deleting merge losers:** loses the audit trail; soft-delete plus backup is reversible.
+- **Hard-deleting merge losers (list side):** loses the audit trail; soft-delete plus backup is reversible. The location side has no `deleted_at` and hard-deletes with a backup instead (above).
 
 ## Consequences
 
