@@ -47,12 +47,11 @@ The household's record of finished shops, on the History screen (menu item "Hist
 _Avoid_: Receipts, past lists, trips
 
 **Dashboard**:
-The home screen (menu item "Home"). Built in #144 (0.0.58). Top to bottom, every section but the hero hidden when empty:
+The home screen (menu item "Home"). Built in #144 (0.0.58) and #145 (0.0.59). Top to bottom, every section but the hero hidden when empty:
 - **Hero**: a card per shop in progress (at least one item checked, not yet finished) with the Store badge and name ("No store" when none), the list name with its scope icon, a progress ring (ticked out of total) and a content-sized Resume button; several shops sit in a horizontally swipeable row with the next card peeking. With none, the hero is "Start a shop" with a New list button and a small Nearby stores chip. Nearby stores are checked only when the user taps the chip, never on load. Home never has an empty hero.
 - **Stores row**: circular Store badges in chain colours, labelled "Stores", scrolling sideways with no cap. Membership: the Stores in the user's shop history, most-shopped first, then any Store attached to one of their lists, in list order (most recent activity first). A tap starts or continues a shop there, exactly as a donut legend tap does; it does not open the Store's own page.
-- **Where you shop**: the existing store-frequency donut, kept as an interim single chart until #145.
+- **Graphs**: two tiles side by side, "Where you shop" (a donut of shops per Store) and "How often you shop" (bars of shops per week over the last 8 weeks; weeks start Monday). Tapping a tile opens a detail card below the tiles (tap again to close, tap the other to switch): for "Where you shop" the donut with its legend, whose rows start or continue a shop at that Store; for "How often you shop" the last 6 months as monthly bars with counts. Both are hidden when there is no shop history. Motion: about 250ms on mount (rings fill, the donut sweeps, numbers count up), once per mount and never on a refresh; nothing moves under Reduce Motion.
 - **Recent activity**: the three latest shops, one quiet line each (Store badge, "Store · date", list name as secondary text), then "See all history".
 - **Pending corrections is removed from Home.** It lives only in the Store's Item catalog, where corrections show as "Proposed: X".
-**Graphs, decided in #110, not built (#145).** Two-up tiles, "Where you shop" (donut) and "How often you shop" (bars, shops over time), tap to expand, with the on-mount motion.
 - **Limits on graphs:** Cartel stores no prices and has no item categories (Item locations are per-Store tags, not categories), so spending or category graphs are not possible yet and are not in v1 (see `CHANGE-LOG.md`). v1 uses existing data only.
 _Avoid_: Overview, feed
