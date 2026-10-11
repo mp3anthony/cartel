@@ -4,7 +4,8 @@ import { useTheme } from '../theme/ThemeProvider';
 
 /**
  * Glyphs for the controls on a `CompactItemRow` (#102): a map pin for "set or correct
- * this item's location", and a six-dot grip for the drag handle (used from Slice 3).
+ * this item's location", a six-dot grip for the drag handle (used from Slice 3), and a
+ * pencil (edit) and a tick (confirm) for the Item catalog rows (#148).
  *
  * Drawn with `react-native-svg` paths, the same approach as `ScopeIcon`: no icon font,
  * nothing to load, so they are there on first paint in both themes. Stroke / fill is
@@ -42,6 +43,57 @@ export function PinIcon({ color }: { color?: string } = {}) {
         r={2.5}
         stroke={stroke}
         strokeWidth={2}
+        fill="none"
+      />
+    </Svg>
+  );
+}
+
+export function EditIcon({ color }: { color?: string } = {}) {
+  const tokens = useTheme();
+  const stroke = color ?? tokens.color.textSecondary;
+
+  return (
+    <Svg
+      width={SIZE}
+      height={SIZE}
+      viewBox="0 0 24 24"
+      fill="none"
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Path
+        d="M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19l-4 1z"
+        stroke={stroke}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <Path d="M14 7l3 3" stroke={stroke} strokeWidth={2} strokeLinecap="round" fill="none" />
+    </Svg>
+  );
+}
+
+export function CheckIcon({ color }: { color?: string } = {}) {
+  const tokens = useTheme();
+  const stroke = color ?? tokens.color.textSecondary;
+
+  return (
+    <Svg
+      width={SIZE}
+      height={SIZE}
+      viewBox="0 0 24 24"
+      fill="none"
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Path
+        d="M5 12.5l4.5 4.5L19 7.5"
+        stroke={stroke}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
         fill="none"
       />
     </Svg>

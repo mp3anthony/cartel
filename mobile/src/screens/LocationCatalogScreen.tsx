@@ -1,25 +1,25 @@
-import { useLayoutEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { CheckIcon } from '../components/RowIcons';
 import {
-  Body,
-  ButtonRow,
+  CompactItemRow,
   EmptyState,
   ErrorNote,
-  Field,
   IconButton,
+  InlineRowEditor,
   NAVIGATOR_EDGES,
-  PrimaryButton,
   Screen,
-  SecondaryButton,
 } from '../components/ui';
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocationItemVotes } from '../hooks/useLocationItemVotes';
 import { useLocations } from '../hooks/useLocations';
 import { capitaliseFirst } from '../lib/itemName';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
+import type { LocationItemVoteRow, PendingCorrection } from '../lib/locationItemVotes';
 import type { LocationItemRow } from '../lib/locationItems';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
@@ -29,50 +29,62 @@ type Props = NativeStackScreenProps<RootStackParamList, 'LocationCatalog'> & {
   client: SupabaseClient;
 };
 
+export type CatalogRow = {
+  item: LocationItemRow;
+  /** `capitaliseFirst` of the folded stored name; accents and inner capitals are not recoverable (D11). */
+  displayName: string;
+  corrections: PendingCorrection[];
+};
+
+export type CatalogGroup = { section: string; rows: CatalogRow[] };
+
+/** Section then name, both `localeCompare`; presentational only. #149 builds search and collapsing on this. */
+export function groupCatalog(
+  items: readonly LocationItemRow[],
+  votes: readonly LocationItemVoteRow[],
+): CatalogGroup[] {
+  const bySection = new Map<string, LocationItemRow[]>();
+  for (const item of items) {
+    const bucket = bySection.get(item.section);
+    if (bucket) {
+      bucket.push(item);
+    } else {
+      bySection.set(item.section, [item]);
+    }
+  }
+
+  return Array.from(bySection.keys())
+    .sort((a, b) => a.localeCompare(b))
+    .map((section) => ({
+      section,
+      rows: bySection
+        .get(section)!
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((item) => ({
+          item,
+          displayName: capitaliseFirst(item.name),
+          corrections: pendingCorrectionsForItemName(votes, item.name, item.section),
+        })),
+    }));
+}
+
 /**
- * Issue #65 — a per-location catalog: every `location_items` row ever tagged
- * at a store, grouped by section, browsable from `LocationsScreen`'s new
- * "View catalog" button on each row. The point is answering "has anyone
- * tagged this before" at a glance, without a direct DB check — raised by the
- * user in the context of #64's unresolved tag-loss investigation.
+ * The per-store Item catalog (#65, redesigned in #148): every item with an Item location
+ * at the store, grouped by it, one compact row per item with an edit icon and, where a
+ * correction is pending, a "Proposed: X" line with a check to confirm it.
  *
- * Correction voting here is not a new mechanism — it reuses
- * `ShoppingScreen.tsx`'s Slice 8 propose/confirm flow verbatim (the same
- * `voteLocationItemCorrection` RPC, the same pencil-opens-inline-composer
- * shape, the same "pending corrections render below as a Body line plus a
- * single-tap Confirm button" rendering, since this system has no
- * reject/veto verb). This codebase's established stance (see
- * `ListDetailScreen.submitCopy()`'s own doc comment) is to duplicate small
- * per-screen logic like this rather than force a shared abstraction across
- * two screens with different surrounding context, so the propose/confirm
- * handlers below are a deliberate, local reimplementation, not an
- * accidental fork.
+ * Never creates a first tag; that stays in Shopping Mode and the list's Location pin.
+ * Propose/confirm is a deliberate local copy of `ShoppingScreen`'s flow (this codebase
+ * duplicates small per-screen logic rather than sharing it across screens with different
+ * context). Names show as `capitaliseFirst` of the folded stored name: accents and inner
+ * capitals are not recoverable (D11).
  *
- * `pending` here is a single shared `Set<string>` of in-flight item ids,
- * same idea as `ShoppingScreen`'s own `pending` — but simpler, since this
- * screen has no check-off concern at all: the only writes it ever makes are
- * correction propose/confirm, so one Set covering both is fine with no risk
- * of blocking an unrelated tap.
- *
- * Deliberately does **not** offer any way to tag a brand-new, never-tagged
- * item — that stays `tagItemLocation()`'s first-write-wins path in Shopping
- * Mode only (issue's explicit non-goal). This screen only ever shows/corrects
- * rows that already exist in `location_items`.
- *
- * Item names render as a plain bold row label, not `Badge` — `Badge`'s own
- * doc comment in `ui.tsx` calls it "a small scope marker," which an item
- * name isn't; `Badge` stays reserved for section text, consistent with every
- * other screen's usage (each section is already this group's own heading
- * here, so no `Badge` is needed for it inline either).
- *
- * Grouping is section-then-alphabetical, presentational only (the issue
- * leaves this to the implementer's judgment) — a plain two-level string
- * sort, unrelated to `computeRouteOrder`'s history-weighted mean ordering
- * used in Shopping Mode.
+ * `groupCatalog`, `CatalogGroupHeader` and `CatalogGroupSection` are separate seams so
+ * #149 (search, collapsing groups) can slot in without rewriting the rows.
  */
 export function LocationCatalogScreen({ client, navigation, route }: Props) {
   const tokens = useTheme();
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
   const { locationId } = route.params;
 
   const { view: locationsView } = useLocations(client);
@@ -86,9 +98,13 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
   );
 
   const [pending, setPending] = useState<Set<string>>(new Set());
-  const [correctingItemId, setCorrectingItemId] = useState<string | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  // Mirrors `editingItemId` so an in-flight write can tell whether its editor is still open.
+  const editingItemIdRef = useRef<string | null>(null);
+  const writingRef = useRef<Set<string>>(new Set());
   const [correctionDraft, setCorrectionDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   const location =
     locationsView.status === 'loaded'
@@ -101,22 +117,50 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
     }
   }, [location, navigation]);
 
-  function beginCorrecting(item: LocationItemRow) {
+  useEffect(() => {
+    if (error) {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    }
+  }, [error]);
+
+  const groups = useMemo(
+    () =>
+      locationItems.status === 'loaded' && itemVotes.status === 'loaded'
+        ? groupCatalog(locationItems.items, itemVotes.votes)
+        : [],
+    [locationItems, itemVotes],
+  );
+
+  function beginEditing(id: string) {
     setError(null);
-    setCorrectingItemId(item.id);
+    editingItemIdRef.current = id;
+    setEditingItemId(id);
     setCorrectionDraft('');
   }
 
-  function cancelCorrecting() {
-    setCorrectingItemId(null);
+  function cancelEditing() {
+    editingItemIdRef.current = null;
+    setEditingItemId(null);
     setCorrectionDraft('');
+  }
+
+  // Closes the editor only if it still belongs to `id` (a slow write must not close another row's).
+  function finishEditing(id: string) {
+    if (editingItemIdRef.current === id) {
+      cancelEditing();
+    }
   }
 
   async function submitCorrection(item: LocationItemRow) {
-    if (correctionDraft.trim().length === 0 || pending.has(item.id)) {
+    if (
+      correctionDraft.trim().length === 0 ||
+      pending.has(item.id) ||
+      writingRef.current.has(item.id)
+    ) {
       return;
     }
 
+    writingRef.current.add(item.id);
     setPending((current) => new Set(current).add(item.id));
     setError(null);
 
@@ -135,8 +179,9 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
 
       await refreshLocationItems();
       await refreshLocationItemVotes();
-      cancelCorrecting();
+      finishEditing(item.id);
     } finally {
+      writingRef.current.delete(item.id);
       setPending((current) => {
         const next = new Set(current);
         next.delete(item.id);
@@ -146,10 +191,11 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
   }
 
   async function confirmCorrection(item: LocationItemRow, proposedSection: string) {
-    if (pending.has(item.id)) {
+    if (pending.has(item.id) || writingRef.current.has(item.id)) {
       return;
     }
 
+    writingRef.current.add(item.id);
     setPending((current) => new Set(current).add(item.id));
     setError(null);
 
@@ -169,6 +215,7 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
       await refreshLocationItems();
       await refreshLocationItemVotes();
     } finally {
+      writingRef.current.delete(item.id);
       setPending((current) => {
         const next = new Set(current);
         next.delete(item.id);
@@ -212,135 +259,130 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
     );
   }
 
-  const bySection = new Map<string, LocationItemRow[]>();
-  for (const item of locationItems.items) {
-    const bucket = bySection.get(item.section);
-    if (bucket) {
-      bucket.push(item);
-    } else {
-      bySection.set(item.section, [item]);
-    }
-  }
-  const sections = Array.from(bySection.keys()).sort((a, b) => a.localeCompare(b));
-
   return (
-    <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
+    <Screen edges={NAVIGATOR_EDGES} align="top" scroll scrollRef={scrollRef}>
       {error ? <ErrorNote message={error} /> : null}
 
-      {sections.map((section) => (
-        <View key={section} style={styles.sectionGroup}>
-          <Body>{section}</Body>
-          {bySection
-            .get(section)!
-            .slice()
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((item) => {
-              const correcting = correctingItemId === item.id;
-              const corrections = pendingCorrectionsForItemName(
-                itemVotes.votes,
-                item.name,
-                item.section,
-              );
-
-              return (
-                <View key={item.id} style={styles.itemGroup}>
-                  {correcting ? (
-                    <View style={styles.composer}>
-                      <Field
-                        label="New item location"
-                        value={correctionDraft}
-                        onChangeText={setCorrectionDraft}
-                        placeholder={`Currently: ${item.section}`}
-                        autoCapitalize="sentences"
-                        autoFocus
-                        maxLength={60}
-                        editable={!pending.has(item.id)}
-                        onSubmitEditing={() => void submitCorrection(item)}
-                        returnKeyType="done"
+      {groups.map((group) => (
+        <CatalogGroupSection key={group.section} group={group}>
+          {group.rows.map(({ item, displayName, corrections }) => (
+            <CompactItemRow
+              key={item.id}
+              name={displayName}
+              onEdit={() => beginEditing(item.id)}
+              editLabel={`Propose a new item location for ${displayName}`}
+              editDisabled={pending.has(item.id)}
+              editor={
+                editingItemId === item.id ? (
+                  <InlineRowEditor
+                    value={correctionDraft}
+                    onChangeText={setCorrectionDraft}
+                    placeholder={`Currently: ${item.section}`}
+                    accessibilityLabel={`New item location for ${displayName}`}
+                    onSubmit={() => void submitCorrection(item)}
+                    onCancel={cancelEditing}
+                    busy={pending.has(item.id)}
+                    submitDisabled={correctionDraft.trim().length === 0}
+                    maxLength={60}
+                  />
+                ) : undefined
+              }
+              footer={
+                corrections.length > 0 ? (
+                  <View>
+                    {corrections.map((correction) => (
+                      <ProposedLine
+                        key={correction.proposedSection}
+                        proposedSection={correction.proposedSection}
+                        displayName={displayName}
+                        busy={pending.has(item.id)}
+                        onConfirm={() => void confirmCorrection(item, correction.proposedSection)}
                       />
-                      <ButtonRow>
-                        <PrimaryButton
-                          label="Propose"
-                          onPress={() => void submitCorrection(item)}
-                          busy={pending.has(item.id)}
-                          disabled={correctionDraft.trim().length === 0}
-                        />
-                        <SecondaryButton
-                          label="Cancel"
-                          onPress={cancelCorrecting}
-                          disabled={pending.has(item.id)}
-                        />
-                      </ButtonRow>
-                    </View>
-                  ) : (
-                    <View style={styles.itemRow}>
-                      <Text style={styles.itemName}>{item.name}</Text>
-                      <IconButton
-                        glyph="✏"
-                        accessibilityLabel={`Propose a new item location for ${item.name}`}
-                        onPress={() => beginCorrecting(item)}
-                        disabled={pending.has(item.id)}
-                      />
-                    </View>
-                  )}
-
-                  {corrections.length > 0 ? (
-                    <View style={styles.pendingCorrections}>
-                      {corrections.map((correction) => (
-                        <View key={correction.proposedSection} style={styles.pendingCorrectionRow}>
-                          <Body>{`Proposed new item location: "${correction.proposedSection}"`}</Body>
-                          {/* Bare View: a content-sized button's alignSelf would pin it to the top of this centred row. */}
-                          <View>
-                            <PrimaryButton
-                              label="Confirm"
-                              onPress={() => void confirmCorrection(item, correction.proposedSection)}
-                              busy={pending.has(item.id)}
-                              disabled={pending.has(item.id)}
-                            />
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
-                </View>
-              );
-            })}
-        </View>
+                    ))}
+                  </View>
+                ) : undefined
+              }
+            />
+          ))}
+        </CatalogGroupSection>
       ))}
     </Screen>
   );
 }
 
+function CatalogGroupHeader({ section }: { section: string }) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <Text accessibilityRole="header" style={styles.groupHeader}>
+      {section}
+    </Text>
+  );
+}
+
+function CatalogGroupSection({ group, children }: { group: CatalogGroup; children: ReactNode }) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <View style={styles.group}>
+      <CatalogGroupHeader section={group.section} />
+      <View>{children}</View>
+    </View>
+  );
+}
+
+/** "Proposed: X" with a check to confirm it; a real 44pt line, flush with the row's left edge. */
+function ProposedLine({
+  proposedSection,
+  displayName,
+  busy,
+  onConfirm,
+}: {
+  proposedSection: string;
+  displayName: string;
+  busy: boolean;
+  onConfirm: () => void;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <View style={styles.proposedLine}>
+      <Text numberOfLines={2} style={styles.proposedLabel}>
+        {`Proposed: ${proposedSection}`}
+      </Text>
+      <IconButton
+        icon={(color) => <CheckIcon color={color} />}
+        accessibilityLabel={`Confirm ${proposedSection} as the item location for ${displayName}`}
+        onPress={onConfirm}
+        disabled={busy}
+      />
+    </View>
+  );
+}
+
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    sectionGroup: {
+    group: {
       gap: tokens.space.sm,
     },
-    itemGroup: {
-      gap: tokens.space.xs,
-    },
-    itemRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: tokens.space.sm,
-    },
-    itemName: {
-      flex: 1,
+    groupHeader: {
       fontSize: tokens.fontSize.body,
       fontWeight: '600',
-      color: tokens.color.textPrimary,
+      color: tokens.color.textSecondary,
     },
-    composer: {
-      gap: tokens.space.sm,
-    },
-    pendingCorrections: {
-      gap: tokens.space.xs,
-      paddingLeft: tokens.space.md,
-    },
-    pendingCorrectionRow: {
+    proposedLine: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: tokens.space.sm,
+      gap: tokens.space.xs,
+      paddingLeft: 0,
+    },
+    proposedLabel: {
+      flex: 1,
+      fontSize: tokens.fontSize.caption,
+      color: tokens.color.textSecondary,
     },
   });
 }

@@ -17,7 +17,7 @@ import { useBottomNavReserved } from '../navigation/bottomNavReserve';
 import { useTheme } from '../theme/ThemeProvider';
 import { pressFill, pressScale, pressScaleFill, useReduceMotion } from '../theme/motion';
 import { scrimColor, type Tokens } from '../theme/tokens';
-import { PinIcon } from './RowIcons';
+import { EditIcon, PinIcon } from './RowIcons';
 
 /**
  * The shared surface every screen sits on. Centralising it is what keeps the ground
@@ -625,6 +625,12 @@ export function HeaderCircleButton({
  * the tick targets so it never toggles check, and like the other controls it is hidden
  * while an editor or confirmation replaces the line (the quantity editor,
  * `QuantityEditor`, arrives through the `editor` slot).
+ *
+ * Item catalog exception (#148): `checked`/`onToggle` are an optional pair. Without them
+ * the row is display-only (no check circle, plain name text, a divider flush to the left
+ * edge, `onRename` ignored) and `onEdit` adds an edit icon before the pin. This widens a
+ * shared primitive for one caller on purpose, as decided in #114/#148, rather than
+ * forking a second row component.
  */
 export function CompactItemRow({
   name,
@@ -636,6 +642,9 @@ export function CompactItemRow({
   leading,
   onRename,
   renameLabel,
+  onEdit,
+  editLabel,
+  editDisabled = false,
   onLocation,
   locationLabel,
   locationDisabled = false,
@@ -645,16 +654,17 @@ export function CompactItemRow({
   editor,
   confirm,
   footer,
-}: {
+}: ({ checked: boolean; onToggle: () => void } | { checked?: undefined; onToggle?: undefined }) & {
   name: string;
-  checked: boolean;
-  onToggle: () => void;
   disabled?: boolean;
   pill?: string | null;
   stepper?: ReactNode;
   leading?: ReactNode;
   onRename?: () => void;
   renameLabel?: string;
+  onEdit?: () => void;
+  editLabel?: string;
+  editDisabled?: boolean;
   onLocation?: () => void;
   locationLabel?: string;
   locationDisabled?: boolean;
@@ -667,6 +677,7 @@ export function CompactItemRow({
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const displayOnly = onToggle === undefined;
 
   return (
     <View>
@@ -675,7 +686,11 @@ export function CompactItemRow({
       ) : (
         <View style={styles.compactLine}>
           {leading}
-          {onRename ? (
+          {displayOnly ? (
+            <Text numberOfLines={2} style={[styles.compactName, styles.compactNameStatic]}>
+              {name}
+            </Text>
+          ) : onRename ? (
             <>
               <Pressable
                 accessibilityRole="checkbox"
@@ -751,6 +766,15 @@ export function CompactItemRow({
 
           {stepper}
 
+          {onEdit && editLabel ? (
+            <IconButton
+              icon={(color) => <EditIcon color={color} />}
+              accessibilityLabel={editLabel}
+              onPress={onEdit}
+              disabled={editDisabled}
+            />
+          ) : null}
+
           {onLocation && locationLabel ? (
             <IconButton
               icon={(color) => <PinIcon color={color} />}
@@ -771,7 +795,7 @@ export function CompactItemRow({
         </View>
       )}
       {footer}
-      <View style={styles.compactDivider} />
+      <View style={[styles.compactDivider, displayOnly && styles.compactDividerFlush]} />
     </View>
   );
 }
@@ -1673,6 +1697,9 @@ function createStyles(tokens: Tokens) {
       marginLeft: tokens.space.lg + tokens.space.md,
       backgroundColor: tokens.color.border,
     },
+    compactDividerFlush: {
+      marginLeft: 0,
+    },
     compactLine: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1708,6 +1735,10 @@ function createStyles(tokens: Tokens) {
       fontSize: tokens.fontSize.body,
       lineHeight: tokens.fontSize.body * 1.35,
       color: tokens.color.textPrimary,
+    },
+    // Display-only name (#148): no Pressable around it, so it supplies its own padding.
+    compactNameStatic: {
+      paddingVertical: tokens.space.sm,
     },
     // Same text without `flex: 1`: inside the rename target (a column) it would collapse.
     compactNameText: {
