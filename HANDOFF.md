@@ -2,13 +2,12 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-11, end of session 41)
+## Current state (2026-10-11, end of session 42)
 
 - **#106 slice 4b (+ #155) is DONE: applied to production (2026-10-11) with Ant's "go", PR #186 merged (0.0.56), results posted on #106 (comment 6103553797) and #155.** Real run via the Supabase MCP `execute_sql` (the allow rule in `.claude/settings.local.json` works; that file is git-ignored and must never be committed). POST-1 matched the dry run and PRE-1 exactly: tags 54 to 53; 4 rewritten (`15` to Aisle 15, `23` to Aisle 23, `Fruit & Vegetables` to Fruit & Veg, `Meat` to Butchery); 1 cleared (`Dali`, item "pies" at PAK'nSAVE Papanui, to be re-tagged from Shopping Mode); 1 vote deleted (equalled its tag); 0 D6 applied. Vote function is security definer, folds, capitalises, locks, `authenticated` only. `rls_location_item_votes.sql` passed (rolled back; production verified unchanged). NOT run after apply: `item_name_fold_locations.sql`, `rls_location_items.sql`, `rls_location_checkoffs.sql`, and a dry run of `supabase/rollback/106_c2_revert.sql` (the 4a revert no longer works). Backup stays in schema `migration_106`; drop it 30 days after C2 (after 2026-11-10).
 - **Process change (2026-10-11, session 41):** testing no longer blocks PRs. Ant tests in the live environment when he likes; clean code PRs are advised "clean to merge" and labelled `needs-merge-approval` for Ant; no test checklists on issues or PRs (plain-language "what it is for / what is being done" instead); `needs-manual-test` disabled except long multi-issue PRs; a subagent checks `CONTEXT-MAP.md` and prior issues on intake so related reports join or reopen older issues. Rules are in `CLAUDE.md`.
-- **Next step: Ant runs the iPhone checks below when he likes, notes results on #106.** #106 can close once they pass. Optional follow-up for the orchestrator: run the three unrun test files and the C2 revert dry run.
-- **Authority:** Ant authorised the orchestrator to apply the #106 slice 4a and 4b migrations via the Supabase MCP after a clean dry run and an explicit "go" (`docs/environment.md` line 19). Ant also wants this widened to ALL migrations (he is not trained in SQL); that edit was blocked by the permission classifier, so it is NOT done. Ant must add an Edit permission rule for `docs/environment.md` or edit line 19 himself; suggested wording: orchestrator applies migrations via the MCP, following the runbook (pre-flight, rolled-back dry run, real run, post-checks, tests); CLAUDE.md escalation triggers still stop for Ant; migrations that delete or rewrite user data need his explicit "go".
-- **Not yet run by Ant on iPhone (all one list, iOS Safari, Live):** slice 4b (#106 comment 6097974582), slice 4a (comment 6095309812, with review corrections 2 and 3 applied), slice 3 (add "Milk" then "milk": no second row, quantity 2; "bread" shows "Bread"; rename onto another item's name refused; finish shopping works, History looks right; new list from History copies items without duplicates), slice 2b 8 scenarios (https://github.com/mp3anthony/cartel/issues/106#issuecomment-6093116009) and the six-scenario slice 1 checks.
+- **#106 is CLOSED (2026-10-11).** Ant dropped the iPhone check list: he tests live as he goes and raises problems as normal reports, which intake links back to #106 or reopens. Optional follow-up for the orchestrator: run the three unrun test files and the C2 revert dry run.
+- **Authority (widened 2026-10-11, `docs/environment.md` line 19):** the orchestrator applies ALL migrations via the Supabase MCP, following the runbook. CLAUDE.md escalation triggers still stop for Ant; migrations that delete or rewrite user data need his explicit "go".
 - Slices 1 (0.0.51, PR #174), 2a (0.0.52, PR #177), 2b (0.0.53, PR #179), 3 (0.0.54, PR #181), 4a (0.0.55, PR #184) and 4b (0.0.56, PR #186) are merged and applied. Decisions D5 (oldest tag), D6 (apply at 2 voters, then clear), D11, D13: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6094235636. No `03-SPEC.md` section was active.
 
 ## Older state, condensed
@@ -31,10 +30,9 @@
 
 Can start now:
 
-1. **#106**: done except Ant's iPhone checks; close when they pass.
-2. Plan #109 (grilled).
-3. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155's plan is inside the 4b plan; it ships in 4b.
-4. #123 (low priority, whenever).
+1. Plan #109 (grilled).
+2. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 shipped in 4b (still labelled `needs-info`; clear the label and close).
+3. #123 (low priority, whenever).
 
 Then:
 
