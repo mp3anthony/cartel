@@ -42,7 +42,7 @@ The orchestrator is a pure decision-making partner. **Ant is not a software deve
 
 1. **Session start:** read `HANDOFF.md` and `CONTEXT-MAP.md`. Only fall back to the full `03-SPEC.md` if something is genuinely ambiguous. `01-CRD.md` is read once at spec creation, not reloaded in normal build work.
 2. **Scope check** (below).
-3. **Problem agreement:** the orchestrator interrogates the problem with Ant, agrees the outcome, and files the GitHub issue with a plain-language section: what the issue is for and what is being done (no test checklist). Before filing, an Investigator checks `CONTEXT-MAP.md`, `docs/context/` and prior issues for earlier related work; if it was looked at before or relates to an older issue, the report contributes to that issue or reopens it instead of becoming a duplicate. This is the approval gate before any planning.
+3. **Problem agreement:** the orchestrator interrogates the problem with Ant, agrees the outcome, and files the GitHub issue with a plain-language section: what the issue is for and what is being done (no test checklist). Before filing, the orchestrator has an Investigator check `CONTEXT-MAP.md`, `docs/context/` and prior issues for earlier related work; if it was looked at before or relates to an older issue, the report is added to that issue as a comment, or the issue is reopened, instead of becoming a duplicate. This is the approval gate before any planning.
 4. **Autonomous execution:** once the plan is approved, Investigator, Planner, Code Writer, Docs, without interrupting Ant, except on an escalation trigger.
 5. **Preview and labelling:** code goes to a preview branch; routing per Review and merge below.
 6. **Wrap-up:** when asked, summarize progress into a clean commit, update the PR description, and rewrite `HANDOFF.md` (including exactly which ticket/section of `03-SPEC.md` was last active). `HANDOFF.md` holds where-we-left-off only; git history holds prior versions. Durable facts go to their home in the pointers above, never into `HANDOFF.md`.
@@ -83,5 +83,5 @@ Never commit directly to `main`; work only on milestone branches. Merges follow 
 - `needs-info`: manual input required from Ant; always paired with a direct message to him, never left silent.
 - `ready-for-agent` / `ready-for-human`: whether the agent team can execute the whole ticket, or part needs Ant directly (a design call, third-party dashboard config, account setup).
 - `needs-manual-test`: pings Ant for hands-on verification before merge. Disabled by default; only for a long-running multi-issue integration PR.
-- `needs-merge-approval`: the default for every reviewed code PR (clean, or issues fixed/surfaced); Ant approves the merge. Not used for docs-only PRs.
+- `needs-merge-approval`: the default for every reviewed code PR (clean, or once issues are resolved with Ant); Ant approves the merge. Not used for docs-only PRs.
 - `out-of-spec`: outside the current spec; logged to `CHANGE-LOG.md`, not actioned until Ant triages it.
