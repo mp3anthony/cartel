@@ -13,7 +13,7 @@ Names only; never put secret values in this repo. The repository is public and p
 
 - One project, free tier, region ap-southeast-2, shared by local dev, previews and production: there is no dev or staging copy. It pauses after about 7 idle days (unverified); the first call back times out until the project is woken from the dashboard.
 - Anonymous sign-ins are enabled (`docs/adr/0003-anonymous-auth-no-login-wall.md`).
-- Edge Function `report-feedback` creates GitHub issues from in-app feedback. Its secret is `GITHUB_BUG_REPORT_TOKEN` (set by Ant in the dashboard or CLI); `SUPABASE_URL` and `SUPABASE_ANON_KEY` are injected automatically. The token is never an `EXPO_PUBLIC_` variable.
+- Edge Function `report-feedback` creates GitHub issues from in-app feedback. Its secret is `GITHUB_BUG_REPORT_TOKEN` (set by Ant in the dashboard or CLI); `SUPABASE_URL` and `SUPABASE_ANON_KEY` are injected automatically. The token is never an `EXPO_PUBLIC_` variable. It accepts types `report` (current app), legacy `bug`/`feature` (cached pre-0.0.57 clients) and `store_missing`. Deploy the function BEFORE the app, or the new client's `report` type is rejected.
 - Storage bucket `feedback-screenshots` is public-read (see `docs/lessons.md`).
 - `public.locations` is the seeded Store catalog, read-only to clients since `20261005000001` (no insert, update or delete grant or policy). Adding a store means updating `supabase/seed/store-catalog-christchurch.csv`, writing a migration, and the orchestrator applying it (line below).
 - Migrations on this project are applied by the orchestrator through the Supabase MCP (authorised by Ant, 2026-10-11, for all migrations), following the runbook: single-statement pre-flight checks, a rolled-back dry run, the real run, post-checks, then the tests. Ant's "go" is needed before the real run only when the migration touches a locked invariant or architecture decision in `03-SPEC.md` section 0, changes RLS or other security policy, or deletes or rewrites user data. Every other migration proceeds after a clean dry run.
@@ -39,7 +39,7 @@ Names only; never put secret values in this repo. The repository is public and p
 ## Version footer
 
 - `mobile/app.json` `expo.version` is the source of truth; `mobile/package.json` is kept in step. `mobile/src/lib/buildInfo.ts` reads it (the `expo-constants` package is not resolvable from app code).
-- The footer reads `v<version> · Live | Preview | Dev` and sits at the bottom of the Household screen only (the in-household `HouseholdScreen`, not `HouseholdSetupScreen`; two separate components, easy to confuse when testing). Production is Live, a preview deploy is Preview, and an unset channel (local dev) is Dev, never "undefined".
+- The footer is the first of two lines at the bottom of the Settings screen, `Cartel. v<version> · Live | Preview | Dev`, shown whether or not you are in a household (the second line is the copyright). Production is Live, a preview deploy is Preview, and an unset channel (local dev) is Dev, never "undefined".
 - Verified live in all three environments on its first release. It first shipped on the Lists screen and moved to Household. Never hardcode a version or channel.
 
 ## Design reference Artifact

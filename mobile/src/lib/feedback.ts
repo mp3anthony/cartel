@@ -2,17 +2,13 @@ import { Platform } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { appVersion } from './buildInfo';
+import { describeDevice } from './deviceInfo';
 import { humanise, type Outcome } from './household';
 
-export type FeedbackType = 'bug' | 'feature';
-
 export type FeedbackInput = {
-  type: FeedbackType;
   name: string;
   title: string;
   whatsHappening: string;
-  whatShouldHappen: string;
-  deviceOs: string;
   /** The screen the user was on when they opened the feedback form — see
    * `FeedbackScreen`'s own doc comment for why this is a caller-supplied param
    * rather than something read off the navigator at submit time. */
@@ -53,12 +49,12 @@ export async function submitFeedback(
 ): Promise<Outcome<void>> {
   const { data, error } = await client.functions.invoke('report-feedback', {
     body: {
-      type: input.type,
+      type: 'report',
       name: input.name.trim() || undefined,
       title: input.title.trim() || undefined,
       whatsHappening: input.whatsHappening.trim(),
-      whatShouldHappen: input.whatShouldHappen.trim(),
-      deviceOs: input.deviceOs.trim(),
+      // Captured automatically (#109); the form no longer asks for it.
+      deviceOs: describeDevice(),
       screenshotUrl: input.screenshotUrl,
       context: {
         appVersion,

@@ -8,10 +8,10 @@
  * need it to type their own props, and a screen importing the app's entry point to
  * get a type is a cycle waiting for someone to add a value to it.
  *
- * `HouseholdSetup` and `Household` are both listed even though only one of them is
- * ever registered at a time. Which one exists is a fact about the data, not about
- * the route table, and the alternative — one route that branches inside — would let
- * a caller navigate to the household screen without a household.
+ * `Settings` is always registered (#109): it shows the household section either way,
+ * so it needs no household. `HouseholdSetup` is listed here but only registered while
+ * the user is in no household. That is a fact about the data, not about the route
+ * table, and it stops a caller reaching the create/join forms while already in one.
  */
 export type RootStackParamList = {
   /**
@@ -22,8 +22,10 @@ export type RootStackParamList = {
   Dashboard: undefined;
   Lists: undefined;
   ListDetail: { listId: string };
-  HouseholdSetup: undefined;
-  Household: undefined;
+  /** `mode` picks the form: create (the default) or join with a code. Opened from Settings. */
+  HouseholdSetup: { mode?: 'create' | 'join' } | undefined;
+  /** The Settings page (#109); replaced the Household screen. */
+  Settings: undefined;
   /**
    * `attachToListId` is Slice 5's addition. Absent, this screen behaves exactly as
    * Slice 4 left it — a plain browse/create index with an ephemeral "Selected"
@@ -49,7 +51,7 @@ export type RootStackParamList = {
   History: undefined;
   /**
    * #69's feedback form. `fromScreen` names whichever screen's own row opened
-   * it — today that's always `'Household'`, since `HouseholdScreen` is this
+   * it — today that's always `'Settings'`, since `SettingsScreen` is this
    * screen's one caller, but it's a real param rather than a hardcoded
    * constant inside `FeedbackScreen` itself so a future second entry point
    * doesn't have to touch this screen to supply its own name. Optional, with

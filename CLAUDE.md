@@ -67,7 +67,7 @@ Aim for roughly 150k-180k context tokens per session/ticket. Not a mechanical cu
 
 ### Versioning and version footer
 
-`mobile/app.json` `expo.version` is the source of truth; keep `package.json` in step. Bump the patch (+0.0.1) on every code PR; docs-only PRs do not bump. The footer on the Household screen shows `version · Live/Preview/Dev` (built from `mobile/src/lib/buildInfo.ts`), so Ant can tell preview from live. Never hardcode a version or environment string. Details: `docs/environment.md`.
+`mobile/app.json` `expo.version` is the source of truth; keep `package.json` in step. Bump the patch (+0.0.1) on every code PR; docs-only PRs do not bump. The footer on the Settings screen shows `Cartel. v<version> · Live/Preview/Dev` (built from `mobile/src/lib/buildInfo.ts`), so Ant can tell preview from live. Never hardcode a version or environment string. Details: `docs/environment.md`.
 
 ### Branching
 
