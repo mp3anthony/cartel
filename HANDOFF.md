@@ -2,13 +2,11 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-11, end of session 47)
+## Current state (2026-10-12, end of session 48)
 
-- **Session 47: #148 SHIPPED (PR #203, 0.0.60, merged).** Item catalog now has compact rows, an edit icon with an inline editor, a "Proposed: X" line with a check, and grouped sections (leading capital only, no schema change). Reviewer clean. Not exercised: 375px row height with several proposals, icon geometry, folded-name display ("Iphone cable", "Jalapeno"), any iPhone check. Known, unfixed: a failed refresh after a successful vote turns the whole catalog into an error note with no retry (same as Shopping Mode).
-- **Plans for #147 and #149 were independently reviewed; findings are posted as comments on each issue** ([#147](https://github.com/mp3anthony/cartel/issues/147#issuecomment-6107740260), [#149](https://github.com/mp3anthony/cartel/issues/149#issuecomment-6107740587)). Neither needs an Ant decision or escalates. #147 is sound with five minor fixes. #149 needs changes and must be re-read against merged #148 (which exports `groupCatalog`, `CatalogRow`, `CatalogGroup`; state is `editingItemId`, `finishEditing`, `submitCorrection`/`confirmCorrection`).
+- **Session 48: #149 and #147 SHIPPED, finishing the #114 Item catalog slices (#148 shipped in session 47, 0.0.60).** #149 (PR #205, 0.0.61): catalog search (item names only, accent-folded), collapsible section groups that start collapsed each visit, match count while searching, accent dot for a pending correction, and a correction that moves an item opens its new section. Grouping lives in `mobile/src/lib/itemCatalog.ts`; pre-PR check `node scripts/check-item-catalog.mjs` (not in CI). #147 (PR #206, 0.0.62): a book icon on every store row opens the catalog; `StorePickerRow` replaces `Row` plus the "View catalog" button on the Stores screen; the selected row is a 2px accent border. Both reviewed clean by a separate agent.
+- **Not exercised in a browser or on an iPhone:** 375px header and row layout, selected outline light/dark, press tint on rounded corners, `inputMode="search"` and `aria-live` in the RNW DOM, live region on iOS Safari, the moved-section reveal after a real correction, search with the editor open, VoiceOver (may say "selected" twice). Reviewer nit, unfixed: the empty live-region Text under the search field may leave a stray gap. Known, unfixed from #148: a failed refresh after a successful vote turns the whole catalog into an error note with no retry. The #114 parent may be closeable once Ant has checked live; confirm with Ant.
 - **#110 (Home overhaul) was REOPENED** (label `needs-info`) at Ant's request: Ant is reviewing the shipped Home and wants changes. Next step is a grill-with-docs session with Ant (Ant starts it); nothing is built until then.
-- **Next slice, one per fresh session** (Code Writer, then a separate reviewer): #149 (fold in its review comment, bump to 0.0.61), then #147 (independent, any time). Ant wants one slice per session to protect context.
-- **Decisions settled (also on the issues):** #147 icon label is "View catalog for <store>" and the selected row is outline only; #149 search is item names only, header count shows matches while searching, dot is the accent, one-section stores still start collapsed, no clear button.
 
 ## Older state, condensed
 
@@ -21,20 +19,20 @@
 - **Shipped and closed:** #144/#145 Home overhaul pieces (0.0.58-0.0.59; parent #110 reopened), #143 content-sized buttons (0.0.46), #167 Back to stale list (0.0.50; lesson in `docs/lessons.md`), #158 floating pill nav and parent #139 HS house style (0.0.49), #157 circular back button (0.0.48), #156 pill buttons (0.0.47), #111 item quantity (0.0.44/0.0.45), #107 Stores read-only (0.0.43, ADR 0007), #117 (0.0.41), #94 (0.0.40). Details are in the issues, PRs and `docs/lessons.md`.
 - **Grilled and settled, not built (decisions on the issues and in `docs/context/`):**
   - #112 Shopping order: parent with #153 (fixed layout order) and #154 (Item location picker; touches `report-feedback`: keep the legacy `bug`/`feature` branch, rebase onto 0.0.57+). #151 (learned walking order) is parked and needs its own grill.
-  - #114 Item catalog redesign: parent with #147, #148, #149 (149 builds on 148). #148 shipped (0.0.60); #147 and #149 plans reviewed, ready to build. #103 also touches screens; whichever lands second rebases.
+  - #114 Item catalog redesign: parent with #147, #148, #149 (149 builds on 148). #147, #148, #149 all shipped (0.0.60 to 0.0.62). #103 also touches screens; whichever lands second rebases.
   - #139 sub-issues are all shipped. `02-DESIGN-REFERENCE.html` is the design source (see `docs/environment.md`).
 - **Logged in `CHANGE-LOG.md` as `pending` out-of-spec, for Ant to triage:** members adding a first name or nickname, renaming a household, category and spending graphs.
 - Ant wants parent issue plus sub-issues as the default way to slice.
 - **Open nits, deliberately skipped:** #158 (History label tight at 375px, links Tab-focusable while the pill is hidden, ring pops in after Feedback); #111 (bump note shows the success tick, can go stale after a stepper tap, survives Finish and Reset in Shopping Mode; a narrow refetch flicker window; `writeShown` missing from an effect's deps; each tap bumps `lists.last_activity_at`, so lists reload per tap); #107 (Store missing reports are public GitHub issues, no rate limit on that path, a stale comment at `supabase/tests/rls_location_items.sql:23` naming the dropped `locations_insert_own`, possibly stale `LocationsScreen.tsx` header comments). #107 scenario 1 (real GPS nearby) and a 0.0.43 smoke check were never run; run the S4 tests (all roll back) before relying on them. #117 follow-ups: no iPhone check, no Try again on the household screen, first failing query unverified (watch `[cartel:postgrest-retry]`).
 - iOS permission string in `mobile/app.json` (`locationWhenInUsePermission`) still says "location" (native only). `mobile/package-lock.json` still says 0.0.36. After a reload or deep link, Back goes to Home. Dev console shows React DOM warnings for `accessible` and `importantForAccessibility` on SVG icons (existing pattern). Ticket #123 (drag auto-scroll near the edge on long lists) needs an iPhone check; Ant mentioned an unlogged lag issue and will log it himself.
-- `main` is at 0.0.60 (`mobile/app.json`); Vercel deploy not confirmed. Production holds real user data.
+- `main` is at 0.0.62 (`mobile/app.json`); Vercel deploy not confirmed. Production holds real user data.
 - **Test data left on the shared Supabase project (anonymous, inert):** list "ZZ test 102" (`59344e62-4855-4942-acda-d3d45f8fe244`, Woolworths Northlands, owned by anonymous user `cef386ef-86ff-4207-942a-832f7567fc33`, plus one earlier empty anonymous user) and list "ZZ test 111" (`5a348252-1488-4cf2-9d02-a904ba20546a`, Milk at x5, personal, no store; may have extra rows). Cleanup by id only, never a blanket wipe.
 
 ## Blocking order
 
 Can start now:
 
-1. Build #149 (plan reviewed; fold in review fixes, re-read against merged #148), then #147 any time. Grill Home changes on reopened #110 with Ant. Plan #153, then #154 (after #153; may rebase onto #148). Grill #151 (parked, Ant's call when).
+1. Grill Home changes on reopened #110 with Ant. Plan #153, then #154 (after #153; may rebase onto #148). Grill #151 (parked, Ant's call when).
 2. #103 (unblocked now the Home work has landed; confirm the exact ordering with Ant when picking it up).
 3. #123 (low priority, whenever).
 
