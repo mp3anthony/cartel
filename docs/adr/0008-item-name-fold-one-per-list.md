@@ -29,7 +29,7 @@ Item locations are matched by the same fold, so the location tables store it:
 - `vote_location_item_correction` folds the item name it is given (the one change to its body), so a cached client that sends a raw name still finds its tag.
 - Tags that share a fold key within a store are merged: the oldest by `(created_at, id)` survives (D5), and correction votes cast on a losing tag are deleted with it (D13). Unlike the list side, the losing tags are hard-deleted (the table has no `deleted_at`, and adding one for a one-off merge would be schema nothing reads); the backup in `migration_106` and the merge log are the audit trail, and the revert script re-inserts them by id. Production is expected to have no such group (the slice 1 pre-flight found none among 47 tags); the slice 4a PRE-1 confirms it before the run.
 - The three `lower(btrim)` constraints were auto-named, so the migration finds them by definition in `pg_constraint` (exactly one of each or it aborts), logs their names and definitions, and re-adds the foreign key under its old name; the revert rebuilds them from that log.
-- Edge until C2: a case-only correction still needs a second user (closed by C2, below); Item catalog names lose their accents (D11, fixed in #148 with a proper display name).
+- Edge until C2: a case-only correction still needs a second user (closed by C2, below); Item catalog names lose their accents (D11). #148 shipped a leading-capital display only (`capitaliseFirst` of the folded name); accents remain lost and no schema change was made.
 
 ## Migration C2 (slice 4b and #155, `20261012000000_location_labels_votes.sql`)
 
