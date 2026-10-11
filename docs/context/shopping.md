@@ -23,7 +23,7 @@ The design test for Shopping Mode: one-handed, one look, large rows, nothing tha
 _Avoid_: Simplicity, minimal mode
 
 **Shop in progress**:
-A list with at least one item checked that has not been finished yet. What the dashboard's "Continue shopping" shows; a list row reads "3 of 12" while one is under way.
+A list with at least one item checked that has not been finished yet. What Home's hero shows; a list row reads "3 of 12" while one is under way.
 _Avoid_: Active list, open list (every list is active)
 
 ### Finishing
@@ -47,11 +47,12 @@ The household's record of finished shops, on the History screen (menu item "Hist
 _Avoid_: Receipts, past lists, trips
 
 **Dashboard**:
-The home screen (menu item "Home"). Sections: Nearby stores, Continue shopping, Where you shop (store-frequency donut), Pending corrections, Recent activity. "Continue shopping" shows only lists with a shop in progress (at least one item checked, not yet finished) and is hidden when there are none. Nearby stores are only checked when the user taps "Check for nearby stores".
-**Decided in #110, not built yet.** (The sections described above stay true until the build lands.) Home stays a dashboard; rejected: retiring it so Lists is the front door. Top to bottom, each section hidden when empty:
-- **Hero**: when a shop is in progress, a card per shop with the list name, Store badge, a progress ring (ticked out of total) and a small Resume button; several shops sit in a horizontally swipeable row. With none, the hero becomes "Start a shop" with a small New list button and a small Nearby stores chip (still checked only on tap). Home never has an empty hero. Rejected: an always-present stats hero (gives no action); a stats hero plus a Resume strip.
-- **Stores row**: circular Store badges in chain colours, labelled "Stores". A tap starts or continues a shop there as the donut tap does today; opening the Store's own page is left to the plan.
-- **Graphs**: two-up tiles, "Where you shop" (donut) and "How often you shop" (bars, shops over time), tap to expand.
-- **Recent activity**: a quiet, low-density list with "See all history".
-- **Pending corrections is removed from Home.** It belongs in the Store's Item catalog, where corrections already show as "Proposed: X".
-- **Limits on graphs:** Cartel stores no prices and has no item categories (Item locations are per-Store tags, not categories), so spending or category graphs are not possible yet and are not in v1 (see `CHANGE-LOG.md`). v1 uses existing data only._Avoid_: Overview, feed
+The home screen (menu item "Home"). Built in #144 (0.0.58). Top to bottom, every section but the hero hidden when empty:
+- **Hero**: a card per shop in progress (at least one item checked, not yet finished) with the Store badge and name ("No store" when none), the list name with its scope icon, a progress ring (ticked out of total) and a content-sized Resume button; several shops sit in a horizontally swipeable row with the next card peeking. With none, the hero is "Start a shop" with a New list button and a small Nearby stores chip. Nearby stores are checked only when the user taps the chip, never on load. Home never has an empty hero.
+- **Stores row**: circular Store badges in chain colours, labelled "Stores", scrolling sideways with no cap. Membership: the Stores in the user's shop history, most-shopped first, then any Store attached to one of their lists, in list order (most recent activity first). A tap starts or continues a shop there, exactly as a donut legend tap does; it does not open the Store's own page.
+- **Where you shop**: the existing store-frequency donut, kept as an interim single chart until #145.
+- **Recent activity**: the three latest shops, one quiet line each (Store badge, "Store · date", list name as secondary text), then "See all history".
+- **Pending corrections is removed from Home.** It lives only in the Store's Item catalog, where corrections show as "Proposed: X".
+**Graphs, decided in #110, not built (#145).** Two-up tiles, "Where you shop" (donut) and "How often you shop" (bars, shops over time), tap to expand, with the on-mount motion.
+- **Limits on graphs:** Cartel stores no prices and has no item categories (Item locations are per-Store tags, not categories), so spending or category graphs are not possible yet and are not in v1 (see `CHANGE-LOG.md`). v1 uses existing data only.
+_Avoid_: Overview, feed
