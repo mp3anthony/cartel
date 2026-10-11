@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 
 import { Row } from './ui';
+import { useMountProgress } from '../theme/motion';
 import { chainColor, type Chain } from '../theme/chainColors';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -45,6 +46,9 @@ export type DonutSegment = {
  * the legend identifies and navigates. `onSegmentPress` is optional so a
  * caller can render a read-only chart (e.g. a future summary elsewhere)
  * without wiring navigation.
+ *
+ * #145 split the ring out as `DonutRing` so the Home tile can show it small without the
+ * legend, and gave it the on-mount sweep.
  */
 const MAX_SEGMENTS = 5;
 const SIZE = 160;
@@ -66,46 +70,9 @@ export function DonutChart({
     return null;
   }
 
-  const radius = (SIZE - STROKE) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const center = SIZE / 2;
-
-  let offset = 0;
-
   return (
     <View style={styles.wrap}>
-      <Svg width={SIZE} height={SIZE} style={styles.svg}>
-        {/* Rotated so the first arc starts at 12 o'clock instead of 3 o'clock. */}
-        <G rotation={-90} originX={center} originY={center}>
-          <Circle
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke={tokens.color.surfaceSunken}
-            strokeWidth={STROKE}
-            fill="none"
-          />
-          {arcs.map((arc) => {
-            const dash = circumference * arc.fraction;
-            const dashoffset = -offset * circumference;
-            offset += arc.fraction;
-            return (
-              <Circle
-                key={arc.key}
-                cx={center}
-                cy={center}
-                r={radius}
-                stroke={arc.color}
-                strokeWidth={STROKE}
-                strokeDasharray={`${dash} ${circumference - dash}`}
-                strokeDashoffset={dashoffset}
-                strokeLinecap="butt"
-                fill="none"
-              />
-            );
-          })}
-        </G>
-      </Svg>
+      <DonutRing segments={segments} size={SIZE} stroke={STROKE} />
 
       <View style={styles.legend}>
         {arcs.map((arc) => (
@@ -117,6 +84,82 @@ export function DonutChart({
           />
         ))}
       </View>
+    </View>
+  );
+}
+
+/**
+ * Just the ring, no legend (#145: the Home tile uses it small, `DonutChart` uses it at 160).
+ * Same arcs and colours as the full chart. The arcs sweep round from 12 o'clock on mount, once
+ * per mount (`useMountProgress`). Decorative: whoever renders it speaks the numbers, so it is
+ * hidden from assistive tech, the same three props `ProgressRing` uses.
+ */
+export function DonutRing({
+  segments,
+  size,
+  stroke,
+}: {
+  segments: DonutSegment[];
+  size: number;
+  stroke: number;
+}) {
+  const tokens = useTheme();
+  const progress = useMountProgress();
+  const { arcs, total } = useMemo(() => buildArcs(segments, tokens), [segments, tokens]);
+
+  if (total === 0) {
+    return null;
+  }
+
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const center = size / 2;
+
+  let start = 0;
+
+  return (
+    <View
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+      style={{ width: size, height: size }}
+    >
+      <Svg width={size} height={size}>
+        {/* Rotated so the first arc starts at 12 o'clock instead of 3 o'clock. */}
+        <G rotation={-90} originX={center} originY={center}>
+          <Circle
+            cx={center}
+            cy={center}
+            r={radius}
+            stroke={tokens.color.surfaceSunken}
+            strokeWidth={stroke}
+            fill="none"
+          />
+          {arcs.map((arc) => {
+            const arcStart = start;
+            start += arc.fraction;
+            const shown = Math.min(Math.max(progress - arcStart, 0), arc.fraction);
+            const dash = circumference * shown;
+            if (dash <= 0) {
+              return null;
+            }
+            return (
+              <Circle
+                key={arc.key}
+                cx={center}
+                cy={center}
+                r={radius}
+                stroke={arc.color}
+                strokeWidth={stroke}
+                strokeDasharray={`${dash} ${circumference - dash}`}
+                strokeDashoffset={-arcStart * circumference}
+                strokeLinecap="butt"
+                fill="none"
+              />
+            );
+          })}
+        </G>
+      </Svg>
     </View>
   );
 }
@@ -186,10 +229,6 @@ function createStyles(tokens: Tokens) {
     wrap: {
       alignItems: 'center',
       gap: tokens.space.md,
-    },
-    svg: {
-      // The chart is drawn in SVG's own coordinate space, unrelated to RTL —
-      // nothing here needs a mirrored transform.
     },
     legend: {
       width: '100%',

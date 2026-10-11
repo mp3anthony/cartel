@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AccessibilityInfo, Platform, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 
 /**
@@ -128,7 +128,13 @@ export function slideTransform(reduceMotion: boolean): StyleProp<ViewStyle> {
 
 // One module-level subscription to the OS Reduce Motion setting, shared by every control
 // (a long list mounts ~150 icon buttons; one listener each would be wasteful).
-let reduceMotionEnabled = false;
+// On web the browser answers synchronously, so seed from it: a chart then mounts at its final
+// values on the first frame under Reduce Motion instead of flashing through an animation.
+// Native has no synchronous read and snaps to the end once the async answer arrives.
+let reduceMotionEnabled =
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false;
 let started = false;
 const listeners = new Set<() => void>();
 
@@ -164,4 +170,90 @@ export function useReduceMotion(): boolean {
     () => reduceMotionEnabled,
     () => false,
   );
+}
+
+/** Length of on-mount motion (#110, #145): within the decided 200-300ms. */
+export const MOUNT_MOTION_MS = 250;
+
+// cubic-bezier(.22,.31,0,1), the same curve as `motion.enter`, evaluated in JS because
+// charts animate numbers, not CSS properties.
+const EASE_X1 = 0.22;
+const EASE_Y1 = 0.31;
+const EASE_X2 = 0;
+const EASE_Y2 = 1;
+
+function bezier(s: number, a: number, b: number): number {
+  const u = 1 - s;
+  return 3 * u * u * s * a + 3 * u * s * s * b + s * s * s;
+}
+
+/** Ease-out matching `motion.enter`; `t` is clamped to 0..1. */
+export function easeEnter(t: number): number {
+  if (t <= 0) {
+    return 0;
+  }
+  if (t >= 1) {
+    return 1;
+  }
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 16; i += 1) {
+    const mid = (lo + hi) / 2;
+    if (bezier(mid, EASE_X1, EASE_X2) < t) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return bezier((lo + hi) / 2, EASE_Y1, EASE_Y2);
+}
+
+/**
+ * 0..1 progress of the on-mount motion, eased. Plays once per mount: it never restarts on a
+ * re-render or a refetch. With Reduce Motion on it is 1 from the first frame (web) or snaps
+ * to 1 as soon as the OS setting resolves (native). Call it in leaf components only, so only
+ * the leaf re-renders per frame.
+ */
+export function useMountProgress(): number {
+  const reduceMotion = useReduceMotion();
+  const [progress, setProgress] = useState(reduceMotion ? 1 : 0);
+  const done = useRef(reduceMotion);
+  const frame = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (done.current) {
+      return undefined;
+    }
+    const startedAt = Date.now();
+    const tick = () => {
+      const t = Math.min(1, (Date.now() - startedAt) / MOUNT_MOTION_MS);
+      setProgress(easeEnter(t));
+      if (t < 1) {
+        frame.current = requestAnimationFrame(tick);
+      } else {
+        done.current = true;
+        frame.current = null;
+      }
+    };
+    frame.current = requestAnimationFrame(tick);
+    return () => {
+      if (frame.current !== null) {
+        cancelAnimationFrame(frame.current);
+        frame.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion && !done.current) {
+      done.current = true;
+      if (frame.current !== null) {
+        cancelAnimationFrame(frame.current);
+        frame.current = null;
+      }
+      setProgress(1);
+    }
+  }, [reduceMotion]);
+
+  return progress;
 }

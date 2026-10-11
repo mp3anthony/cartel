@@ -11,7 +11,8 @@ import {
   Screen,
   SecondaryButton,
 } from '../components/ui';
-import { DonutChart, type DonutSegment } from '../components/DonutChart';
+import type { DonutSegment } from '../components/DonutChart';
+import { HomeGraphs } from '../components/HomeGraphs';
 import { HomeHero } from '../components/HomeHero';
 import { StoreBadge } from '../components/StoreBadge';
 import { StoresRow, type StoresRowEntry } from '../components/StoresRow';
@@ -28,7 +29,7 @@ import {
   type LocationRow,
   type NearbyLocation,
 } from '../lib/locations';
-import { loadShopSessionLocationCounts, type LocationShopCount } from '../lib/shopSessions';
+import { loadShopSessionStats, type ShopSessionStats } from '../lib/shopSessions';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
@@ -48,8 +49,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'> & {
 };
 
 /**
- * Home, as the #110 dashboard (#144): a hero, a Stores row, the store-frequency chart and
- * recent activity. Graph tiles and motion are #145; the donut stays as an interim until then.
+ * Home, as the #110 dashboard (#144, #145): a hero, a Stores row, two graph tiles ("Where you
+ * shop" and "How often you shop", `HomeGraphs`) and recent activity. The graphs animate on
+ * mount, once per mount, never when the history is refetched.
  *
  * Hero: one card per shop in progress (a list with at least one ticked item, #89), read
  * straight off `listsView`, whose counts stay live through the lists channel. With none, the
@@ -61,7 +63,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'> & {
  *
  * Every section after the hero renders nothing (not an empty card) when it has nothing to
  * show: a dashboard that reserves space for every widget reads as broken on a fresh account.
- * `locationCounts` is `null` while loading, not empty, so a not-yet-fetched result does not
+ * `stats` is `null` while loading, not empty, so a not-yet-fetched result does not
  * briefly hide a section for a household with real data.
  *
  * The nearby check is passive (the #23 Problem Agreement): it runs only on a tap, never on
@@ -83,7 +85,7 @@ export function DashboardScreen({
   const { view: locationsView } = useLocations(client);
   const { view: shopSessionsView } = useShopSessions(client);
 
-  const [locationCounts, setLocationCounts] = useState<LocationShopCount[] | null>(null);
+  const [stats, setStats] = useState<ShopSessionStats | null>(null);
   // State is for the spinner only; the re-entry guard is the ref (set synchronously).
   const [busyLocationId, setBusyLocationId] = useState<string | null>(null);
   const busyRef = useRef(false);
@@ -92,10 +94,10 @@ export function DashboardScreen({
   // to the hero card and never touches any other section's state.
   const [nearbyState, setNearbyState] = useState<NearbyState>({ status: 'idle' });
 
-  const refreshLocationCounts = useCallback(async () => {
-    const outcome = await loadShopSessionLocationCounts(client);
+  const refreshStats = useCallback(async () => {
+    const outcome = await loadShopSessionStats(client);
     if (outcome.ok) {
-      setLocationCounts(outcome.value);
+      setStats(outcome.value);
     }
   }, [client]);
 
@@ -108,16 +110,16 @@ export function DashboardScreen({
 
   useEffect(() => {
     if (sessionsKey !== null) {
-      void refreshLocationCounts();
+      void refreshStats();
     }
-  }, [refreshLocationCounts, sessionsKey]);
+  }, [refreshStats, sessionsKey]);
 
   // A failed shop-history load must not hide the Stores row for stores on the user's lists:
   // treat it as an empty history so the list-attached stores still appear.
   const sessionsFailed = shopSessionsView.status === 'error';
   useEffect(() => {
     if (sessionsFailed) {
-      setLocationCounts((prev) => prev ?? []);
+      setStats((prev) => prev ?? { locationCounts: [], completedAt: [] });
     }
   }, [sessionsFailed]);
 
@@ -142,7 +144,7 @@ export function DashboardScreen({
   // (most recent activity first), deduped. Built once the counts have loaded, so the row
   // does not grow after first paint.
   const storesRowEntries = useMemo<StoresRowEntry[]>(() => {
-    if (locationCounts === null) {
+    if (stats === null) {
       return [];
     }
     const ids: string[] = [];
@@ -153,7 +155,7 @@ export function DashboardScreen({
         ids.push(id);
       }
     };
-    [...locationCounts].sort((a, b) => b.count - a.count).forEach((entry) => add(entry.locationId));
+    [...stats.locationCounts].sort((a, b) => b.count - a.count).forEach((entry) => add(entry.locationId));
     if (listsView.status === 'loaded') {
       [...listsView.lists]
         .sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt))
@@ -163,7 +165,7 @@ export function DashboardScreen({
       const store = storeById.get(id);
       return store ? [{ id, name: store.name, chain: store.chain }] : [];
     });
-  }, [locationCounts, listsView, storeById]);
+  }, [stats, listsView, storeById]);
 
   async function startOrContinueAtLocation(locationId: string) {
     if (busyRef.current) {
@@ -241,7 +243,7 @@ export function DashboardScreen({
     setNearbyState({ status: 'found', results: nearby.value });
   }
 
-  const chartSegments: DonutSegment[] = (locationCounts ?? []).map((entry) => ({
+  const chartSegments: DonutSegment[] = (stats?.locationCounts ?? []).map((entry) => ({
     key: entry.locationId,
     label: locationName(entry.locationId),
     value: entry.count,
@@ -329,16 +331,12 @@ export function DashboardScreen({
         </View>
       ) : null}
 
-      {locationCounts !== null && locationCounts.length > 0 ? (
-        <View style={styles.section}>
-          <Text accessibilityRole="header" style={styles.sectionLabel}>
-            Where you shop
-          </Text>
-          <DonutChart
-            segments={chartSegments}
-            onSegmentPress={(locationId) => void startOrContinueAtLocation(locationId)}
-          />
-        </View>
+      {stats !== null && stats.completedAt.length > 0 ? (
+        <HomeGraphs
+          segments={chartSegments}
+          completedAt={stats.completedAt}
+          onStorePress={(locationId) => void startOrContinueAtLocation(locationId)}
+        />
       ) : null}
 
       {recentSessions.length > 0 ? (

@@ -56,7 +56,7 @@ function readQuantities(quantities: number[] | null, length: number): number[] {
 
 /**
  * How many shops History shows. Display-only: the donut counts every shop
- * (`loadShopSessionLocationCounts`), not just these. Enforced by `.limit()` in the
+ * (`loadShopSessionStats`), not just these. Enforced by `.limit()` in the
  * loader below, not a database constraint, the same "cap is a read-time concern"
  * reasoning §Slice 2 applied to `position`.
  */
@@ -133,14 +133,44 @@ export async function loadShopSessionLocationCounts(
   }
 
   const rows = (data ?? []) as unknown as { location_id: string }[];
+  return { ok: true, value: countByLocation(rows) };
+}
+
+function countByLocation(rows: { location_id: string }[]): LocationShopCount[] {
   const counts = new Map<string, number>();
   for (const row of rows) {
     counts.set(row.location_id, (counts.get(row.location_id) ?? 0) + 1);
   }
+  return Array.from(counts, ([locationId, count]) => ({ locationId, count }));
+}
 
+/** What Home's graph tiles (#145) read: per-Store counts plus every shop's timestamp. */
+export type ShopSessionStats = {
+  locationCounts: LocationShopCount[];
+  /** ISO timestamps, one per completed shop, in no particular order. */
+  completedAt: string[];
+};
+
+/**
+ * Like `loadShopSessionLocationCounts`, plus each shop's `completed_at`, in one query. Also
+ * uncapped, for the same reason: the donut is a lifetime share and the bars bucket by date
+ * client-side, so a cap would silently truncate both.
+ */
+export async function loadShopSessionStats(
+  client: SupabaseClient,
+): Promise<Outcome<ShopSessionStats>> {
+  const { data, error } = await retryOnJwtIssuedAtFuture('shop-session-stats', () =>
+    client.from('shop_sessions').select('location_id, completed_at'),
+  );
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  const rows = (data ?? []) as unknown as { location_id: string; completed_at: string }[];
   return {
     ok: true,
-    value: Array.from(counts, ([locationId, count]) => ({ locationId, count })),
+    value: { locationCounts: countByLocation(rows), completedAt: rows.map((r) => r.completed_at) },
   };
 }
 
