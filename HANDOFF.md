@@ -20,7 +20,7 @@
 - **Shipped and closed:** #110 Home overhaul (#144/#145, 0.0.58-0.0.59), #143 content-sized buttons (0.0.46), #167 Back to stale list (0.0.50; lesson in `docs/lessons.md`), #158 floating pill nav and parent #139 HS house style (0.0.49), #157 circular back button (0.0.48), #156 pill buttons (0.0.47), #111 item quantity (0.0.44/0.0.45), #107 Stores read-only (0.0.43, ADR 0007), #117 (0.0.41), #94 (0.0.40). Details are in the issues, PRs and `docs/lessons.md`.
 - **Grilled and settled, not built (decisions on the issues and in `docs/context/`):**
   - #112 Shopping order: parent with #153 (fixed layout order) and #154 (Item location picker; touches `report-feedback`: keep the legacy `bug`/`feature` branch, rebase onto 0.0.57+). #151 (learned walking order) is parked and needs its own grill.
-  - #114 Item catalog redesign: parent with #147, #148, #149 (149 builds on 148). Each stops at the Planner. See the impact notes above.
+  - #114 Item catalog redesign: parent with #147, #148, #149 (149 builds on 148). Plans written in session 46, awaiting review (see Current state). #103 also touches screens; whichever lands second rebases.
   - #139 sub-issues are all shipped. `02-DESIGN-REFERENCE.html` is the design source (see `docs/environment.md`).
 - **Logged in `CHANGE-LOG.md` as `pending` out-of-spec, for Ant to triage:** members adding a first name or nickname, renaming a household, category and spending graphs.
 - Ant wants parent issue plus sub-issues as the default way to slice.
