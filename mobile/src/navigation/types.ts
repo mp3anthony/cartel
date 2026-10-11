@@ -28,10 +28,10 @@ export type RootStackParamList = {
   Settings: undefined;
   /**
    * `attachToListId` is Slice 5's addition. Absent, this screen behaves exactly as
-   * Slice 4 left it — a plain browse/create index with an ephemeral "Selected"
-   * badge. Present, a finalized selection (row tap, merge-confirm, or a
+   * Slice 4 left it — a plain browse/create index with an ephemeral selected
+   * outline. Present, a finalized selection (row tap, merge-confirm, or a
    * just-created location) writes that location onto the named list instead of
-   * merely badging it, then returns to that list. `returnTo: 'Shopping'` (#89, set by
+   * merely outlining it, then returns to that list. `returnTo: 'Shopping'` (#89, set by
    * "Continue at another store") makes it go back to the Shopping screen underneath
    * instead of navigating to the list, and adds a "Keep the current store" button.
    * Only ever set via in-app

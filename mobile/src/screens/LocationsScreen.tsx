@@ -4,17 +4,15 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
-  Badge,
   Body,
   ErrorNote,
   Field,
   NAVIGATOR_EDGES,
-  Row,
   Screen,
   SecondaryButton,
   Select,
 } from '../components/ui';
-import { StoreBadge } from '../components/StoreBadge';
+import { StorePickerRow } from '../components/StorePickerRow';
 import { useLocations } from '../hooks/useLocations';
 import { requestLocation } from '../lib/geolocation';
 import { attachLocation } from '../lib/lists';
@@ -68,22 +66,23 @@ const CHAIN_FILTER_OPTIONS: { value: ChainFilter; label: string }[] = [
  *
  * `selected` is client-side and ephemeral when `attachToListId` is absent — nothing
  * about "which store is selected" is persisted; it exists only so a row can show a
- * "Selected" badge for this screen's mounted lifetime.
+ * selected outline for this screen's mounted lifetime.
  *
  * `attachToListId` turns a selection into a real write. `handleSelect` is the one
  * place a selection "becomes real": every path that finalizes a choice (a catalog row
- * or a nearby row) calls it, so the attach-vs-badge branch lives in exactly one
+ * or a nearby row) calls it, so the attach-vs-outline branch lives in exactly one
  * function. Present, it writes `location_id` onto that list and returns to it; absent,
- * it only sets the badge. `returnTo: 'Shopping'` (#89, "Continue at another store")
+ * it only sets the outline. `returnTo: 'Shopping'` (#89, "Continue at another store")
  * goes back to the Shopping screen underneath and adds "Keep the current store".
  *
  * The nearby search is passive: a button, never a Location Services prompt on mount
  * (docs/conventions.md). Denial is sticky for this screen's lifetime; there is no
  * retry and no settings deep link, and name search still works.
  *
- * "View catalog" (#65) is a sibling of each store's `Row`, not nested in its trailing
- * slot, to avoid two nested Pressables reacting to one tap (see `CheckTarget` in
- * `ui.tsx`).
+ * Each store is a `StorePickerRow` (#147): the row selects, and a book icon at its right
+ * end opens that store's Item catalog (#65). The icon is a sibling of the select
+ * control, not nested in it, to avoid two nested Pressables reacting to one tap (see
+ * `CheckTarget` in `ui.tsx`).
  */
 export function LocationsScreen({ client, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -140,11 +139,11 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
 
   /**
    * The single place a selection "becomes real". Absent `attachToListId`, it sets the
-   * ephemeral badge state and stops. Present, it writes instead — RLS already covers
+   * ephemeral selected state and stops. Present, it writes instead — RLS already covers
    * who may attach (see migration 20260810000006), so this never re-derives an
    * authorization check the database already makes.
    *
-   * The `busy` guard only applies on the attach path: a bare badge-select has nothing
+   * The `busy` guard only applies on the attach path: a bare select has nothing
    * to race.
    */
   async function handleSelect(id: string, name: string) {
@@ -273,12 +272,14 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
             <Body>No stores nearby right now.</Body>
           ) : (
             nearbyState.results.map((result) => (
-              <Row
+              <StorePickerRow
                 key={result.id}
-                leading={<StoreBadge chain={chainByLocationId.get(result.id) ?? null} />}
+                chain={chainByLocationId.get(result.id) ?? null}
                 label={`${result.name} — ~${formatDistance(result.distanceM)} away`}
-                onPress={() => void handleSelect(result.id, result.name)}
-                trailing={result.id === selected?.id ? <Badge label="Selected" /> : undefined}
+                storeName={result.name}
+                selected={result.id === selected?.id}
+                onSelect={() => void handleSelect(result.id, result.name)}
+                onOpenCatalog={() => navigation.navigate('LocationCatalog', { locationId: result.id })}
               />
             ))
           )
@@ -295,20 +296,21 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
 
       <Select label="Chain" value={chainFilter} onChange={setChainFilter} options={CHAIN_FILTER_OPTIONS} />
 
-      {filtered.map((location) => (
-        <View key={location.id} style={styles.locationGroup}>
-          <Row
-            leading={<StoreBadge chain={location.chain} />}
-            label={location.name}
-            onPress={() => void handleSelect(location.id, location.name)}
-            trailing={location.id === selected?.id ? <Badge label="Selected" /> : undefined}
-          />
-          <SecondaryButton
-            label="View catalog"
-            onPress={() => navigation.navigate('LocationCatalog', { locationId: location.id })}
-          />
+      {filtered.length > 0 ? (
+        <View style={styles.section}>
+          {filtered.map((location) => (
+            <StorePickerRow
+              key={location.id}
+              chain={location.chain}
+              label={location.name}
+              storeName={location.name}
+              selected={location.id === selected?.id}
+              onSelect={() => void handleSelect(location.id, location.name)}
+              onOpenCatalog={() => navigation.navigate('LocationCatalog', { locationId: location.id })}
+            />
+          ))}
         </View>
-      ))}
+      ) : null}
 
       {filtered.length === 0 && (query !== '' || chainFilter !== 'all') ? (
         <Body>
@@ -344,9 +346,6 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     section: {
       gap: tokens.space.sm,
-    },
-    locationGroup: {
-      gap: tokens.space.xs,
     },
   });
 }
