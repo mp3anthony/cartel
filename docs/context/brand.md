@@ -23,7 +23,7 @@ The Light, Dark or System choice, labelled "Appearance" on Settings (see `househ
 _Avoid_: Mode, skin, night mode
 
 **Chain colours**:
-Per-chain brand colours used on the dashboard donut and location badges. The same in light and dark, and kept apart from the palette so "one accent only" stays true. The "Other stores" tail of the donut never uses one.
+Per-chain brand colours used on the dashboard donut, the Home Stores row and location badges. The same in light and dark, and kept apart from the palette so "one accent only" stays true. The "Other stores" tail of the donut never uses one.
 _Avoid_: Store colours, accent variants
 
 ### Marks and voice

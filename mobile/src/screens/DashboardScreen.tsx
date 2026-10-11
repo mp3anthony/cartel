@@ -1,42 +1,35 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
   Body,
-  Card,
   ErrorNote,
-  Heading,
-  ListSummaryRow,
   NAVIGATOR_EDGES,
-  PrimaryButton,
   Row,
   Screen,
   SecondaryButton,
 } from '../components/ui';
 import { DonutChart, type DonutSegment } from '../components/DonutChart';
-import { ScopeIcon } from '../components/ScopeIcon';
+import { HomeHero } from '../components/HomeHero';
 import { StoreBadge } from '../components/StoreBadge';
+import { StoresRow, type StoresRowEntry } from '../components/StoresRow';
 import type { ListsView } from '../hooks/useLists';
 import { useLocations } from '../hooks/useLocations';
 import { useShopSessions } from '../hooks/useShopSessions';
 import { requestLocation } from '../lib/geolocation';
 import type { Household } from '../lib/household';
-import { attachLocation, createList, listSecondaryText } from '../lib/lists';
-import {
-  loadPendingCorrectionCounts,
-  type PendingCorrectionCount,
-} from '../lib/locationItemVotes';
+import { attachLocation, createList } from '../lib/lists';
 import {
   findNearbyLocations,
   NEARBY_STORE_RADIUS_M,
   roundToNearest10,
+  type LocationRow,
   type NearbyLocation,
 } from '../lib/locations';
 import { loadShopSessionLocationCounts, type LocationShopCount } from '../lib/shopSessions';
 import type { RootStackParamList } from '../navigation/types';
-import type { Chain } from '../theme/chainColors';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
@@ -55,35 +48,28 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'> & {
 };
 
 /**
- * Home, as of #22, with #23's two stretch widgets folded in afterward: a
- * nearby-store nudge and a pending-corrections summary. Render order: new
- * list, nearby stores, continue shopping, store frequency, pending
- * corrections, recent activity — #22's widgets in their original priority
- * order, with #23's two slotted in near the shopping-action widgets they're
- * closest in kind to (neither issue mandates exact placement for the
- * stretch pair).
+ * Home, as the #110 dashboard (#144): a hero, a Stores row, the store-frequency chart and
+ * recent activity. Graph tiles and motion are #145; the donut stays as an interim until then.
  *
- * Every section but "New list" and "Nearby stores" renders nothing (not an
- * empty card) when it has nothing to show — a dashboard that always
- * reserves space for every widget regardless of data reads as broken on a
- * fresh account, and #22's acceptance test says as much for the chart
- * specifically ("a sane empty state, not an empty chart"). "Nearby stores"
- * is the deliberate exception: it's an on-demand
- * action (the #23 Problem Agreement resolved the permission-prompt question
- * as "a passive button, never an automatic check on load"), so the button
- * itself has to stay visible for there to be anything to tap — what's
- * conditional is only the *result* area below it, once checked.
+ * Hero: one card per shop in progress (a list with at least one ticked item, #89), read
+ * straight off `listsView`, whose counts stay live through the lists channel. With none, the
+ * hero is a "Start a shop" card (New list, and a Nearby stores chip), so Home is never empty.
  *
- * "Continue shopping" is every list with at least one ticked item (#89's definition of a
- * shop in progress), read straight off `listsView`'s counts. Those stay live because
- * the lists channel fires on item changes, so this screen no longer fetches or
- * refreshes anything of its own for it.
+ * Stores row: stores in the shop history, most-shopped first, then any store attached to one
+ * of the user's lists, in list order. A tap does what a donut legend tap does: start or
+ * continue a shop there. It does not open the Store page.
  *
- * `locationCounts` and `pendingCorrections` are `null`
- * while loading rather than defaulting to empty — an empty *result*
- * (genuinely nothing to show) and a *not-yet-fetched* result would
- * otherwise both render as "hide this section," which very briefly hides a
- * section on every dashboard mount even for a household with real data.
+ * Every section after the hero renders nothing (not an empty card) when it has nothing to
+ * show: a dashboard that reserves space for every widget reads as broken on a fresh account.
+ * `locationCounts` is `null` while loading, not empty, so a not-yet-fetched result does not
+ * briefly hide a section for a household with real data.
+ *
+ * The nearby check is passive (the #23 Problem Agreement): it runs only on a tap, never on
+ * mount or focus, because a location permission prompt on every cold open would surprise.
+ * Its denied/error states stay scoped to the hero card and never touch `error`.
+ *
+ * Pending corrections no longer appear here; they live only in the Store's Item catalog
+ * ("Proposed: X").
  */
 export function DashboardScreen({
   client,
@@ -98,15 +84,12 @@ export function DashboardScreen({
   const { view: shopSessionsView } = useShopSessions(client);
 
   const [locationCounts, setLocationCounts] = useState<LocationShopCount[] | null>(null);
+  // State is for the spinner only; the re-entry guard is the ref (set synchronously).
   const [busyLocationId, setBusyLocationId] = useState<string | null>(null);
+  const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
-  const [pendingCorrections, setPendingCorrections] = useState<PendingCorrectionCount[] | null>(
-    null,
-  );
-  // Entirely separate from `error`/`busyLocationId` above, on purpose: a
-  // denied location permission has to stay scoped to this one widget and
-  // never touch any other section's state — #23's own testing checklist
-  // says so outright.
+  // Entirely separate from `error` on purpose: a denied location permission stays scoped
+  // to the hero card and never touches any other section's state.
   const [nearbyState, setNearbyState] = useState<NearbyState>({ status: 'idle' });
 
   const refreshLocationCounts = useCallback(async () => {
@@ -116,83 +99,70 @@ export function DashboardScreen({
     }
   }, [client]);
 
-  useEffect(() => {
-    void refreshLocationCounts();
-  }, [refreshLocationCounts]);
-
-  // The locations "the current household" has pending corrections at —
-  // location_item_votes carries no household/user column to ask directly
-  // (see loadPendingCorrectionCounts's own doc comment), so this is every
-  // location this account's own lists or shop history touch. Serialized to
-  // a sorted, deduped, comma-joined key so the effect below re-runs on a
-  // real change in membership, not on every new-but-equal array from the
-  // two useMemo/useState sources it's built from.
-  const relevantLocationIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (listsView.status === 'loaded') {
-      for (const list of listsView.lists) {
-        if (list.locationId) {
-          ids.add(list.locationId);
-        }
-      }
-    }
-    for (const entry of locationCounts ?? []) {
-      ids.add(entry.locationId);
-    }
-    return Array.from(ids).sort();
-  }, [listsView, locationCounts]);
-  const relevantLocationIdsKey = relevantLocationIds.join(',');
+  // Re-runs when the shop history changes (finishing a shop adds a session), so the Stores
+  // row and donut update on returning to Home without a remount.
+  const sessionsKey =
+    shopSessionsView.status === 'loaded'
+      ? shopSessionsView.sessions.map((s) => s.id).join(',')
+      : null;
 
   useEffect(() => {
-    // Waits for locationCounts to have loaded at least once — before that,
-    // relevantLocationIds only reflects list-attached locations, and
-    // running the (harmless but wasted) query against a known-partial set
-    // would just mean doing it again a moment later anyway.
-    if (locationCounts === null) {
-      return;
+    if (sessionsKey !== null) {
+      void refreshLocationCounts();
     }
-    void (async () => {
-      const outcome = await loadPendingCorrectionCounts(client, relevantLocationIds);
-      if (outcome.ok) {
-        setPendingCorrections(outcome.value);
-      }
-    })();
-    // relevantLocationIds is read inside but intentionally not listed below
-    // — its array identity changes every render; relevantLocationIdsKey is
-    // the same information, stable across renders where membership hasn't
-    // changed, which is the condition that should actually re-run this.
-  }, [client, locationCounts, relevantLocationIdsKey]);
+  }, [refreshLocationCounts, sessionsKey]);
 
-  // In progress = at least one ticked item, recorded or not (#89). `listsView` is the one
-  // source: it already carries the counts and is kept live by the lists channel.
+  const storeById = useMemo(() => {
+    const map = new Map<string, LocationRow>();
+    if (locationsView.status === 'loaded') {
+      for (const location of locationsView.locations) {
+        map.set(location.id, location);
+      }
+    }
+    return map;
+  }, [locationsView]);
+
+  const locationName = (locationId: string): string => storeById.get(locationId)?.name ?? 'a store';
+  const locationChain = (locationId: string) => storeById.get(locationId)?.chain ?? null;
+
+  // In progress = at least one ticked item, recorded or not (#89).
   const inProgressLists =
     listsView.status === 'loaded' ? listsView.lists.filter((list) => list.checkedCount > 0) : [];
 
-  const locationName = useCallback(
-    (locationId: string): string =>
-      locationsView.status === 'loaded'
-        ? (locationsView.locations.find((l) => l.id === locationId)?.name ?? 'a store')
-        : 'a store',
-    [locationsView],
-  );
-
-  // #51: the donut chart's brand-colour lookup — same find-by-id shape as
-  // locationName above, just returning chain instead of name.
-  const locationChain = useCallback(
-    (locationId: string): Chain | null =>
-      locationsView.status === 'loaded'
-        ? (locationsView.locations.find((l) => l.id === locationId)?.chain ?? null)
-        : null,
-    [locationsView],
-  );
+  // Shop history first (most-shopped first), then stores on the user's lists in list order
+  // (most recent activity first), deduped. Built once the counts have loaded, so the row
+  // does not grow after first paint.
+  const storesRowEntries = useMemo<StoresRowEntry[]>(() => {
+    if (locationCounts === null) {
+      return [];
+    }
+    const ids: string[] = [];
+    const seen = new Set<string>();
+    const add = (id: string | null) => {
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
+      }
+    };
+    [...locationCounts].sort((a, b) => b.count - a.count).forEach((entry) => add(entry.locationId));
+    if (listsView.status === 'loaded') {
+      [...listsView.lists]
+        .sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt))
+        .forEach((list) => add(list.locationId));
+    }
+    return ids.flatMap((id) => {
+      const store = storeById.get(id);
+      return store ? [{ id, name: store.name, chain: store.chain }] : [];
+    });
+  }, [locationCounts, listsView, storeById]);
 
   async function startOrContinueAtLocation(locationId: string) {
-    if (busyLocationId) {
+    if (busyRef.current) {
       return;
     }
 
-    // Already shopping this store — go straight there rather than starting
-    // a second, redundant list at the same location.
+    // Already shopping this store: go straight there rather than starting a second,
+    // redundant list at the same location.
     const existing =
       listsView.status === 'loaded'
         ? listsView.lists.find((list) => list.locationId === locationId && list.checkedCount > 0)
@@ -203,42 +173,39 @@ export function DashboardScreen({
       return;
     }
 
+    busyRef.current = true;
     setBusyLocationId(locationId);
     setError(null);
 
-    // Personal by default, matching the manual composer's own starting state
-    // (ListsScreen's `beginComposing`) — this one-tap shortcut skips the
-    // share checkbox rather than guessing "shared," and the list is
-    // renameable/promotable afterward like any other.
-    const name = `${locationName(locationId)} — ${formatToday()}`;
-    const createOutcome = await createList(client, name, null);
+    try {
+      // Personal by default, matching the manual composer's own starting state
+      // (ListsScreen's `beginComposing`); renameable/promotable afterward like any other.
+      const name = `${locationName(locationId)} — ${formatToday()}`;
+      const createOutcome = await createList(client, name, null);
 
-    if (!createOutcome.ok) {
+      if (!createOutcome.ok) {
+        setError(createOutcome.message);
+        return;
+      }
+
+      const newListId = createOutcome.value;
+      const attachOutcome = await attachLocation(client, newListId, locationId);
+
+      if (!attachOutcome.ok) {
+        setError(attachOutcome.message);
+        return;
+      }
+
+      await onListsChanged();
+      navigation.navigate('ListDetail', { listId: newListId });
+    } finally {
+      busyRef.current = false;
       setBusyLocationId(null);
-      setError(createOutcome.message);
-      return;
     }
-
-    const newListId = createOutcome.value;
-    const attachOutcome = await attachLocation(client, newListId, locationId);
-
-    if (!attachOutcome.ok) {
-      setBusyLocationId(null);
-      setError(attachOutcome.message);
-      return;
-    }
-
-    await onListsChanged();
-    setBusyLocationId(null);
-    navigation.navigate('ListDetail', { listId: newListId });
   }
 
   /**
-   * Runs only on a tap — never on mount, never on focus. That's the whole
-   * resolution to #23's own open question: a location permission prompt is
-   * an interruption, and Home is the one screen guaranteed to be the first
-   * thing every session sees, so it's the one screen an automatic check
-   * would surprise on literally every cold open.
+   * Runs only on a tap, never on mount, never on focus (see the header comment).
    */
   async function checkNearby() {
     setNearbyState({ status: 'checking' });
@@ -272,7 +239,8 @@ export function DashboardScreen({
     chain: locationChain(entry.locationId),
   }));
 
-  const recentSessions = shopSessionsView.status === 'loaded' ? shopSessionsView.sessions.slice(0, 3) : [];
+  const recentSessions =
+    shopSessionsView.status === 'loaded' ? shopSessionsView.sessions.slice(0, 3) : [];
 
   const loadingCore =
     listsView.status === 'loading' ||
@@ -287,17 +255,15 @@ export function DashboardScreen({
     );
   }
 
-  return (
-    <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
-      {error ? <ErrorNote message={error} /> : null}
+  const nearbyChip =
+    nearbyState.status === 'idle' ? (
+      <SecondaryButton label="Nearby stores" onPress={() => void checkNearby()} />
+    ) : null;
 
-      <PrimaryButton label="New list" onPress={() => navigation.navigate('Lists')} />
-
-      <View style={styles.section}>
-        <Heading>Nearby stores</Heading>
-        {nearbyState.status === 'idle' ? (
-          <SecondaryButton label="Check for nearby stores" onPress={() => void checkNearby()} />
-        ) : nearbyState.status === 'checking' ? (
+  const nearbyResults =
+    nearbyState.status === 'idle' ? null : (
+      <View style={styles.nearby}>
+        {nearbyState.status === 'checking' ? (
           <ActivityIndicator color={tokens.color.accent} />
         ) : nearbyState.status === 'denied' ? (
           <Body>Location Services isn't available, so nearby stores can't be checked this session.</Body>
@@ -318,79 +284,73 @@ export function DashboardScreen({
         {nearbyState.status === 'denied' ||
         nearbyState.status === 'error' ||
         nearbyState.status === 'found' ? (
-          <SecondaryButton label="Refresh" onPress={() => void checkNearby()} />
+          <View style={styles.leftAligned}>
+            <SecondaryButton label="Check again" onPress={() => void checkNearby()} />
+          </View>
         ) : null}
       </View>
+    );
 
-      {inProgressLists.length > 0 ? (
+  return (
+    <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
+      {error ? <ErrorNote message={error} /> : null}
+
+      <HomeHero
+        inProgress={inProgressLists}
+        storeFor={(locationId) => {
+          const store = locationId ? storeById.get(locationId) : undefined;
+          return store ? { name: store.name, chain: store.chain } : null;
+        }}
+        household={household}
+        onResume={(listId) => navigation.navigate('ListDetail', { listId })}
+        onNewList={() => navigation.navigate('Lists')}
+        nearby={{ chip: nearbyChip, results: nearbyResults }}
+      />
+
+      {storesRowEntries.length > 0 ? (
         <View style={styles.section}>
-          <Heading>Continue shopping</Heading>
-          {inProgressLists.map((list) => {
-            const secondary = listSecondaryText(
-              list,
-              list.locationId ? locationName(list.locationId) : null,
-            );
-            const scope = list.householdId
-              ? `Shared with ${household?.name ?? 'your household'}`
-              : 'Personal';
-
-            return (
-              <ListSummaryRow
-                key={list.id}
-                name={list.name}
-                secondary={secondary}
-                accessibilityLabel={`${list.name}, ${secondary}, ${scope}`}
-                trailing={
-                  <ScopeIcon
-                    shared={list.householdId !== null}
-                    householdName={household?.name ?? null}
-                  />
-                }
-                onPress={() => navigation.navigate('ListDetail', { listId: list.id })}
-              />
-            );
-          })}
+          <Text accessibilityRole="header" style={styles.sectionLabel}>
+            Stores
+          </Text>
+          <StoresRow
+            stores={storesRowEntries}
+            busyId={busyLocationId}
+            onPress={(id) => void startOrContinueAtLocation(id)}
+          />
         </View>
       ) : null}
 
-      {locationCounts !== null ? (
+      {locationCounts !== null && locationCounts.length > 0 ? (
         <View style={styles.section}>
-          <Heading>Where you shop</Heading>
-          {locationCounts.length === 0 ? (
-            <Body>No shops yet — your store breakdown shows up here once you finish one.</Body>
-          ) : (
-            <DonutChart
-              segments={chartSegments}
-              onSegmentPress={(locationId) => void startOrContinueAtLocation(locationId)}
-            />
-          )}
-        </View>
-      ) : null}
-
-      {pendingCorrections !== null && pendingCorrections.length > 0 ? (
-        <View style={styles.section}>
-          <Heading>Pending corrections</Heading>
-          {pendingCorrections.map((entry) => (
-            <Row
-              key={entry.locationId}
-              label={`${locationName(entry.locationId)} · ${entry.count} waiting for a second vote`}
-              onPress={() => void startOrContinueAtLocation(entry.locationId)}
-            />
-          ))}
+          <Text accessibilityRole="header" style={styles.sectionLabel}>
+            Where you shop
+          </Text>
+          <DonutChart
+            segments={chartSegments}
+            onSegmentPress={(locationId) => void startOrContinueAtLocation(locationId)}
+          />
         </View>
       ) : null}
 
       {recentSessions.length > 0 ? (
         <View style={styles.section}>
-          <Heading>Recent activity</Heading>
-          <Card>
-            {recentSessions.map((session) => (
-              <Body key={session.id}>
+          <Text accessibilityRole="header" style={styles.sectionLabel}>
+            Recent activity
+          </Text>
+          {recentSessions.map((session) => (
+            <View key={session.id} style={styles.activityLine}>
+              <StoreBadge chain={locationChain(session.locationId)} />
+              <Text style={styles.activityText} numberOfLines={2}>
                 {`${locationName(session.locationId)} · ${formatSessionDate(session.completedAt)}`}
-              </Body>
-            ))}
+                {session.listName ? (
+                  <Text style={styles.activityList}>{`  ${session.listName}`}</Text>
+                ) : null}
+              </Text>
+            </View>
+          ))}
+          <View style={styles.leftAligned}>
             <SecondaryButton label="See all history" onPress={() => navigation.navigate('History')} />
-          </Card>
+          </View>
         </View>
       ) : null}
     </Screen>
@@ -417,6 +377,31 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     section: {
       gap: tokens.space.sm,
+    },
+    sectionLabel: {
+      color: tokens.color.textPrimary,
+      fontSize: tokens.fontSize.body,
+      fontWeight: '700',
+    },
+    nearby: {
+      gap: tokens.space.sm,
+    },
+    leftAligned: {
+      alignItems: 'flex-start',
+    },
+    activityLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.sm,
+    },
+    activityText: {
+      flexShrink: 1,
+      color: tokens.color.textPrimary,
+      fontSize: tokens.fontSize.body,
+    },
+    activityList: {
+      color: tokens.color.textSecondary,
+      fontSize: tokens.fontSize.caption,
     },
   });
 }
