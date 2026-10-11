@@ -20,7 +20,7 @@ Docs record only what the code cannot explain: decisions, reasoning, rejected al
 - Stack: Expo (managed) app in `mobile/`, React Native Web deployed on Vercel, Supabase (Postgres, RLS, Realtime, anonymous auth). See `docs/adr/0001-supabase-rls-realtime.md`, `docs/adr/0002-location-global-list-private.md` and `docs/adr/0003-anonymous-auth-no-login-wall.md`.
 - **All UI/UX work starts from `02-DESIGN-REFERENCE.html`** (the floor, not the ceiling); `mobile/src/theme/tokens.ts` is the sole palette source. Follow `docs/conventions.md`. Any subagent brief touching UI/UX must carry the foundation.
 - Testing targets iPhone / iOS Safari only. Ant owns an iPhone, not Android; never write Android steps.
-- **Models:** Planner subagents always use the `planner` agent (`.claude/agents/planner.md`, Opus), (decided 2026-10-04: planning benefits most from the most capable model with full repo access). All other subagents (Investigator, Code Writer, Code Reviewer, Docs) use the session's own model and effort (soft rule, not forced).
+- **Models:** Planner subagents always use the `planner` agent (`.claude/agents/planner.md`, Opus; decided 2026-10-04: planning benefits most from the most capable model with full repo access). All other subagents (Investigator, Code Writer, Code Reviewer, Docs) use the session's own model and effort (soft rule, not forced).
 
 ## Workflow Protocol
 
