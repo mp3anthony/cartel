@@ -19,7 +19,7 @@ The page background colour of each theme. The dark ground is locked to the app i
 _Avoid_: Background colour, canvas
 
 **Theme**:
-The Light, Dark or System choice, labelled "Appearance" on the Household screen (decided in #109, not built yet: it becomes a section of Settings, see `household.md`). System follows the device live. Light is the default and the design baseline; Dark is a user option, never the starting point for design. The installed-PWA status bar follows the resolved theme.
+The Light, Dark or System choice, labelled "Appearance" on Settings (see `household.md`). System follows the device live. Light is the default and the design baseline; Dark is a user option, never the starting point for design. The installed-PWA status bar follows the resolved theme.
 _Avoid_: Mode, skin, night mode
 
 **Chain colours**:
@@ -47,11 +47,11 @@ The floating pill at the bottom of every screen (built in #158, replacing the ha
 _Avoid_: Tab bar, menu, drawer, sidebar
 
 **Settings gear**:
-The icon-only fifth item in the bottom nav (accessibility label "Settings"); a nav link like the others, ringed while Settings is open. Hides with the bottom nav. Until #109 lands it opens the Household screen (or "Join or create a household" without one); #109 turns that into Settings, see `household.md`.
+The icon-only fifth item in the bottom nav (accessibility label "Settings"); a nav link like the others, ringed while Settings is open. Hides with the bottom nav. It opens Settings, see `household.md`.
 _Avoid_: Menu, cog
 
 **Back circle**:
-The circular chevron button at the header's left, before the wordmark (accessibility label "Back"), built in #157. Shown on drill-down screens only: list detail, Shopping Mode, a Store's item catalog, Feedback, Store missing, and the Stores picker when opened to attach a store to a list. Not on Home, Lists, plain Stores, History or Household (the bottom-nav destinations and the screen behind the gear). It does what the browser Back does.
+The circular chevron button at the header's left, before the wordmark (accessibility label "Back"), built in #157. Shown on drill-down screens only: list detail, Shopping Mode, a Store's item catalog, Feedback, Store missing, household setup (reached from Settings), and the Stores picker when opened to attach a store to a list. Not on Home, Lists, plain Stores, History or Settings (the bottom-nav destinations, the gear's screen included). It does what the browser Back does.
 _Avoid_: Back arrow, back chevron
 
 **Close circle**:
@@ -59,9 +59,9 @@ The same ringed circle with an X (label "Close"), for dialogs that need a close 
 _Avoid_: Dismiss button
 
 **Version footer**:
-A `v<version> · Live | Preview | Dev` line at the bottom of the Household screen. See `docs/environment.md`. Decided in #109 (not built yet): it moves to a two-line Settings footer, see Settings footer in `household.md`.
+The Settings footer: two lines, `Cartel. v<version> · Live | Preview | Dev` then the copyright. See `docs/environment.md` and Settings footer in `household.md`.
 _Avoid_: Build stamp, About page
 
 **Feedback**:
-The "Report a bug or idea" screen, entered from the floating "Report" pill on the Household screen only. Needs a type (Bug or Feature idea), what is happening, what should happen and the device; name and title are optional. On success a plain "thanks" banner (no issue number); on failure the form is kept. Decided in #109 (not built yet): becomes a single "Report issue" control on Settings with no type choice, see `household.md`.
+The "Report issue" screen, entered from the single "Report issue" control on Settings only. No type choice and no "what should happen" field; Device / OS is captured automatically; name, title and screenshot are optional. On success a plain "thanks" banner (no issue number); on failure the form is kept. See Report issue in `household.md`.
 _Avoid_: Support, contact us, ticket

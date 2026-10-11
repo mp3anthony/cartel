@@ -93,7 +93,7 @@ export function useTheme(): Tokens {
   return value;
 }
 
-/** For the mode-setting UI only (HouseholdScreen's toggle, App.tsx's status
+/** For the mode-setting UI only (SettingsScreen's toggle, App.tsx's status
  * bar) — everything that just wants colors/spacing keeps using useTheme(). */
 export function useThemeMode(): ThemeModeValue {
   const value = useContext(ThemeModeContext);

@@ -7,7 +7,7 @@ Who you shop with. A household is optional: the app is fully usable alone, and s
 ### The group
 
 **Household**:
-The small group of people who share lists, reached today from the Settings gear in the bottom nav (the Household screen, or "Join or create a household" when you are not in one); decided in #109 (not built yet), it is reached through Settings. A user belongs to at most one household. Created with "Create a household", joined with "Join household".
+The small group of people who share lists, managed from the Household section of Settings (the gear in the bottom nav). A user belongs to at most one household. Created with "Create a household", joined with "Join household".
 _Avoid_: Family, team, group, account
 
 **Member**:
@@ -18,9 +18,7 @@ _Avoid_: Owner, admin, guest
 Using Cartel with no household at all. The setup screen says "You can be the only member". Personal lists work fully without one.
 _Avoid_: Free mode, single-user mode
 
-### Settings (decided in #109, not built yet)
-
-Today the Household screen also holds Appearance, the version footer and the feedback pill, none of which are household things; #109 turns it into a Settings page. This section describes the decided design, not the current app.
+### Settings
 
 **Settings**:
 The page behind the Settings gear in the bottom nav, labelled "Settings", shown whether or not you are in a household (it replaces the two states "Household" and "Join or create a household"). Sections: Household, Appearance, a Report issue control top right, and the version footer pinned to the bottom. Rejected: keeping a Household screen and moving Appearance, version and reporting elsewhere.
@@ -33,7 +31,7 @@ In a household: the household name at the top (read-only), the member count with
 Light / Dark / System, shown to everyone on Settings, solo or not. See Theme in `brand.md`.
 
 **Report issue**:
-A single control, the bug icon plus a small "Report issue" label, top right of Settings and local to it (not a menu item). Replaces the "Report a bug or idea" pill and its Bug / Feature idea switch: non-technical users should not have to classify. The form keeps name, title, a reworded "what's going on" and the optional screenshot; "what should happen instead" is dropped and Device / OS is captured automatically. Issues filed from this form carry only the `from-app` label (no `bug` / `enhancement`); Ant decides bug vs feature at triage. Store missing reports keep their own `store-missing` label and are unaffected. Changes the `report-feedback` Edge Function, which today requires a type, "what should happen" and Device / OS; its `store_missing` path must keep working.
+A single control, the bug icon plus a small "Report issue" label, top right of Settings and local to it (not a menu item). Replaces the "Report a bug or idea" pill and its Bug / Feature idea switch: non-technical users should not have to classify. The form keeps name, title, a reworded "what's going on" and the optional screenshot; "what should happen instead" is dropped and Device / OS is captured automatically. Issues filed from this form carry only the `from-app` label (no `bug` / `enhancement`); Ant decides bug vs feature at triage. Store missing reports keep their own `store-missing` label and are unaffected. The `report-feedback` Edge Function accepts the new `report` type and still accepts legacy `bug`/`feature` for cached older clients; `store_missing` is unchanged.
 _Avoid_: Bug report, Feature idea (as user-facing types)
 
 **Settings footer**:

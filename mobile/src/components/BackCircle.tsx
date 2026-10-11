@@ -25,6 +25,7 @@ export function isDrillDown(route: AnyRoute): boolean {
     case 'LocationCatalog':
     case 'Feedback':
     case 'StoreMissing':
+    case 'HouseholdSetup':
       return true;
     case 'Locations':
       return Boolean(route.params?.attachToListId);

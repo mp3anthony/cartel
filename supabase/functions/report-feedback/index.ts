@@ -15,6 +15,10 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
  * and `SUPABASE_ANON_KEY` are injected automatically into every Edge Function's
  * environment; they don't need to be set as secrets here.
  *
+ * #109: the form sends one standard `report` (no Bug/Feature choice, no "what should
+ * happen", Device/OS captured by the client). `bug` and `feature` are still accepted,
+ * unchanged, for cached pre-0.0.57 clients.
+ *
  * Modelled on `funded`'s shipped `src/app/api/bug-report/route.ts` (see this
  * project's #68/#69 and docs/lessons.md (Supabase) for why that file was read directly rather than
  * re-derived) — same auth-re-derivation shape, same idempotent-label-create
@@ -31,6 +35,8 @@ const TITLE_FALLBACK_LENGTH = 60;
 const STORE_MISSING_LABEL = 'store-missing';
 const STORE_MISSING_LABEL_COLOR = '1D76DB';
 const STORE_FIELD_MAX_LENGTH = 80;
+// #109: the auto-captured Device / OS string on a `report` (a user agent runs long).
+const DEVICE_FIELD_MAX_LENGTH = 300;
 const STORE_CHAINS: Record<string, string> = {
   new_world: 'New World',
   paknsave: "PAK'nSAVE",
@@ -55,7 +61,7 @@ function json(body: unknown, status = 200) {
 type FeedbackType = 'bug' | 'feature';
 
 type SubmitPayload = {
-  type: FeedbackType | 'store_missing';
+  type: FeedbackType | 'report' | 'store_missing';
   /** #107, store_missing only. */
   storeName?: string;
   chain?: string;
@@ -63,7 +69,9 @@ type SubmitPayload = {
   name?: string;
   title?: string;
   whatsHappening: string;
+  /** Legacy `bug`/`feature` only. */
   whatShouldHappen: string;
+  /** Required for legacy `bug`/`feature`; optional for `report`. */
   deviceOs: string;
   /** #70: a public Storage URL for an optionally-attached screenshot. Never
    * validated server-side beyond "is it a string" — the client already
@@ -89,6 +97,7 @@ Deno.serve(async (req: Request) => {
     const body = (await req.json().catch(() => null)) as Partial<SubmitPayload> | null;
 
     const isStoreMissing = body?.type === 'store_missing';
+    const isReport = body?.type === 'report';
     const type = body?.type === 'bug' || body?.type === 'feature' ? body.type : null;
     const storeName = typeof body?.storeName === 'string' ? sanitizeInline(body.storeName) : '';
     const chainKey =
@@ -97,6 +106,7 @@ Deno.serve(async (req: Request) => {
     const whatsHappening = typeof body?.whatsHappening === 'string' ? body.whatsHappening.trim() : '';
     const whatShouldHappen = typeof body?.whatShouldHappen === 'string' ? body.whatShouldHappen.trim() : '';
     const deviceOs = typeof body?.deviceOs === 'string' ? body.deviceOs.trim() : '';
+    const deviceField = contextField(body?.deviceOs, DEVICE_FIELD_MAX_LENGTH, 'Not captured');
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     const userTitle = typeof body?.title === 'string' ? body.title.trim() : '';
     const screenshotUrl = typeof body?.screenshotUrl === 'string' ? body.screenshotUrl.trim() : '';
@@ -113,7 +123,13 @@ Deno.serve(async (req: Request) => {
       if (area.length > STORE_FIELD_MAX_LENGTH) {
         return json({ error: `Suburb or street must be ${STORE_FIELD_MAX_LENGTH} characters or fewer.` }, 400);
       }
-    } else if (!type || !whatsHappening || !whatShouldHappen || !deviceOs) {
+    } else if (isReport) {
+      if (!whatsHappening) {
+        return json({ error: "Please say what's going on." }, 400);
+      }
+    } else if (!type) {
+      return json({ error: 'Unknown report type.' }, 400);
+    } else if (!whatsHappening || !whatShouldHappen || !deviceOs) {
       return json({ error: 'Type, "what\'s happening", "what should happen", and device/OS are all required.' }, 400);
     }
 
@@ -202,7 +218,25 @@ Deno.serve(async (req: Request) => {
         '---',
         footer,
       ];
+    } else if (isReport) {
+      issueTitle = userTitle || truncate(whatsHappening, TITLE_FALLBACK_LENGTH);
+      issueLabels = [FROM_APP_LABEL];
+      bodyLines = [
+        name ? `**From:** ${name}` : null,
+        '',
+        "**What's going on**",
+        whatsHappening,
+        '',
+        '**Device / OS**',
+        deviceField,
+        '',
+        screenshotUrl ? `![Screenshot](${screenshotUrl})` : null,
+        screenshotUrl ? '' : null,
+        '---',
+        footer,
+      ].filter((line): line is string => line !== null);
     } else {
+      // Legacy bug/feature, kept for cached pre-0.0.57 clients.
       issueTitle = userTitle || truncate(whatsHappening, TITLE_FALLBACK_LENGTH);
       issueLabels = [FROM_APP_LABEL, type === 'bug' ? 'bug' : 'enhancement'];
       bodyLines = [
@@ -268,12 +302,16 @@ function sanitizeInline(text: string): string {
 const CONTEXT_FIELD_MAX_LENGTH = 100;
 
 /** Footer context strings: single line, capped, so nothing can follow the '---'. */
-function contextField(value: unknown): string {
+function contextField(
+  value: unknown,
+  maxLength = CONTEXT_FIELD_MAX_LENGTH,
+  fallback = 'unknown',
+): string {
   if (typeof value !== 'string') {
-    return 'unknown';
+    return fallback;
   }
-  const collapsed = value.replace(/\s+/g, ' ').trim().slice(0, CONTEXT_FIELD_MAX_LENGTH);
-  return collapsed || 'unknown';
+  const collapsed = value.replace(/\s+/g, ' ').trim().slice(0, maxLength);
+  return collapsed || fallback;
 }
 
 /**

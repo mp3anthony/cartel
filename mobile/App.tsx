@@ -27,12 +27,12 @@ import { DashboardScreen } from './src/screens/DashboardScreen';
 import { FeedbackScreen } from './src/screens/FeedbackScreen';
 import { StoreMissingScreen } from './src/screens/StoreMissingScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
-import { HouseholdScreen } from './src/screens/HouseholdScreen';
 import { HouseholdSetupScreen } from './src/screens/HouseholdSetupScreen';
 import { ListDetailScreen } from './src/screens/ListDetailScreen';
 import { ListsScreen } from './src/screens/ListsScreen';
 import { LocationCatalogScreen } from './src/screens/LocationCatalogScreen';
 import { LocationsScreen } from './src/screens/LocationsScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
 import { ShoppingScreen } from './src/screens/ShoppingScreen';
 import { ThemeProvider, useTheme, useThemeMode } from './src/theme/ThemeProvider';
 import type { Tokens } from './src/theme/tokens';
@@ -70,7 +70,9 @@ const linking: LinkingOptions<RootStackParamList> = {
       Lists: 'lists',
       ListDetail: 'list/:listId',
       HouseholdSetup: 'household/setup',
-      Household: 'household',
+      // `household` is the pre-#109 path, kept as an alias so old links and PWA
+      // bookmarks still land on Settings.
+      Settings: { path: 'settings', alias: ['household'] },
       Locations: 'locations',
       LocationCatalog: 'location/:locationId',
       Shopping: 'shop/:listId',
@@ -182,10 +184,9 @@ function ThemedPwaChrome() {
  * became a place you go rather than the door you come in through — that is still
  * true here, just one hop further from the door than it used to be.
  *
- * Which of the two household screens is registered still depends on the data. It is
- * one or the other, never both — registering both and navigating between them would
- * let a user land on the household screen without a household, and the type would
- * not stop them.
+ * `Settings` is always registered (#109) and shows the household section for both
+ * states. Only `HouseholdSetup` depends on the data: it exists while there is no
+ * household, so the create/join forms cannot be reached by someone already in one.
  *
  * The list index is loaded here rather than inside the screen that shows it, because
  * the detail screen reads its own list's name and scope out of the same array. One
@@ -196,7 +197,7 @@ function Bootstrapped({ env }: { env: Env }) {
   const client = useMemo(() => getSupabaseClient(env), [env]);
   const session = useAnonymousSession(client);
   const ready = session.status === 'ready';
-  const { view, refresh } = useHousehold(client, ready);
+  const { view, refresh, reload } = useHousehold(client, ready);
   const lists = useLists(client, ready);
   const tokens = useTheme();
 
@@ -369,22 +370,26 @@ function Bootstrapped({ env }: { env: Env }) {
           {(props) => <StoreMissingScreen {...props} client={client} />}
         </Stack.Screen>
 
+        {/* Always registered (#109): it shows the household section either way, and
+            reloads the household itself each time it opens. */}
+        <Stack.Screen name="Settings" options={{ title: 'Settings' }}>
+          {(props) => (
+            <SettingsScreen
+              {...props}
+              client={client}
+              household={state}
+              onReload={reload}
+            />
+          )}
+        </Stack.Screen>
+
         {state.status === 'none' ? (
           <Stack.Screen name="HouseholdSetup" options={{ title: 'Household' }}>
-            {() => <HouseholdSetupScreen client={client} onJoined={refresh} />}
-          </Stack.Screen>
-        ) : (
-          <Stack.Screen name="Household" options={{ title: state.household.name }}>
             {(props) => (
-              <HouseholdScreen
-                {...props}
-                client={client}
-                memberCount={state.memberCount}
-                onRefresh={refresh}
-              />
+              <HouseholdSetupScreen {...props} client={client} onJoined={refresh} />
             )}
           </Stack.Screen>
-        )}
+        ) : null}
       </Stack.Navigator>
     </NavigationContainer>
   );

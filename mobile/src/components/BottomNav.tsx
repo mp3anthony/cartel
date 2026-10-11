@@ -40,7 +40,7 @@ export function navSection(routeName: keyof RootStackParamList): Destination | n
       return 'Locations';
     case 'History':
       return 'History';
-    case 'Household':
+    case 'Settings':
     case 'HouseholdSetup':
       return 'Settings';
     default:
@@ -51,7 +51,7 @@ export function navSection(routeName: keyof RootStackParamList): Destination | n
 /**
  * The floating bottom pill (#158): Home, Lists, Stores, History and the Settings gear
  * (icon-only, the fifth link), in equal-width slots. The current section is ringed,
- * Settings included while Household or HouseholdSetup is open. Rendered once through the
+ * Settings included while Settings or HouseholdSetup is open. Rendered once through the
  * navigator `layout` in `App.tsx`, in flow under the screens, so nothing is ever hidden
  * behind it. Hidden entirely on Shopping Mode; faded out (kept in layout, so nothing
  * jumps) while the keyboard is up.
@@ -75,7 +75,6 @@ export function BottomNav({
     return null;
   }
 
-  const hasHousehold = state.routeNames.includes('Household');
   const section = navSection(routeName);
   const currentIndex = ITEMS.findIndex((link) => link.destination === section);
   const linkWidth = rowWidth / ITEMS.length;
@@ -114,17 +113,7 @@ export function BottomNav({
                 accessibilityRole="link"
                 accessibilityLabel={link.label}
                 aria-current={current ? 'page' : undefined}
-                onPress={() =>
-                  navigation.dispatch(
-                    StackActions.popTo(
-                      link.destination === 'Settings'
-                        ? hasHousehold
-                          ? 'Household'
-                          : 'HouseholdSetup'
-                        : link.destination,
-                    ),
-                  )
-                }
+                onPress={() => navigation.dispatch(StackActions.popTo(link.destination))}
                 style={({ pressed }) => [styles.link, pressScale(pressed, reduceMotion)]}
               >
                 {link.icon ? (

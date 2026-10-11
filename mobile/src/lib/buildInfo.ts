@@ -1,7 +1,6 @@
 /**
- * Version + live/preview metadata for HouseholdScreen's footer. Nowhere else reads
- * this — see that screen's own comment for why the footer is scoped there and not
- * global.
+ * Version + live/preview metadata for SettingsScreen's footer. Nowhere else reads
+ * this — the footer is scoped to that page, not global.
  *
  * `appVersion` reads app.json's `expo.version` rather than package.json's. They're
  * kept in step by convention (bump both, see CHANGE-LOG.md), but app.json's is the
