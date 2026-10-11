@@ -628,7 +628,7 @@ export function HeaderCircleButton({
  *
  * Item catalog exception (#148): `checked`/`onToggle` are an optional pair. Without them
  * the row is display-only (no check circle, plain name text, a divider flush to the left
- * edge, `onRename` ignored) and `onEdit` adds an edit icon before the pin. This widens a
+ * edge, `onRename` and `disabled` ignored) and `onEdit` adds an edit icon before the pin. This widens a
  * shared primitive for one caller on purpose, as decided in #114/#148, rather than
  * forking a second row component.
  */
