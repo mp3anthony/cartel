@@ -58,6 +58,10 @@ export function HomeGraphs({
   const whereLabel = `Where you shop, ${shops(total)}${top ? `, most at ${top.label}` : ''}`;
   const oftenLabel = `How often you shop, ${shops(weeksTotal)} in the last ${WEEKS_SHOWN} weeks`;
 
+  const monthsLabel = months
+    .map((b) => `${b.start.toLocaleDateString(undefined, { month: 'long' })}, ${shops(b.count)}`)
+    .join('. ');
+
   const toggle = (id: GraphId) => setExpanded((current) => (current === id ? null : id));
 
   return (
@@ -108,12 +112,15 @@ export function HomeGraphs({
             How often you shop
           </Text>
           <Text style={styles.detailCaption}>{`Last ${MONTHS_SHOWN} months`}</Text>
-          <ShopFrequencyBars
-            buckets={months}
-            height={DETAIL_BARS_HEIGHT}
-            showCounts
-            labels={months.map((b) => b.start.toLocaleDateString(undefined, { month: 'short' }))}
-          />
+          {/* The bars hide themselves from assistive tech, so this wrapper speaks the real counts. */}
+          <View accessible accessibilityLabel={monthsLabel}>
+            <ShopFrequencyBars
+              buckets={months}
+              height={DETAIL_BARS_HEIGHT}
+              showCounts
+              labels={months.map((b) => b.start.toLocaleDateString(undefined, { month: 'short' }))}
+            />
+          </View>
         </View>
       ) : null}
     </View>
@@ -171,6 +178,7 @@ function GraphTile({
 }
 
 function createStyles(tokens: Tokens) {
+  const TITLE_LINE_HEIGHT = Math.round(tokens.fontSize.caption * 1.3);
   return StyleSheet.create({
     wrap: {
       gap: tokens.space.sm,
@@ -194,6 +202,8 @@ function createStyles(tokens: Tokens) {
       opacity: 0.7,
     },
     titleRow: {
+      // Two title lines tall, so a one-line title does not lift its chart above its neighbour's.
+      minHeight: TITLE_LINE_HEIGHT * 2,
       flexDirection: 'row',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
@@ -204,6 +214,7 @@ function createStyles(tokens: Tokens) {
       color: tokens.color.textPrimary,
       fontSize: tokens.fontSize.caption,
       fontWeight: '600',
+      lineHeight: TITLE_LINE_HEIGHT,
     },
     chartArea: {
       height: CHART_HEIGHT,
