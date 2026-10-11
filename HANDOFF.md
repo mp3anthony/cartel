@@ -31,7 +31,7 @@
 Can start now:
 
 1. Plan #109 (grilled).
-2. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 shipped in 4b (still labelled `needs-info`; clear the label and close).
+2. Plan #147, then #148, then #149. Plan #153, then #154 (after #153; may rebase onto #143, #148 and #109). Grill #151 (parked, Ant's call when). #155 shipped in 4b (label cleared; close the issue).
 3. #123 (low priority, whenever).
 
 Then:
