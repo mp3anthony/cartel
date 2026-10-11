@@ -21,7 +21,12 @@
 -- applying one via quorum wipes out the other's still-short-of-quorum vote row too
 -- (the "applying one correction moots the others" rule from the migration's own
 -- header). Assertion 6 checks `correction_matches_current` — proposing what is
--- already true is rejected, not accepted as a no-op. Assertion 7 checks
+-- already true is rejected, not accepted as a no-op. Assertion 6b (added with #106
+-- slice 4b / Migration C2, 20261012000000) checks the REVERSED stance on case: until
+-- C2 a proposal that differed from the current label only by case or whitespace
+-- needed a second voter like any other; since C2 it is applied at once with a single
+-- voter, clears the item's other pending votes and leaves no vote row (the full
+-- behaviour tests are in location_labels_votes.sql). Assertion 7 checks
 -- `item_not_tagged` — you cannot propose a correction for an item with no
 -- existing tag to correct. Assertion 8 checks no household is required to
 -- propose/confirm, matching every other table in this schema's "are you
@@ -338,6 +343,66 @@ begin
       where location_id = '81000000-0000-4000-8000-000000000001'
         and item_name = 'milk') <> 0 then
     raise exception 'FAIL: a rejected correction_matches_current proposal left a vote row behind';
+  end if;
+end $$;
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- Assertion 6b — a case-only correction applies at once (Migration C2). G leaves a
+-- pending vote (milk, 'Aisle 21'); then F proposes 'AISLE 20' on milk ('Aisle 20').
+-- With ONE voter the label must become 'AISLE 20', G's vote must be gone and F must
+-- have left no row. F then proposes 'Aisle 20' (case-only back): the label returns.
+-- Must run after assertion 6 and before 7: milk is left at 'Aisle 20', as later
+-- assertions expect.
+-- ---------------------------------------------------------------------------
+
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-4000-8000-0000000000a8","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+begin
+  perform public.vote_location_item_correction(
+    '81000000-0000-4000-8000-000000000001', 'milk', 'Aisle 21');
+end $$;
+
+reset role;
+
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-4000-8000-0000000000f8","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+begin
+  perform public.vote_location_item_correction(
+    '81000000-0000-4000-8000-000000000001', 'milk', 'AISLE 20');
+
+  if (select section from public.location_items
+      where location_id = '81000000-0000-4000-8000-000000000001'
+        and name = 'milk') <> 'AISLE 20' then
+    raise exception 'FAIL: a case-only proposal (AISLE 20 on Aisle 20) did not apply at once with a single voter';
+  end if;
+
+  if (select count(*) from public.location_item_votes
+      where location_id = '81000000-0000-4000-8000-000000000001'
+        and item_name = 'milk') <> 0 then
+    raise exception 'FAIL: the case-only apply left vote rows on milk (F''s own, or G''s pending Aisle 21)';
+  end if;
+
+  perform public.vote_location_item_correction(
+    '81000000-0000-4000-8000-000000000001', 'milk', 'Aisle 20');
+
+  if (select section from public.location_items
+      where location_id = '81000000-0000-4000-8000-000000000001'
+        and name = 'milk') <> 'Aisle 20' then
+    raise exception 'FAIL: putting milk back to Aisle 20 with a case-only proposal did not apply';
+  end if;
+
+  if (select count(*) from public.location_item_votes
+      where location_id = '81000000-0000-4000-8000-000000000001'
+        and item_name = 'milk') <> 0 then
+    raise exception 'FAIL: the second case-only apply left a vote row on milk';
   end if;
 end $$;
 

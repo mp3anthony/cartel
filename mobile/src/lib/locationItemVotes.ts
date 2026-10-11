@@ -219,7 +219,9 @@ export async function voteLocationItemCorrection(
     p_location_id: locationId,
     // Tags are stored folded. The RPC folds the name itself since migration
     // 20261011000000; the fold is still sent so this works against the old
-    // lower(btrim) function too.
+    // lower(btrim) function too. Since migration 20261012000000 the RPC also
+    // capitalises the proposal itself (the callers already do) and applies a case-
+    // or whitespace-only change at once: no second voter, no pending vote.
     p_item_name: normalizeItemName(itemName),
     p_proposed_section: proposedSection,
   });
