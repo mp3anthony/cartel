@@ -2,14 +2,16 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-11, end of session 45)
+## Current state (2026-10-11, end of session 46)
 
-- **Session 45: #110 Home overhaul is DONE and closed.** #144 (hero, Stores row, layout; 0.0.58, PR #199) and #145 (graph tiles plus ~250ms mount motion; 0.0.59, PR #200) merged; #143 was earlier. `main` is at 0.0.59 (`mobile/app.json`) and matches production (Vercel deploy not confirmed by us). The `needs-manual-test` labels on #144/#145 were removed (process change). Ant is checking both live and will raise problems as normal reports. No `03-SPEC.md` section active.
-- **Not exercised:** neither PR was run in a browser or on an iPhone. Look at live: swipe row with several shops in progress (web CSS scroll-snap; native `snapToInterval` untested), Stores row and tiles at 375px, motion, expand/collapse, whether rings/donut refill when returning to Home from Lists (motion should play once per mount), Reduce Motion.
-- **Reviewer nits, left unfixed:** hero "New list" only navigates to Lists (does not open the composer, so a second tap is needed; Ant not asked to decide); the Nearby chip disappears while checking so the button row shifts; bucket windows in `HomeGraphs` are memoised on `completedAt` only (stale across a Monday/month boundary with no refetch); "last 8 weeks" includes the current partial week; opening a detail card does not move screen-reader focus; Home has no banner slot (matters for #103's confirmation).
-- **Impact notes posted** on #103, #147, #148, #149 and #114: Pending corrections now live only in the Store's Item catalog; the Home `StoresRow` is a separate component from the Stores screen row; #103 should land on the rewritten `DashboardScreen`, which is its collision file.
+- **Session 46: plans written for the catalog redesign (#147, #148, #149); nothing built.** Three Planners ran in parallel. Each plan is posted as a comment on its issue ([#147](https://github.com/mp3anthony/cartel/issues/147#issuecomment-6106647324), [#148](https://github.com/mp3anthony/cartel/issues/148#issuecomment-6106647493), [#149](https://github.com/mp3anthony/cartel/issues/149#issuecomment-6106647662)) with Ant's decisions folded in (he chose all defaults). No escalation trigger in any of them. `main` is at 0.0.59 and unchanged. No `03-SPEC.md` section active.
+- **The plans have NOT had an independent review.** First step next: a fresh reviewer checks each plan, then stop for Ant's go before any Code Writer (Ant builds in a fresh session, one stage at a time).
+- **Build order:** #148, then #149 (same file, `LocationCatalogScreen.tsx`; #149's plan was written against the old state names and must be re-read against merged #148). #147 is independent (new `StorePickerRow.tsx` plus `LocationsScreen.tsx`) and can go any time. Each PR bumps the next free patch.
+- **Decisions settled (also on the issues):** #148 shows a leading capital only (no schema change; accents stay lost, D11) and Shopping Mode's "Confirm" text stays; #147 icon label is "View catalog for <store>" and the selected row is outline only; #149 search is item names only, header count shows matches while searching, dot is the accent, one-section stores still start collapsed, no clear button.
 
 ## Older state, condensed
+
+- **Session 45 (Home overhaul, #110 DONE):** #144 and #145 merged (0.0.58, 0.0.59); Ant is checking live and raises problems as normal reports. Not exercised in a browser or on an iPhone: swipe row with several shops in progress (web scroll-snap; native `snapToInterval` untested), Stores row and tiles at 375px, motion, expand/collapse, whether rings/donut refill when returning to Home from Lists (motion should play once per mount), Reduce Motion. Reviewer nits, unfixed: hero "New list" only navigates to Lists (does not open the composer); the Nearby chip disappears while checking so the button row shifts; `HomeGraphs` bucket windows memoised on `completedAt` only (stale across a Monday/month boundary); "last 8 weeks" includes the current partial week; opening a detail card does not move screen-reader focus; Home has no banner slot (matters for #103's confirmation). Impact notes were posted on #103, #147, #148, #149 and #114 (the Home `StoresRow` is separate from the Stores screen row; Pending corrections now live only in the Store's Item catalog; #103 should land on the rewritten `DashboardScreen`).
 
 - **#109 Settings is DONE (0.0.57, PR #194, session 44).** The Household screen is now **Settings** (always-registered route, alias `household`; `HouseholdSetup` is a drill-down registered only without a household). One standard Report issue form (Device/OS auto-captured, `from-app` label only). `report-feedback` Edge Function is in production as v5 (accepts `report`, legacy `bug`/`feature`, `store_missing`); rollback is redeploying the previous `index.ts` from git. Not exercised: joining a household, the in-household Settings state (member count, refresh icon, invite code), any iPhone layout check. Reviewer's low notes, unfixed: a failed `reload` superseding a successful `refresh` could leave a stale view (hard to trigger); `runReload` sets state after unmount (harmless); a missing or unknown report type returns "Unknown report type." (still 400); stale "household screen" comment at `ListDetailScreen.tsx:221`.
 - **Session 43 (/doctor cleanup, docs-only):** Antigravity retired; all subagents are Claude (Planner = Opus `planner` agent).
@@ -31,7 +33,7 @@
 
 Can start now:
 
-1. Plan #147, then #148, then #149 (catalog redesign; each stops at the Planner). Plan #153, then #154 (after #153; may rebase onto #148). Grill #151 (parked, Ant's call when).
+1. Review the #147/#148/#149 plans (written, on the issues), then Ant builds #148, then #149, and #147 any time. Plan #153, then #154 (after #153; may rebase onto #148). Grill #151 (parked, Ant's call when).
 2. #103 (unblocked now the Home work has landed; confirm the exact ordering with Ant when picking it up).
 3. #123 (low priority, whenever).
 
