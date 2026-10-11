@@ -42,11 +42,6 @@ Names only; never put secret values in this repo. The repository is public and p
 - The footer reads `v<version> · Live | Preview | Dev` and sits at the bottom of the Household screen only (the in-household `HouseholdScreen`, not `HouseholdSetupScreen`; two separate components, easy to confuse when testing). Production is Live, a preview deploy is Preview, and an unset channel (local dev) is Dev, never "undefined".
 - Verified live in all three environments on its first release. It first shipped on the Lists screen and moved to Household. Never hardcode a version or channel.
 
-## Delegation kit (agy)
-
-- `scripts/agy-delegate.ps1` and `GEMINI-DELEGATION.md` come from the shared agy delegation kit. To re-sync, compare SHA-256 and copy only if the kit changed, keeping repo rule 6 (design work carries the foundation) and the "tell Ant rather than loosening the filter" line in rule 4.
-- Images are not sent to agy. The 24,000-character limit includes a preamble of about 500 characters. If `agy-workspace/_state.json` shows a cooldown, run `-Probe` first. The exit-3 fallback after a real quota hit is still untested.
-
 ## Design reference Artifact
 
 - `02-DESIGN-REFERENCE.html` is published as the Artifact "Cartel Design Reference" (`https://claude.ai/artifact/Q9F4VtU5Amm4nh2RZJZGuJ`); republish it to that URL at every change. A second Artifact titled "Design Reference" (`UTjaKiWUeNXKajhZFqxkP2`) is a different file: never overwrite it.
