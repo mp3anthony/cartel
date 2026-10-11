@@ -10,7 +10,7 @@ Every session: read `HANDOFF.md`, then `CONTEXT-MAP.md`; open only the glossary 
 
 **Soft rule:** when a request touches an idea, term or behaviour the glossaries don't document, or seems to disagree with them, the orchestrator runs the `grilling` and `domain-modeling` skills together (that is all `/grill-with-docs` does; only Ant can type that command, the model cannot invoke it) to align with Ant, then updates `docs/context/` (and `docs/adr/` only for hard-to-reverse, surprising, trade-off decisions). Ant sometimes uses other skills instead; that is fine.
 
-**Where knowledge lives:** vocabulary `docs/context/` · build and design-process conventions `docs/conventions.md` · lessons and known items `docs/lessons.md` · environment, ops, acceptance decisions `docs/environment.md` · architectural decisions `docs/adr/` · research notes `docs/research/` · UI/UX foundation `02-DESIGN-REFERENCE.html` · requirements `01-CRD.md` · build breakdown and locked decisions `03-SPEC.md` · out-of-spec inbox `CHANGE-LOG.md` · delegation to Antigravity `GEMINI-DELEGATION.md`.
+**Where knowledge lives:** vocabulary `docs/context/` · build and design-process conventions `docs/conventions.md` · lessons and known items `docs/lessons.md` · environment, ops, acceptance decisions `docs/environment.md` · architectural decisions `docs/adr/` · research notes `docs/research/` · UI/UX foundation `02-DESIGN-REFERENCE.html` · requirements `01-CRD.md` · build breakdown and locked decisions `03-SPEC.md` · out-of-spec inbox `CHANGE-LOG.md`.
 
 Docs record only what the code cannot explain: decisions, reasoning, rejected alternatives, voice and tone rules. Never document what a reader gets by opening the code.
 
@@ -20,11 +20,7 @@ Docs record only what the code cannot explain: decisions, reasoning, rejected al
 - Stack: Expo (managed) app in `mobile/`, React Native Web deployed on Vercel, Supabase (Postgres, RLS, Realtime, anonymous auth). See `docs/adr/0001-supabase-rls-realtime.md`, `docs/adr/0002-location-global-list-private.md` and `docs/adr/0003-anonymous-auth-no-login-wall.md`.
 - **All UI/UX work starts from `02-DESIGN-REFERENCE.html`** (the floor, not the ceiling); `mobile/src/theme/tokens.ts` is the sole palette source. Follow `docs/conventions.md`. Any subagent brief touching UI/UX must carry the foundation.
 - Testing targets iPhone / iOS Safari only. Ant owns an iPhone, not Android; never write Android steps.
-- The orchestrator delegates review, design and large read-and-think work to Antigravity per
-  `GEMINI-DELEGATION.md`, decides that itself without asking Ant, and falls back to Claude subagents on exit
-  code 3. agy may fill the Investigator or Code Reviewer role only (never the Planner, never the Code Writer) and never
-  writes to the repo; the Workflow Protocol below still applies.
-- **Models:** Planner subagents always use the `planner` agent (`.claude/agents/planner.md`, Opus), regardless of agy availability (decided 2026-10-04: planning benefits most from the most capable model with full repo access, and agy's file filter refuses `.sql`, so it could not plan database work). All other subagents (Investigator, Code Writer, Code Reviewer, Docs) use the session's own model and effort (soft rule, not forced), or agy where allowed.
+- **Models:** Planner subagents always use the `planner` agent (`.claude/agents/planner.md`, Opus), (decided 2026-10-04: planning benefits most from the most capable model with full repo access). All other subagents (Investigator, Code Writer, Code Reviewer, Docs) use the session's own model and effort (soft rule, not forced).
 
 ## Workflow Protocol
 
@@ -34,7 +30,7 @@ The only protocol document (Hazardous Schematics standard, adapted for Cartel).
 
 **Orchestrator (main session) — the only one Ant talks to.** Owns all Git/GitHub interaction (branches, issues, labels, PRs). Absorbs intake: interrogates Ant's problem or idea into a scoped issue itself. Handles ADRs directly with Ant. **Golden rule:** before any non-trivial action it has no clear instructions for, it checks how to proceed ("how would you like to proceed?") unless Ant already pre-empted it.
 
-The orchestrator is a pure decision-making partner. **Ant is not a software developer**: the orchestrator never plans, implements, or reviews/checks code itself; all of that, planning included, goes to subagents (or agy where allowed). It delegates by default without asking permission, and checks in with Ant only when genuinely unsure how to proceed. **No agent ever reviews or approves its own code**: implementation and review are always different agents, no exceptions.
+The orchestrator is a pure decision-making partner. **Ant is not a software developer**: the orchestrator never plans, implements, or reviews/checks code itself; all of that, planning included, goes to subagents. It delegates by default without asking permission, and checks in with Ant only when genuinely unsure how to proceed. **No agent ever reviews or approves its own code**: implementation and review are always different agents, no exceptions.
 
 **Subagents** are spun up by the orchestrator, do one job, report back, stop; none talk to Ant. **Investigator** (read-only research/diagnosis), **Code Reviewer** (never shares a session with the Investigator), **Planner** (writes the implementation plan), **Code Writer** (implements the approved plan), **Docs** (documentation, glossary upkeep). Brief subagents directly rather than relying on relay files.
 

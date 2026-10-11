@@ -2,12 +2,14 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-11, end of session 42)
+## Current state (2026-10-11, end of session 43)
+
+- **Session 43 (/doctor cleanup, docs-only):** Antigravity (agy) retired: `GEMINI-DELEGATION.md`, `scripts/agy-delegate.ps1` and every reference removed; all subagents are Claude (Planner = Opus `planner` agent). Stale and duplicate local memory files removed. No `03-SPEC.md` section active; no app code touched.
 
 - **#106 slice 4b (+ #155) is DONE: applied to production (2026-10-11) with Ant's "go", PR #186 merged (0.0.56), results posted on #106 (comment 6103553797) and #155.** Real run via the Supabase MCP `execute_sql` (the allow rule in `.claude/settings.local.json` works; that file is git-ignored and must never be committed). POST-1 matched the dry run and PRE-1 exactly: tags 54 to 53; 4 rewritten (`15` to Aisle 15, `23` to Aisle 23, `Fruit & Vegetables` to Fruit & Veg, `Meat` to Butchery); 1 cleared (`Dali`, item "pies" at PAK'nSAVE Papanui, to be re-tagged from Shopping Mode); 1 vote deleted (equalled its tag); 0 D6 applied. Vote function is security definer, folds, capitalises, locks, `authenticated` only. `rls_location_item_votes.sql` passed (rolled back; production verified unchanged). Also passed after apply (session 42, all rolled back, production verified unchanged at 53 tags, 0 votes): `item_name_fold_locations.sql`, `rls_location_items.sql`, `rls_location_checkoffs.sql`, and a dry run of `supabase/rollback/106_c2_revert.sql` ("DRY RUN OK"; the 4a revert no longer works). Backup stays in schema `migration_106`; drop it 30 days after C2 (after 2026-11-10).
-- **Process change (2026-10-11, session 41):** testing no longer blocks PRs. Ant tests in the live environment when he likes; clean code PRs are advised "clean to merge" and labelled `needs-merge-approval` for Ant; no test checklists on issues or PRs (plain-language "what it is for / what is being done" instead); `needs-manual-test` disabled except long multi-issue PRs; a subagent checks `CONTEXT-MAP.md` and prior issues on intake so related reports join or reopen older issues. Rules are in `CLAUDE.md`.
+- **Process change (2026-10-11, session 41):** testing no longer blocks PRs; no test checklists; rules are in `CLAUDE.md`.
 - **#106 is CLOSED (2026-10-11).** Ant dropped the iPhone check list: he tests live as he goes and raises problems as normal reports, which intake links back to #106 or reopens. #155 is closed too.
-- **Authority (widened 2026-10-11, `docs/environment.md` line 19):** the orchestrator applies ALL migrations via the Supabase MCP, following the runbook. Ant's "go" is needed only for migrations touching a locked invariant, RLS or security policy, or deleting or rewriting user data; all others proceed after a clean dry run.
+- **Authority (widened 2026-10-11):** the orchestrator applies all migrations; see `docs/environment.md` (migrations bullet) for when Ant's "go" is needed.
 - Slices 1 (0.0.51, PR #174), 2a (0.0.52, PR #177), 2b (0.0.53, PR #179), 3 (0.0.54, PR #181), 4a (0.0.55, PR #184) and 4b (0.0.56, PR #186) are merged and applied. Decisions D5 (oldest tag), D6 (apply at 2 voters, then clear), D11, D13: https://github.com/mp3anthony/cartel/issues/106#issuecomment-6094235636. No `03-SPEC.md` section was active.
 
 ## Older state, condensed
@@ -47,4 +49,4 @@ Collisions: #103 touches `ListDetailScreen`; whichever lands second rebases onto
 - Vocabulary: `CONTEXT-MAP.md` and `docs/context/`. Decisions: `docs/adr/`.
 - Conventions, lessons, environment and ops: `docs/conventions.md`, `docs/lessons.md`, `docs/environment.md`.
 - Requirements and specs: `01-CRD.md`, `02-DESIGN-REFERENCE.html`, `03-SPEC.md`; out-of-spec inbox `CHANGE-LOG.md`; open tickets are on GitHub.
-- Workflow and rules: `CLAUDE.md`. Delegation rules: `GEMINI-DELEGATION.md`.
+- Workflow and rules: `CLAUDE.md`.

@@ -46,7 +46,7 @@ Binding build and design-process rules. Vocabulary lives in `docs/context/`; thi
 
 ## Design foundation procedure
 
-`02-DESIGN-REFERENCE.html` is the floor, not the ceiling. Before invoking a UI-generating skill, MCP or subagent, load it and pass the foundation into the brief; never let a tool guess the design system. Delegated design briefs carry it via `-Files` (`GEMINI-DELEGATION.md`, rule 6). After a tool produces output, check it builds on the foundation rather than replacing it. Foundation-level improvements are surfaced to Ant and amended in `02-DESIGN-REFERENCE.html` before proceeding; no silent drift.
+`02-DESIGN-REFERENCE.html` is the floor, not the ceiling. Before invoking a UI-generating skill, MCP or subagent, load it and pass the foundation into the brief; never let a tool guess the design system. After a tool produces output, check it builds on the foundation rather than replacing it. Foundation-level improvements are surfaced to Ant and amended in `02-DESIGN-REFERENCE.html` before proceeding; no silent drift.
 
 The orchestrator does live-browser checks itself: a background subagent cannot reach the Browser pane.
 

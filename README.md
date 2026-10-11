@@ -25,4 +25,3 @@ npm --prefix mobile run web -- --port 8082
 | `02-DESIGN-REFERENCE.html` | UI/UX foundation. |
 | `03-SPEC.md` | Build breakdown and locked architecture decisions. |
 | `CHANGE-LOG.md` | Out-of-spec requests awaiting triage. |
-| `GEMINI-DELEGATION.md` | Rules for delegating work to Antigravity (agy). |
