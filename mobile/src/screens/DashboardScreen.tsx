@@ -112,6 +112,15 @@ export function DashboardScreen({
     }
   }, [refreshLocationCounts, sessionsKey]);
 
+  // A failed shop-history load must not hide the Stores row for stores on the user's lists:
+  // treat it as an empty history so the list-attached stores still appear.
+  const sessionsFailed = shopSessionsView.status === 'error';
+  useEffect(() => {
+    if (sessionsFailed) {
+      setLocationCounts((prev) => prev ?? []);
+    }
+  }, [sessionsFailed]);
+
   const storeById = useMemo(() => {
     const map = new Map<string, LocationRow>();
     if (locationsView.status === 'loaded') {
