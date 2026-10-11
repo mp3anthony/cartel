@@ -2,12 +2,13 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-11, end of session 46)
+## Current state (2026-10-11, end of session 47)
 
-- **Session 46: plans written for the catalog redesign (#147, #148, #149); nothing built.** Three Planners ran in parallel. Each plan is posted as a comment on its issue ([#147](https://github.com/mp3anthony/cartel/issues/147#issuecomment-6106647324), [#148](https://github.com/mp3anthony/cartel/issues/148#issuecomment-6106647493), [#149](https://github.com/mp3anthony/cartel/issues/149#issuecomment-6106647662)) with Ant's decisions folded in (he chose all defaults). No escalation trigger in any of them. `main` is at 0.0.59 and unchanged. No `03-SPEC.md` section active.
-- **The plans have NOT had an independent review.** First step next: a fresh reviewer checks each plan, then stop for Ant's go before any Code Writer (Ant builds in a fresh session, one stage at a time).
-- **Build order:** #148, then #149 (same file, `LocationCatalogScreen.tsx`; #149's plan was written against the old state names and must be re-read against merged #148). #147 is independent (new `StorePickerRow.tsx` plus `LocationsScreen.tsx`) and can go any time. Each PR bumps the next free patch.
-- **Decisions settled (also on the issues):** #148 shows a leading capital only (no schema change; accents stay lost, D11) and Shopping Mode's "Confirm" text stays; #147 icon label is "View catalog for <store>" and the selected row is outline only; #149 search is item names only, header count shows matches while searching, dot is the accent, one-section stores still start collapsed, no clear button.
+- **Session 47: #148 SHIPPED (PR #203, 0.0.60, merged).** Item catalog now has compact rows, an edit icon with an inline editor, a "Proposed: X" line with a check, and grouped sections (leading capital only, no schema change). Reviewer clean. Not exercised: 375px row height with several proposals, icon geometry, folded-name display ("Iphone cable", "Jalapeno"), any iPhone check. Known, unfixed: a failed refresh after a successful vote turns the whole catalog into an error note with no retry (same as Shopping Mode).
+- **Plans for #147 and #149 were independently reviewed; findings are posted as comments on each issue** ([#147](https://github.com/mp3anthony/cartel/issues/147#issuecomment-6107740260), [#149](https://github.com/mp3anthony/cartel/issues/149#issuecomment-6107740587)). Neither needs an Ant decision or escalates. #147 is sound with five minor fixes. #149 needs changes and must be re-read against merged #148 (which exports `groupCatalog`, `CatalogRow`, `CatalogGroup`; state is `editingItemId`, `finishEditing`, `submitCorrection`/`confirmCorrection`).
+- **#110 (Home overhaul) was REOPENED** (label `needs-info`) at Ant's request: Ant is reviewing the shipped Home and wants changes. Next step is a grill-with-docs session with Ant (Ant starts it); nothing is built until then.
+- **Next slice, one per fresh session** (Code Writer, then a separate reviewer): #149 (fold in its review comment, bump to 0.0.61), then #147 (independent, any time). Ant wants one slice per session to protect context.
+- **Decisions settled (also on the issues):** #147 icon label is "View catalog for <store>" and the selected row is outline only; #149 search is item names only, header count shows matches while searching, dot is the accent, one-section stores still start collapsed, no clear button.
 
 ## Older state, condensed
 
@@ -26,14 +27,14 @@
 - Ant wants parent issue plus sub-issues as the default way to slice.
 - **Open nits, deliberately skipped:** #158 (History label tight at 375px, links Tab-focusable while the pill is hidden, ring pops in after Feedback); #111 (bump note shows the success tick, can go stale after a stepper tap, survives Finish and Reset in Shopping Mode; a narrow refetch flicker window; `writeShown` missing from an effect's deps; each tap bumps `lists.last_activity_at`, so lists reload per tap); #107 (Store missing reports are public GitHub issues, no rate limit on that path, a stale comment at `supabase/tests/rls_location_items.sql:23` naming the dropped `locations_insert_own`, possibly stale `LocationsScreen.tsx` header comments). #107 scenario 1 (real GPS nearby) and a 0.0.43 smoke check were never run; run the S4 tests (all roll back) before relying on them. #117 follow-ups: no iPhone check, no Try again on the household screen, first failing query unverified (watch `[cartel:postgrest-retry]`).
 - iOS permission string in `mobile/app.json` (`locationWhenInUsePermission`) still says "location" (native only). `mobile/package-lock.json` still says 0.0.36. After a reload or deep link, Back goes to Home. Dev console shows React DOM warnings for `accessible` and `importantForAccessibility` on SVG icons (existing pattern). Ticket #123 (drag auto-scroll near the edge on long lists) needs an iPhone check; Ant mentioned an unlogged lag issue and will log it himself.
-- `main` is at 0.0.59 (`mobile/app.json`); Vercel deploy not confirmed. Production holds real user data.
+- `main` is at 0.0.60 (`mobile/app.json`); Vercel deploy not confirmed. Production holds real user data.
 - **Test data left on the shared Supabase project (anonymous, inert):** list "ZZ test 102" (`59344e62-4855-4942-acda-d3d45f8fe244`, Woolworths Northlands, owned by anonymous user `cef386ef-86ff-4207-942a-832f7567fc33`, plus one earlier empty anonymous user) and list "ZZ test 111" (`5a348252-1488-4cf2-9d02-a904ba20546a`, Milk at x5, personal, no store; may have extra rows). Cleanup by id only, never a blanket wipe.
 
 ## Blocking order
 
 Can start now:
 
-1. Review the #147/#148/#149 plans (written, on the issues), then Ant builds #148, then #149, and #147 any time. Plan #153, then #154 (after #153; may rebase onto #148). Grill #151 (parked, Ant's call when).
+1. Build #149 (plan reviewed; fold in review fixes, re-read against merged #148), then #147 any time. Grill Home changes on reopened #110 with Ant. Plan #153, then #154 (after #153; may rebase onto #148). Grill #151 (parked, Ant's call when).
 2. #103 (unblocked now the Home work has landed; confirm the exact ordering with Ant when picking it up).
 3. #123 (low priority, whenever).
 
