@@ -17,7 +17,7 @@ Produce:
 
 - A step-by-step plan, naming every file to create or change.
 - Risks and unknowns, with how to check each.
-- A test plan and manual-test checklist (numbered; bold title, exact steps, one pass line, optional fail line; separate PC and iPhone lists; iPhone Safari only, never Android).
+- A test plan for the Code Writer's automated tests (no manual-test checklist), plus a short plain-language summary: what this is for and what is being done.
 - Any docs to update (glossary, ADR, environment notes).
 - An explicit **escalation flag** if any step touches a locked invariant (schema or migration changes, RLS or security policy, anything `03-SPEC.md` section 0 marks locked, the palette). Stop at the flag; the orchestrator takes it to Ant.
 
