@@ -9,7 +9,8 @@ import type { Tokens } from '../theme/tokens';
 export type StoresRowEntry = { id: string; name: string; chain: string | null };
 
 const CIRCLE = 52;
-const TILE_WIDTH = 76;
+// Wide enough that the longest single word in a catalog Store name ("Christchurch") fits on one line at caption size (#223).
+const TILE_WIDTH = 96;
 
 /**
  * Home's Stores row (#144): the stores the user shops at as large chain-colour circles
@@ -17,8 +18,9 @@ const TILE_WIDTH = 76;
  * caller decides how); it does not open the Store page. The circle mirrors `StoreBadge`'s
  * rules at a larger size (that component stays 16pt, no size prop): neutral border colour
  * for an unknown chain, a coloured ring where the chain needs one, and an outline for
- * PAK'nSAVE, whose yellow has near-zero contrast on a light surface. Names wrap in full
- * (#214): tiles keep a fixed width and are top-aligned, so the row grows to the tallest name.
+ * PAK'nSAVE, whose yellow has near-zero contrast on a light surface. Names wrap at
+ * spaces only (#214): tiles keep a fixed width, set so no catalog word breaks (#223), and
+ * are top-aligned, so the row grows to the tallest name.
  */
 export function StoresRow({
   stores,
