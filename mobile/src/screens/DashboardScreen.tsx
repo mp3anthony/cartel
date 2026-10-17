@@ -50,7 +50,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'> & {
 
 /**
  * Home, as the #110 dashboard (#144, #145): a hero, a Stores row, two graph tiles ("Where you
- * shop" and "How often you shop", `HomeGraphs`). The graphs animate on mount, once per
+ * shop" and "How often you shop", `HomeGraphs`). Tapping a tile opens its graph in a
+ * pop-up card (#215). The graphs animate on mount (each pop-up chart when it opens), once per
  * mount, never when the history is refetched. Recent activity was removed in #214; History
  * lives in the nav.
  *
@@ -126,7 +127,7 @@ export function DashboardScreen({
   const sessionsFailed = shopSessionsView.status === 'error';
   useEffect(() => {
     if (sessionsFailed) {
-      setStats((prev) => prev ?? { locationCounts: [], completedAt: [] });
+      setStats((prev) => prev ?? { locationCounts: [], shops: [] });
     }
   }, [sessionsFailed]);
 
@@ -259,12 +260,16 @@ export function DashboardScreen({
     }
   }
 
-  const chartSegments: DonutSegment[] = (stats?.locationCounts ?? []).map((entry) => ({
-    key: entry.locationId,
-    label: locationName(entry.locationId),
-    value: entry.count,
-    chain: locationChain(entry.locationId),
-  }));
+  const chartSegments = useMemo<DonutSegment[]>(
+    () =>
+      (stats?.locationCounts ?? []).map((entry) => ({
+        key: entry.locationId,
+        label: storeById.get(entry.locationId)?.name ?? 'a store',
+        value: entry.count,
+        chain: storeById.get(entry.locationId)?.chain ?? null,
+      })),
+    [stats, storeById],
+  );
 
   const loadingCore =
     listsView.status === 'loading' ||
@@ -346,10 +351,10 @@ export function DashboardScreen({
         </View>
       ) : null}
 
-      {stats !== null && stats.completedAt.length > 0 ? (
+      {stats !== null && stats.shops.length > 0 ? (
         <HomeGraphs
           segments={chartSegments}
-          completedAt={stats.completedAt}
+          shops={stats.shops}
           onStorePress={(locationId) => void startOrContinueAtLocation(locationId)}
         />
       ) : null}

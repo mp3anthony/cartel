@@ -5,7 +5,40 @@ export type ShopBucket = {
   /** Local-time start of the week (Monday 00:00) or month (the 1st, 00:00). */
   start: Date;
   count: number;
+  /** Shops per Store id in this bucket (#215); the values sum to `count`. */
+  byLocation: Record<string, number>;
 };
+
+export type ShopInput = { locationId: string; completedAt: string };
+
+/** One coloured slice of a stacked bar. */
+export type StackSegment = { key: string; color: string; count: number; rank: number };
+
+/**
+ * Splits a bucket into stacked-bar segments in rank order (rank 0, the most-shopped Store,
+ * first). `colorFor` gives each Store its colour map entry; Stores outside the top 5 come
+ * back with the shared `__other__` key and merge into one segment. An empty bucket has no
+ * segments.
+ */
+export function stackBucket(
+  bucket: ShopBucket,
+  colorFor: (locationId: string) => { key: string; color: string; rank: number },
+): StackSegment[] {
+  const merged = new Map<string, StackSegment>();
+  for (const [locationId, count] of Object.entries(bucket.byLocation)) {
+    if (count <= 0) {
+      continue;
+    }
+    const { key, color, rank } = colorFor(locationId);
+    const existing = merged.get(key);
+    if (existing) {
+      existing.count += count;
+    } else {
+      merged.set(key, { key, color, count, rank });
+    }
+  }
+  return [...merged.values()].sort((a, b) => a.rank - b.rank);
+}
 
 /**
  * Counts completed shops into `count` consecutive local-time buckets ending with the one
@@ -20,7 +53,7 @@ export type ShopBucket = {
  * an unparseable one is skipped.
  */
 export function bucketShops(
-  completedAt: string[],
+  shops: ShopInput[],
   now: Date,
   unit: 'week' | 'month',
   count: number,
@@ -40,17 +73,18 @@ export function bucketShops(
     } else {
       start = new Date(now.getFullYear(), now.getMonth() - i, 1);
     }
-    buckets.push({ start, count: 0 });
+    buckets.push({ start, count: 0, byLocation: {} });
   }
 
-  for (const iso of completedAt) {
-    const time = new Date(iso).getTime();
+  for (const shop of shops) {
+    const time = new Date(shop.completedAt).getTime();
     if (Number.isNaN(time)) {
       continue;
     }
     for (let i = buckets.length - 1; i >= 0; i -= 1) {
       if (buckets[i].start.getTime() <= time) {
         buckets[i].count += 1;
+        buckets[i].byLocation[shop.locationId] = (buckets[i].byLocation[shop.locationId] ?? 0) + 1;
         break;
       }
     }

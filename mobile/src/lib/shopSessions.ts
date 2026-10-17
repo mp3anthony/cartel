@@ -147,8 +147,8 @@ function countByLocation(rows: { location_id: string }[]): LocationShopCount[] {
 /** What Home's graph tiles (#145) read: per-Store counts plus every shop's timestamp. */
 export type ShopSessionStats = {
   locationCounts: LocationShopCount[];
-  /** ISO timestamps, one per completed shop, in no particular order. */
-  completedAt: string[];
+  /** One entry per completed shop, in no particular order (#215: the Store feeds the stacked bars). */
+  shops: { locationId: string; completedAt: string }[];
 };
 
 /**
@@ -170,7 +170,10 @@ export async function loadShopSessionStats(
   const rows = (data ?? []) as unknown as { location_id: string; completed_at: string }[];
   return {
     ok: true,
-    value: { locationCounts: countByLocation(rows), completedAt: rows.map((r) => r.completed_at) },
+    value: {
+      locationCounts: countByLocation(rows),
+      shops: rows.map((r) => ({ locationId: r.location_id, completedAt: r.completed_at })),
+    },
   };
 }
 

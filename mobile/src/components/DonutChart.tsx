@@ -5,6 +5,7 @@ import Svg, { Circle, G } from 'react-native-svg';
 import { Row } from './ui';
 import { useMountProgress } from '../theme/motion';
 import { chainColor, type Chain } from '../theme/chainColors';
+import { assignStoreColors } from '../lib/storeColors';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
@@ -46,6 +47,8 @@ export type DonutSegment = {
  * the legend identifies and navigates. `onSegmentPress` is optional so a
  * caller can render a read-only chart (e.g. a future summary elsewhere)
  * without wiring navigation.
+ *
+ * Colour assignment lives in `lib/storeColors.ts` (#215) so the Home pop-ups share it.
  *
  * #145 split the ring out as `DonutRing` so the Home tile can show it small without the
  * legend, and gave it the on-mount sweep.
@@ -173,6 +176,19 @@ type Arc = {
   onPressKey?: string;
 };
 
+/**
+ * The one colour map for a set of Store segments (#215): the donut ring, the pop-up rows, the
+ * stacked bars and the legend all read this, so a Store is the same colour everywhere.
+ * `ranked` is sorted most shops first; `otherColor` is the shared tail colour.
+ */
+export function storeColorMap(segments: DonutSegment[], tokens: Tokens) {
+  return assignStoreColors(
+    segments.map((s) => ({ key: s.key, value: s.value, chainHex: chainColor(s.chain) })),
+    tokens.color,
+    MAX_SEGMENTS,
+  );
+}
+
 function buildArcs(
   segments: DonutSegment[],
   tokens: Tokens,
@@ -182,46 +198,36 @@ function buildArcs(
     return { arcs: [], total: 0 };
   }
 
-  const sorted = [...segments].sort((a, b) => b.value - a.value);
-  const top = sorted.slice(0, MAX_SEGMENTS);
-  const rest = sorted.slice(MAX_SEGMENTS);
+  const { ranked, otherColor } = storeColorMap(segments, tokens);
+  const byKey = new Map(segments.map((s) => [s.key, s]));
 
-  const arcs: Arc[] = top.map((segment, i) => ({
-    key: segment.key,
-    label: segment.label,
-    fraction: segment.value / total,
-    color:
-      chainColor(segment.chain) ??
-      mixWithSurface(tokens.color.accent, tokens.color.surface, i / MAX_SEGMENTS),
-    onPressKey: segment.key,
-  }));
+  const arcs: Arc[] = [];
+  let restTotal = 0;
+  for (const entry of ranked) {
+    const segment = byKey.get(entry.key)!;
+    if (entry.named) {
+      arcs.push({
+        key: segment.key,
+        label: segment.label,
+        fraction: segment.value / total,
+        color: entry.color,
+        onPressKey: segment.key,
+      });
+    } else {
+      restTotal += segment.value;
+    }
+  }
 
-  if (rest.length > 0) {
-    const restTotal = rest.reduce((sum, s) => sum + s.value, 0);
+  if (restTotal > 0 || ranked.some((r) => !r.named)) {
     arcs.push({
       key: '__other__',
       label: 'Other stores',
       fraction: restTotal / total,
-      color: tokens.color.border,
+      color: otherColor,
     });
   }
 
   return { arcs, total };
-}
-
-/** Blends `from` toward `to` by `ratio` (0 = `from`, 1 = `to`). Both colours
- * must be 6-digit `#rrggbb` hex — the only shape this app's tokens use. */
-function mixWithSurface(from: string, to: string, ratio: number): string {
-  const a = hexToRgb(from);
-  const b = hexToRgb(to);
-  const mix = (x: number, y: number) => Math.round(x + (y - x) * ratio);
-  const toHex = (n: number) => n.toString(16).padStart(2, '0');
-  return `#${toHex(mix(a.r, b.r))}${toHex(mix(a.g, b.g))}${toHex(mix(a.b, b.b))}`;
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const n = parseInt(hex.slice(1), 16);
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
 function createStyles(tokens: Tokens) {
