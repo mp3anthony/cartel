@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useMountProgress } from '../theme/motion';
 import { useTheme } from '../theme/ThemeProvider';
@@ -25,8 +25,13 @@ export type BarLabel = string | { line1: string; line2?: string };
  *
  * Accessibility: without `describe` (the Home tile) the whole chart is decorative and hidden
  * from assistive tech, as the tile speaks the numbers. With `describe` (the pop-up) each
- * column is its own accessible element labelled with that text and its internals hidden, so
- * a column can later become a button (#216).
+ * column is its own accessible element labelled with that text and its internals hidden.
+ * With `onColumnPress` (#216) a column that has shops is a button ("..., shows these shops in
+ * History"); an empty column stays plain. `onSegmentPress` makes each Store segment a
+ * pointer-only shortcut to that Store's shops: it is hidden from assistive tech (the Store
+ * route there is the legend), and the whole column stays the tap area. Neither does
+ * anything without `describe`, so the Home tile stays decorative. Columns touch (the gap is
+ * padding inside each) so no tap lands between two.
  */
 export function ShopFrequencyBars({
   buckets,
@@ -34,12 +39,16 @@ export function ShopFrequencyBars({
   labels,
   showCounts = false,
   describe,
+  onColumnPress,
+  onSegmentPress,
 }: {
   buckets: BarBucket[];
   height: number;
   labels?: BarLabel[];
   showCounts?: boolean;
   describe?: (bucket: BarBucket) => string;
+  onColumnPress?: (bucket: BarBucket) => void;
+  onSegmentPress?: (bucket: BarBucket, segmentKey: string) => void;
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -55,7 +64,7 @@ export function ShopFrequencyBars({
   };
 
   return (
-    <View {...(describe ? {} : hidden)} style={styles.row}>
+    <View {...(describe ? {} : hidden)} style={describe && onColumnPress ? styles.rowTouching : styles.row}>
       {buckets.map((bucket, i) => {
         const label = labels?.[i];
         const column = (
@@ -69,18 +78,25 @@ export function ShopFrequencyBars({
                     { height: height * (bucket.count / max) * progress },
                   ]}
                 >
-                  {bucket.segments.map((segment, rank) => (
-                    <View
-                      key={segment.key}
-                      style={{
-                        flex: segment.count,
-                        backgroundColor: segment.color,
-                        // A 1px surface gap between segments, on the lower edge of all but the
-                        // bottom one (column-reverse puts rank 0 at the bottom).
-                        marginTop: rank < bucket.segments.length - 1 ? 1 : 0,
-                      }}
-                    />
-                  ))}
+                  {bucket.segments.map((segment, rank) => {
+                    const segmentStyle = {
+                      flex: segment.count,
+                      backgroundColor: segment.color,
+                      // A 1px surface gap between segments, on the lower edge of all but the
+                      // bottom one (column-reverse puts rank 0 at the bottom).
+                      marginTop: rank < bucket.segments.length - 1 ? 1 : 0,
+                    };
+                    return describe && onColumnPress && onSegmentPress ? (
+                      <Pressable
+                        key={segment.key}
+                        accessible={false}
+                        onPress={() => onSegmentPress(bucket, segment.key)}
+                        style={({ pressed }) => [segmentStyle, pressed && styles.segmentPressed]}
+                      />
+                    ) : (
+                      <View key={segment.key} style={segmentStyle} />
+                    );
+                  })}
                 </View>
               ) : (
                 <View style={styles.stub} />
@@ -101,21 +117,43 @@ export function ShopFrequencyBars({
           </>
         );
 
+        const hiddenInner = (
+          <View
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+            accessibilityElementsHidden
+            style={styles.columnInner}
+          >
+            {column}
+          </View>
+        );
+
+        if (describe && onColumnPress && bucket.count > 0) {
+          return (
+            <Pressable
+              key={bucket.start.getTime()}
+              accessibilityRole="button"
+              accessibilityLabel={`${describe(bucket)}, shows these shops in History`}
+              onPress={() => onColumnPress(bucket)}
+              style={({ pressed }) => [
+                styles.column,
+                styles.columnTouching,
+                pressed && styles.columnPressed,
+              ]}
+            >
+              {hiddenInner}
+            </Pressable>
+          );
+        }
+
         return describe ? (
           <View
             key={bucket.start.getTime()}
             accessible
             accessibilityLabel={describe(bucket)}
-            style={styles.column}
+            style={[styles.column, onColumnPress ? styles.columnTouching : null]}
           >
-            <View
-              accessible={false}
-              importantForAccessibility="no-hide-descendants"
-              accessibilityElementsHidden
-              style={styles.columnInner}
-            >
-              {column}
-            </View>
+            {hiddenInner}
           </View>
         ) : (
           <View key={bucket.start.getTime()} style={styles.column}>
@@ -135,10 +173,28 @@ function createStyles(tokens: Tokens) {
       alignItems: 'flex-end',
       gap: tokens.space.xs,
     },
+    // Pop-up rows with pressable columns: no gap between columns (the gap is each column's
+    // own padding), so every point of the row belongs to some column.
+    rowTouching: {
+      alignSelf: 'stretch',
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 0,
+    },
     column: {
       flex: 1,
       alignItems: 'stretch',
       gap: tokens.space.xs,
+    },
+    columnTouching: {
+      paddingHorizontal: tokens.space.xs / 2,
+      borderRadius: tokens.radius.sm,
+    },
+    columnPressed: {
+      backgroundColor: tokens.color.surfaceSunken,
+    },
+    segmentPressed: {
+      opacity: 0.7,
     },
     columnInner: {
       alignItems: 'stretch',
