@@ -356,6 +356,7 @@ export function DashboardScreen({
           segments={chartSegments}
           shops={stats.shops}
           onStorePress={(locationId) => void startOrContinueAtLocation(locationId)}
+          onShowHistory={(params) => navigation.navigate('History', params)}
         />
       ) : null}
     </Screen>

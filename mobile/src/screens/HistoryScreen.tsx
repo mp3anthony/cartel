@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -18,8 +18,15 @@ import {
   SecondaryButton,
 } from '../components/ui';
 import { ChevronIcon } from '../components/ScopeIcon';
+import { CloseIcon } from '../components/HeaderIcons';
 import { useLocations } from '../hooks/useLocations';
 import { useShopSessions } from '../hooks/useShopSessions';
+import {
+  filterLabel,
+  historyFilterKey,
+  parseHistoryFilter,
+  type HistoryFilter,
+} from '../lib/historyFilter';
 import type { Household } from '../lib/household';
 import { addItems, attachLocation, createList, itemLabel } from '../lib/lists';
 import {
@@ -29,6 +36,7 @@ import {
   type ShopSessionRow,
 } from '../lib/shopSessions';
 import type { RootStackParamList } from '../navigation/types';
+import { pressFill, pressScale, useReduceMotion } from '../theme/motion';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
@@ -45,7 +53,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'History'> & {
  * pressed: the location shopped, what was on the list for that round, and
  * which of those were actually checked off. Nothing on this screen
  * changes what that snapshot says — it is read-only history, bounded to the
- * most recent `SHOP_SESSION_HISTORY_CAP` shops (`../lib/shopSessions`) and
+ * most recent `SHOP_SESSION_HISTORY_CAP` shops (`../lib/shopSessions`), or every
+ * shop matching a History filter (#216: route params `period`, `start`, `stores`, set by
+ * Home's graph pop-ups; a chip shows it and clears it), and
  * scoped by the same RLS an owner-or-household-member gets everywhere else
  * in this app (migration 20260811000003).
  *
@@ -82,10 +92,18 @@ type Props = NativeStackScreenProps<RootStackParamList, 'History'> & {
  * composer or confirm that card owns, and never while a write is in flight (the
  * in-flight handler resets on completion).
  */
-export function HistoryScreen({ client, household, navigation, onListsChanged }: Props) {
+export function HistoryScreen({ client, household, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const { view, refresh } = useShopSessions(client);
+  // The History filter (#216) from the route params: parsed defensively (a bad part is
+  // dropped), and keyed by a string so an equal filter never reloads.
+  const { period, start, stores } = route.params ?? {};
+  const filter = useMemo(
+    () => parseHistoryFilter({ period, start, stores }, new Date()),
+    [period, start, stores],
+  );
+  const filterKey = historyFilterKey(filter);
+  const { view, refresh } = useShopSessions(client, filter, filterKey);
   const { view: locationsView } = useLocations(client);
 
   const [copyingSessionId, setCopyingSessionId] = useState<string | null>(null);
@@ -99,6 +117,27 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
   const [notBoughtOpenIds, setNotBoughtOpenIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // A different filter is a different list: drop any open composer or confirm.
+  useEffect(() => {
+    setCopyingSessionId(null);
+    setCopyName('');
+    setCopyShared(false);
+    setConfirmingDeleteId(null);
+    setConfirmingClearAll(false);
+    setError(null);
+  }, [filterKey]);
+
+  function clearFilter() {
+    navigation.setParams({ period: undefined, start: undefined, stores: undefined });
+  }
+
+  function storeNameFor(locationId: string): string {
+    if (locationsView.status !== 'loaded') {
+      return 'a store';
+    }
+    return locationsView.locations.find((l) => l.id === locationId)?.name ?? 'a store';
+  }
 
   function locationNameFor(session: ShopSessionRow): string {
     if (locationsView.status !== 'loaded') {
@@ -327,6 +366,18 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
     );
   }
 
+  if (view.sessions.length === 0 && filter !== null) {
+    return (
+      <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
+        <FilterChip filter={filter} nameFor={storeNameFor} onClear={clearFilter} />
+        <EmptyState
+          heading="No matching shops"
+          body="Nothing recorded for this filter. Clear it to see all your shops."
+        />
+      </Screen>
+    );
+  }
+
   if (view.sessions.length === 0) {
     return (
       <Screen edges={NAVIGATOR_EDGES}>
@@ -340,6 +391,10 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
 
   return (
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
+      {filter !== null ? (
+        <FilterChip filter={filter} nameFor={storeNameFor} onClear={clearFilter} />
+      ) : null}
+
       {error ? <ErrorNote message={error} /> : null}
 
       {confirmingClearAll ? (
@@ -488,6 +543,52 @@ export function HistoryScreen({ client, household, navigation, onListsChanged }:
   );
 }
 
+/**
+ * The active History filter and its way out, as one chip: "Week of 6 Oct · Clear" with a
+ * close glyph. Same structure as the Item location picker's chip (a 44pt hit box around a
+ * 36pt pill), but the pill wraps its text rather than keeping one line.
+ */
+function FilterChip({
+  filter,
+  nameFor,
+  onClear,
+}: {
+  filter: HistoryFilter;
+  nameFor: (locationId: string) => string;
+  onClear: () => void;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const reduceMotion = useReduceMotion();
+  const { text, accessibilityLabel } = filterLabel(filter, nameFor);
+
+  return (
+    <View style={styles.chipRow}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        onPress={onClear}
+        style={({ pressed }) => [styles.chipTarget, pressScale(pressed, reduceMotion)]}
+      >
+        {({ pressed }) => (
+          <View style={[styles.chip, pressed && styles.chipPressed, pressFill(pressed, reduceMotion)]}>
+            <Text
+              style={[
+                styles.chipLabel,
+                pressed && styles.chipLabelPressed,
+                pressFill(pressed, reduceMotion),
+              ]}
+            >
+              {`${text} · Clear`}
+            </Text>
+            <CloseIcon color={pressed ? tokens.color.accentContrast : tokens.color.accent} />
+          </View>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
 function formatCompletedAt(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     year: 'numeric',
@@ -547,6 +648,39 @@ function createStyles(tokens: Tokens) {
     },
     composer: {
       gap: tokens.space.sm,
+    },
+    chipRow: {
+      flexDirection: 'row',
+    },
+    chipTarget: {
+      flexShrink: 1,
+      minHeight: tokens.minTouchTarget,
+      justifyContent: 'center',
+      borderRadius: tokens.radius.pill,
+    },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.xs,
+      minHeight: 36,
+      paddingHorizontal: tokens.space.md,
+      paddingVertical: tokens.space.xs,
+      borderRadius: tokens.radius.pill,
+      borderWidth: 1,
+      borderColor: tokens.color.accent,
+      backgroundColor: tokens.color.accentWash,
+    },
+    chipPressed: {
+      backgroundColor: tokens.color.accent,
+    },
+    chipLabel: {
+      flexShrink: 1,
+      fontSize: tokens.fontSize.body,
+      fontWeight: '600',
+      color: tokens.color.textPrimary,
+    },
+    chipLabelPressed: {
+      color: tokens.color.accentContrast,
     },
   });
 }

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { humanise, type Outcome } from './household';
+import type { HistoryFilter } from './historyFilter';
 import { retryOnJwtIssuedAtFuture } from './postgrestRetry';
 
 /**
@@ -55,7 +56,8 @@ function readQuantities(quantities: number[] | null, length: number): number[] {
 }
 
 /**
- * How many shops History shows. Display-only: the donut counts every shop
+ * How many shops History shows without a History filter (#216 lifts the cap under one).
+ * Display-only: the donut counts every shop
  * (`loadShopSessionStats`), not just these. Enforced by `.limit()` in the
  * loader below, not a database constraint, the same "cap is a read-time concern"
  * reasoning §Slice 2 applied to `position`.
@@ -63,21 +65,35 @@ function readQuantities(quantities: number[] | null, length: number): number[] {
 export const SHOP_SESSION_HISTORY_CAP = 5;
 
 /**
- * The bounded shop history, newest first. No `locationId` filter parameter,
- * unlike `loadLocationCheckoffs` — this table is never scoped to one
- * location; RLS alone determines what's visible (owner or household member),
- * matching `loadLists()`'s own reasoning for adding no filter of its own.
+ * The shop history, newest first: bounded to `SHOP_SESSION_HISTORY_CAP` unless a History
+ * filter (#216) is given, in which case every matching shop comes back (the period as
+ * `completed_at` in [from, to), `to` open for the current period, and the Stores as
+ * `location_id in (...)`). No other scoping, unlike `loadLocationCheckoffs` — this table is
+ * never scoped to one location; RLS alone determines what's visible (owner or household
+ * member), matching `loadLists()`'s own reasoning for adding no filter of its own.
  */
 export async function loadShopSessions(
   client: SupabaseClient,
+  filter?: HistoryFilter | null,
 ): Promise<Outcome<ShopSessionRow[]>> {
-  const { data, error } = await client
+  let query = client
     .from('shop_sessions')
     .select(
       'id, household_id, location_id, list_id, list:lists(name), item_names, checked_item_names, item_quantities, checked_item_quantities, completed_at',
-    )
-    .order('completed_at', { ascending: false })
-    .limit(SHOP_SESSION_HISTORY_CAP);
+    );
+
+  if (filter?.range) {
+    query = query.gte('completed_at', filter.range.from.toISOString());
+    if (filter.range.to) {
+      query = query.lt('completed_at', filter.range.to.toISOString());
+    }
+  }
+  if (filter && filter.storeIds.length > 0) {
+    query = query.in('location_id', filter.storeIds);
+  }
+
+  const ordered = query.order('completed_at', { ascending: false });
+  const { data, error } = await (filter ? ordered : ordered.limit(SHOP_SESSION_HISTORY_CAP));
 
   if (error) {
     return { ok: false, message: humanise(error) };

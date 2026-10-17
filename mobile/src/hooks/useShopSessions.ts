@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import type { HistoryFilter } from '../lib/historyFilter';
 import { loadShopSessions, type ShopSessionRow } from '../lib/shopSessions';
 
 export type ShopSessionsView =
@@ -9,7 +10,11 @@ export type ShopSessionsView =
   | { status: 'error'; message: string };
 
 /**
- * The household's bounded shop history, load-on-mount and live-updated.
+ * The household's shop history, load-on-mount and live-updated: bounded to the latest few
+ * shops, or every shop matching a History filter (#216). `filterKey` is the filter's stable
+ * string (`historyFilterKey`); the effects depend on it rather than on the filter object, so a
+ * re-parsed but equal filter never reloads. A change of key shows the loading state, and a
+ * response for an older key is ignored.
  *
  * No filter on the subscription, for the identical reason `useLists`' own
  * doc comment gives: a caller's visible rows are `owner_id = me OR
@@ -26,9 +31,18 @@ export type ShopSessionsView =
  * one channel, second `.on()` throws" crash `useListItems`'s own header
  * documents hitting live.
  */
-export function useShopSessions(client: SupabaseClient) {
+export function useShopSessions(
+  client: SupabaseClient,
+  filter: HistoryFilter | null = null,
+  filterKey = '',
+) {
   const [view, setView] = useState<ShopSessionsView>({ status: 'loading' });
   const active = useRef(true);
+  // The latest filter, read by `refresh` so its identity depends only on the key.
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
+  const requestSeq = useRef(0);
+  const firstKey = useRef(true);
   const instanceId = useId();
 
   useEffect(() => {
@@ -39,8 +53,9 @@ export function useShopSessions(client: SupabaseClient) {
   }, []);
 
   const refresh = useCallback(async () => {
-    const outcome = await loadShopSessions(client);
-    if (!active.current) {
+    const seq = ++requestSeq.current;
+    const outcome = await loadShopSessions(client, filterRef.current);
+    if (!active.current || seq !== requestSeq.current) {
       return;
     }
     setView(
@@ -48,10 +63,15 @@ export function useShopSessions(client: SupabaseClient) {
         ? { status: 'loaded', sessions: outcome.value }
         : { status: 'error', message: outcome.message },
     );
-  }, [client]);
+  }, [client, filterKey]);
 
   useEffect(() => {
-    refresh();
+    if (firstKey.current) {
+      firstKey.current = false;
+    } else {
+      setView({ status: 'loading' });
+    }
+    void refresh();
   }, [refresh]);
 
   useEffect(() => {

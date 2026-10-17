@@ -1,3 +1,5 @@
+import type { HistoryParams } from '../lib/historyFilter';
+
 /**
  * Every route's parameters, in one place. React Navigation cannot check a route
  * parameter it has not been told about, and a deep link is the one caller that can
@@ -48,7 +50,12 @@ export type RootStackParamList = {
    */
   LocationCatalog: { locationId: string };
   Shopping: { listId: string };
-  History: undefined;
+  /**
+   * The History filter (#216), set in-app by Home's graph pop-ups; the linking path stays
+   * `history`, so a link can carry the same query. Every part is optional and validated by
+   * `parseHistoryFilter`; bad parts are ignored.
+   */
+  History: HistoryParams | undefined;
   /**
    * #69's feedback form. `fromScreen` names whichever screen opened it: `'Settings'`
    * (the default) or, since #154, the screens with the Item location picker

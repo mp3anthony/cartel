@@ -1,10 +1,11 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CountUp } from './CountUp';
 import { DonutRing, storeColorMap, type DonutSegment } from './DonutChart';
 import { GraphPopup } from './GraphPopup';
 import { ShopFrequencyBars, type BarBucket, type BarLabel } from './ShopFrequencyBars';
+import { toDateParam, type HistoryParams } from '../lib/historyFilter';
 import {
   bucketShops,
   MONTHS_SHOWN,
@@ -44,6 +45,12 @@ const POPUP_RING_STROKE = 22;
  * last 6 months; older shops are left out of the bars but still counted in the donut.
  * Bucketing is DST-safe (see `bucketShops`).
  *
+ * History tap-through (#216): in the How-often pop-up a bar column opens History filtered to
+ * that week or month, a Store's slice of it to that Store too (the grey "Other stores" slice to
+ * every Store outside the top 5), and a legend row to that Store over all time. The pop-up
+ * closes first, and a guard keeps one tap to one navigation. A column is the tap area; slice
+ * taps are a pointer shortcut (touch-target exception in docs/conventions.md).
+ *
  * Existing data only: shop counts per Store and completion times. Category and spending
  * graphs are out of spec (see CHANGE-LOG.md).
  */
@@ -51,10 +58,12 @@ export function HomeGraphs({
   segments,
   shops: shopList,
   onStorePress,
+  onShowHistory,
 }: {
   segments: DonutSegment[];
   shops: ShopInput[];
   onStorePress: (locationId: string) => void;
+  onShowHistory: (params: HistoryParams) => void;
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -150,6 +159,36 @@ export function HomeGraphs({
   const legendRows = colors.ranked.filter((r) => r.named && legendIds.has(r.key));
   const legendHasOther = [...legendIds].some((id) => !rankById.get(id)?.named);
 
+  // One tap, one navigation: set before closing the pop-up, cleared when a pop-up opens again.
+  const navigatingRef = useRef(false);
+  useEffect(() => {
+    if (open !== null) {
+      navigatingRef.current = false;
+    }
+  }, [open]);
+
+  const showHistory = (params: HistoryParams) => {
+    if (navigatingRef.current) {
+      return;
+    }
+    navigatingRef.current = true;
+    setOpen(null);
+    onShowHistory(params);
+  };
+
+  // Every Store that is not one of the top 5, for the "Other stores" slice and legend row.
+  const tailIds = (ids: Iterable<string>) => [...new Set(ids)].filter((id) => !rankById.get(id)?.named);
+  const storesParam = (ids: string[]) => (ids.length > 0 ? { stores: ids.join(',') } : {});
+
+  const columnPressFor = (unit: 'week' | 'month', buckets: ShopBucket[]) => ({
+    onColumnPress: (bar: BarBucket) => showHistory({ period: unit, start: toDateParam(bar.start) }),
+    onSegmentPress: (bar: BarBucket, segmentKey: string) => {
+      const bucket = buckets.find((b) => b.start.getTime() === bar.start.getTime());
+      const ids = segmentKey === OTHER_KEY ? tailIds(Object.keys(bucket?.byLocation ?? {})) : [segmentKey];
+      showHistory({ period: unit, start: toDateParam(bar.start), ...storesParam(ids) });
+    },
+  });
+
   const select = (locationId: string) => {
     setOpen(null);
     onStorePress(locationId);
@@ -219,6 +258,7 @@ export function HomeGraphs({
           showCounts
           labels={weekLabels}
           describe={describeFor(weeks, describeWeek)}
+          {...columnPressFor('week', weeks)}
         />
         <Text style={styles.caption}>{`Last ${MONTHS_SHOWN} months`}</Text>
         <ShopFrequencyBars
@@ -227,19 +267,26 @@ export function HomeGraphs({
           showCounts
           labels={monthLabels}
           describe={describeFor(months, describeMonth)}
+          {...columnPressFor('month', months)}
         />
         <View style={styles.legend}>
-          {legendRows.map((entry) => (
-            <View key={entry.key} style={styles.legendRow}>
-              <View style={[styles.swatch, { backgroundColor: entry.color }]} />
-              <Text style={styles.legendName}>{nameById.get(entry.key) ?? 'a store'}</Text>
-            </View>
-          ))}
+          {legendRows.map((entry) => {
+            const name = nameById.get(entry.key) ?? 'a store';
+            return (
+              <LegendRow
+                key={entry.key}
+                name={name}
+                color={entry.color}
+                onPress={() => showHistory({ stores: entry.key })}
+              />
+            );
+          })}
           {legendHasOther ? (
-            <View style={styles.legendRow}>
-              <View style={[styles.swatch, { backgroundColor: colors.otherColor }]} />
-              <Text style={styles.legendName}>Other stores</Text>
-            </View>
+            <LegendRow
+              name="Other stores"
+              color={colors.otherColor}
+              onPress={() => showHistory(storesParam(tailIds(shopList.map((shop) => shop.locationId))))}
+            />
           ) : null}
         </View>
       </GraphPopup>
@@ -257,6 +304,32 @@ function describeWeek(bucket: ShopBucket): string {
 
 function describeMonth(bucket: ShopBucket): string {
   return bucket.start.toLocaleDateString(undefined, { month: 'long' });
+}
+
+/** A legend entry, tappable (#216): that Store's shops over all time. 44pt tall. */
+function LegendRow({
+  name,
+  color,
+  onPress,
+}: {
+  name: string;
+  color: string;
+  onPress: () => void;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${name}, shows these shops in History`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.legendRow, pressed ? styles.storeRowPressed : null]}
+    >
+      <View style={[styles.swatch, { backgroundColor: color }]} />
+      <Text style={styles.legendName}>{name}</Text>
+    </Pressable>
+  );
 }
 
 function GraphTile({
@@ -392,6 +465,9 @@ function createStyles(tokens: Tokens) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: tokens.space.sm,
+      minHeight: tokens.minTouchTarget,
+      paddingHorizontal: tokens.space.sm,
+      borderRadius: tokens.radius.md,
     },
     legendName: {
       flex: 1,
