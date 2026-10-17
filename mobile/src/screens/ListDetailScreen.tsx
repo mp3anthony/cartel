@@ -23,6 +23,7 @@ import {
   Screen,
   SecondaryButton,
 } from '../components/ui';
+import { ItemLocationPicker } from '../components/ItemLocationPicker';
 import { ReorderableList } from '../components/ReorderableList';
 import { DragHandleIcon } from '../components/RowIcons';
 import { ScopeIcon } from '../components/ScopeIcon';
@@ -32,7 +33,9 @@ import type { ListsView } from '../hooks/useLists';
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocations } from '../hooks/useLocations';
 import type { Household, Outcome } from '../lib/household';
-import { capitaliseFirst } from '../lib/itemName';
+import { foldItemName } from '../lib/itemName';
+import { usedAisleNumbers } from '../lib/itemLocationPicker';
+import { parseLayoutLabel } from '../lib/layoutOrder';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { voteLocationItemCorrection } from '../lib/locationItemVotes';
 import {
@@ -76,8 +79,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ListDetail'> & {
  * Items render as `CompactItemRow`s (#80, under #76), the same density as Shopping
  * Mode. Issue #102 slice 2 retired the pencil: the check circle ticks, tapping the name
  * turns that one row into an `InlineRowEditor` (rename field, ✓/✕), and a pin, shown only
- * when a store is attached, opens the same editor in a location mode. Only one row is
- * edited at a time (`editingId` plus `editingMode`). The location mode's ✓ tags the item when it has no section at
+ * when a store is attached, opens the Item location picker (#154: chips, no typing; its
+ * "Missing one? Tell us" link opens Feedback with the Store attached) in a location mode.
+ * Only one row is edited at a time (`editingId` plus `editingMode`; `editingName` is the
+ * rename draft only). A pick tags the item when it has no section at
  * this store yet and proposes a correction when it has, the same two writes Shopping
  * Mode makes. No section pill here, which keeps room for the quantity control (#111).
  * A rename onto another item's name (same fold) is refused in the error note and the
@@ -204,6 +209,18 @@ export function ListDetailScreen({
   const { view: locationItems, refresh: refreshLocationItems } = useLocationItems(
     client,
     list?.locationId ?? null,
+  );
+
+  // The store's aisle numbers already in use: the picker's quick chips (#154).
+  const usedAisles = useMemo(
+    () =>
+      locationItems.status === 'loaded'
+        ? usedAisleNumbers(
+            locationItems.items.map((row) => row.section),
+            (label) => parseLayoutLabel(label, foldItemName),
+          )
+        : [],
+    [locationItems],
   );
 
   // The store was detached (here or by another member) while the location editor was
@@ -393,19 +410,37 @@ export function ListDetailScreen({
   // First tag for an item with no section at this store, a correction proposal for one
   // that has one: the same two writes Shopping Mode's editor makes. Copy and wording are
   // kept local to each screen (docs/conventions.md).
-  function commitLocation(item: ListItemRow, section: string | null) {
-    if (!list || list.locationId === null || editingName.trim().length === 0) {
+  // "Missing one? Tell us" in the picker: closes it and opens Feedback with the subject and
+  // the Store filled in (#154).
+  function reportMissingLocation() {
+    if (!list || list.locationId === null) {
+      return;
+    }
+    const storeName =
+      locationsView.status === 'loaded'
+        ? locationsView.locations.find((location) => location.id === list.locationId)?.name
+        : undefined;
+    cancelEditing();
+    navigation.navigate('Feedback', {
+      fromScreen: 'ListDetail',
+      title: 'Item location missing',
+      storeName,
+      locationId: list.locationId,
+    });
+  }
+
+  function commitLocation(item: ListItemRow, section: string | null, label: string) {
+    if (!list || list.locationId === null) {
       return;
     }
 
     const locationId = list.locationId;
-    const proposed = section !== null ? capitaliseFirst(editingName) : editingName;
 
     void mutate(
       () =>
         section !== null
-          ? voteLocationItemCorrection(client, locationId, item.name, proposed)
-          : tagItemLocation(client, locationId, item.name, proposed),
+          ? voteLocationItemCorrection(client, locationId, item.name, label)
+          : tagItemLocation(client, locationId, item.name, label),
       async () => {
         await refreshLocationItems();
         finishEditing(item.id);
@@ -760,34 +795,32 @@ export function ListDetailScreen({
             }
             locationDisabled={busy}
             editor={
-              item.id === editingId ? (
+              item.id === editingId && editingMode === 'location' ? (
+                <ItemLocationPicker
+                  itemName={item.name}
+                  currentLabel={section}
+                  usedAisles={usedAisles}
+                  onPick={(label) => commitLocation(item, section, label)}
+                  onCancel={() => {
+                    setError(null);
+                    cancelEditing();
+                  }}
+                  onReportMissing={reportMissingLocation}
+                  busy={busy}
+                />
+              ) : item.id === editingId ? (
                 <InlineRowEditor
                   value={editingName}
                   onChangeText={setEditingName}
-                  placeholder={
-                    editingMode === 'location'
-                      ? section !== null
-                        ? `Currently: ${section}`
-                        : 'Aisle 4'
-                      : undefined
-                  }
-                  accessibilityLabel={
-                    editingMode === 'location'
-                      ? section !== null
-                        ? `New item location for ${item.name}`
-                        : `Item location for ${item.name}`
-                      : `Name for ${item.name}`
-                  }
-                  onSubmit={() =>
-                    editingMode === 'location' ? commitLocation(item, section) : commitRename()
-                  }
+                  accessibilityLabel={`Name for ${item.name}`}
+                  onSubmit={commitRename}
                   onCancel={() => {
                     setError(null);
                     cancelEditing();
                   }}
                   busy={busy}
                   submitDisabled={editingName.trim().length === 0}
-                  maxLength={editingMode === 'location' ? 60 : 120}
+                  maxLength={120}
                 />
               ) : item.id === quantityEditingId ? (
                 <QuantityEditor

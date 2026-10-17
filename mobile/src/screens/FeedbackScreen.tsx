@@ -17,6 +17,7 @@ import {
   SecondaryButton,
 } from '../components/ui';
 import { submitFeedback } from '../lib/feedback';
+import { withStoreLine } from '../lib/itemLocationPicker';
 import {
   uploadFeedbackScreenshot,
   validateScreenshot,
@@ -31,13 +32,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Feedback'> & {
 };
 
 /**
- * The #69 report form. Reached from one place today — the "Report issue" button on
- * `SettingsScreen` — which is why `fromScreen` arrives as a route param set by that single caller
- * rather than something this screen reads off the navigator itself: by the time
- * this screen is mounted, the navigator's own "current route" is already
- * `Feedback`, not wherever the user tapped from. If a second entry point is ever
- * added, it supplies its own screen name the same way; nothing here needs to
- * change.
+ * The #69 report form. Reached from the "Report issue" button on `SettingsScreen` and,
+ * since #154, from the Item location picker's "Missing one? Tell us" link (title
+ * "Item location missing" and the Store attached). `fromScreen` arrives as a route param
+ * set by each caller rather than something this screen reads off the navigator itself: by
+ * the time this screen is mounted, the navigator's own "current route" is already
+ * `Feedback`, not wherever the user tapped from. A new entry point supplies its own screen
+ * name the same way; nothing here needs to change.
  *
  * There is one standard report (#109), no Bug/Feature choice: the user says what is
  * going on, and the device and OS are captured automatically (`describeDevice`)
@@ -56,7 +57,11 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   const [name, setName] = useState('');
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(route.params?.title ?? '');
+  // The Store a report is about, when it came from the Item location picker (#154). Shown
+  // read-only and sent as the report's first line. The item's name is deliberately not
+  // attached: reports are public GitHub issues.
+  const storeLine = route.params?.storeName ?? route.params?.locationId ?? null;
   const [whatsHappening, setWhatsHappening] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +156,7 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
     const outcome = await submitFeedback(client, {
       name,
       title,
-      whatsHappening,
+      whatsHappening: storeLine ? withStoreLine(storeLine, whatsHappening) : whatsHappening,
       screenshotUrl,
       fromScreen: route.params?.fromScreen ?? 'Settings',
     });
@@ -182,6 +187,8 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
         triage — there's no reply loop, so don't expect a response here.
       </Body>
 
+      {storeLine ? <Body>{`Store: ${storeLine}`}</Body> : null}
+
       <Field
         label="Your name"
         value={name}
@@ -204,7 +211,11 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
         value={whatsHappening}
         onChangeText={setWhatsHappening}
         editable={!busy}
-        placeholder="What happened, or what would you like Cartel to do?"
+        placeholder={
+          storeLine
+            ? 'Which item location is missing, and what is in it?'
+            : 'What happened, or what would you like Cartel to do?'
+        }
         multiline
         numberOfLines={4}
         style={styles.multiline}

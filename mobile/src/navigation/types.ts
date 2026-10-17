@@ -50,16 +50,20 @@ export type RootStackParamList = {
   Shopping: { listId: string };
   History: undefined;
   /**
-   * #69's feedback form. `fromScreen` names whichever screen's own row opened
-   * it — today that's always `'Settings'`, since `SettingsScreen` is this
-   * screen's one caller, but it's a real param rather than a hardcoded
-   * constant inside `FeedbackScreen` itself so a future second entry point
-   * doesn't have to touch this screen to supply its own name. Optional, with
-   * a fallback in `FeedbackScreen`, the same shape `Locations`'s
-   * `attachToListId` already established for an in-app-only param with no
-   * URL to parse it from.
+   * #69's feedback form. `fromScreen` names whichever screen opened it: `'Settings'`
+   * (the default) or, since #154, the screens with the Item location picker
+   * (`'Shopping'`, `'ListDetail'`, `'LocationCatalog'`). It is a real param rather than a
+   * constant inside `FeedbackScreen` so a new entry point supplies its own name without
+   * touching that screen. Optional, with a fallback in `FeedbackScreen`.
+   *
+   * `title` pre-fills the (still editable) title; `storeName` and `locationId` make the
+   * form show a read-only "Store: ..." line and send it as the first line of the report
+   * (#154's "Item location missing"). They are set in-app, but the router also maps URL
+   * query strings onto params, so someone can hand-write them in a link. That is harmless:
+   * they only pre-fill a form the user still reads and sends themselves, and the report
+   * goes through the same checked path as any other.
    */
-  Feedback: { fromScreen?: string } | undefined;
+  Feedback: { fromScreen?: string; title?: string; storeName?: string; locationId?: string } | undefined;
   /** The "Store missing?" report form, reached from the Stores picker (#107). */
   StoreMissing: undefined;
 };
