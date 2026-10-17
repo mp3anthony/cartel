@@ -281,6 +281,8 @@ more tags/history — no fixed accuracy target, but the ordering must visibly ch
 entry/arbitrary order; the same location after several shops with location tags
 present produces a stable, repeatable non-arbitrary order for the same item set.
 
+*Superseded by #112/#153: Shopping Mode uses the fixed Layout order; the check-off write is kept.*
+
 *Agreed 2026-08-11, at Problem Agreement — the issue's own `ready-for-human` label
 was correct: neither `01-CRD.md` nor `02-DESIGN-REFERENCE.html` says how tags and
 observed check-off order combine into a route, and none of it was inferable from

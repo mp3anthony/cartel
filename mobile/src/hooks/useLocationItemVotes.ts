@@ -12,7 +12,7 @@ export type LocationItemVotesView =
  * The pending-correction vote rows recorded for one location, load-on-mount.
  *
  * No `postgres_changes` subscription — same reasoning as `useLocationItems` and
- * `useLocationCheckoffs`: `public.location_item_votes` was never added to the
+ * the removed check-off hook: `public.location_item_votes` was never added to the
  * `supabase_realtime` publication (migration 20260811000002), and this slice's
  * acceptance test reads as satisfied by a fresh `ShoppingScreen` load, not a
  * live push mid-shop. `refresh()` is how a caller picks up a vote it just cast,

@@ -318,7 +318,7 @@ export type FinishEnding = 'done' | 'continue';
 
 /**
  * Finishes the current shop for a list: records the items ticked since the last finish
- * to both location_checkoffs (route learning) and shop_sessions (household history),
+ * to both location_checkoffs (kept for #151) and shop_sessions (household history),
  * then ends per `ending`. One atomic `security definer` RPC (migration
  * 20261004000000), not a sequence of direct-table writes: it locks the rows, re-checks
  * live state and writes everything in one transaction, so two members finishing at once
