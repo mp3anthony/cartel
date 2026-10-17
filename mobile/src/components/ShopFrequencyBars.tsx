@@ -46,6 +46,8 @@ export function ShopFrequencyBars({
   const progress = useMountProgress();
   const max = Math.max(1, ...buckets.map((b) => b.count));
 
+  const hasSecondLine = !!labels?.some((l) => typeof l !== 'string' && l.line2 !== undefined);
+
   const hidden = {
     accessible: false,
     importantForAccessibility: 'no-hide-descendants' as const,
@@ -84,12 +86,16 @@ export function ShopFrequencyBars({
                 <View style={styles.stub} />
               )}
             </View>
-            {label === undefined ? null : typeof label === 'string' ? (
-              <Text style={styles.label}>{label}</Text>
-            ) : (
+            {label === undefined ? null : (
               <View>
-                <Text style={styles.label}>{label.line1}</Text>
-                {label.line2 !== undefined ? <Text style={styles.label}>{label.line2}</Text> : null}
+                <Text style={styles.label}>{typeof label === 'string' ? label : label.line1}</Text>
+                {/* When any column has two lines, every column reserves the second one (a
+                    non-breaking space) so all bars share one baseline. */}
+                {hasSecondLine ? (
+                  <Text style={styles.label}>
+                    {typeof label !== 'string' && label.line2 !== undefined ? label.line2 : ' '}
+                  </Text>
+                ) : null}
               </View>
             )}
           </>
