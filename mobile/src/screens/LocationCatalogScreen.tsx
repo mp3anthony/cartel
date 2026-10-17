@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { ItemLocationPicker } from '../components/ItemLocationPicker';
 import { CheckIcon } from '../components/RowIcons';
 import { ChevronIcon } from '../components/ScopeIcon';
 import {
@@ -12,7 +13,6 @@ import {
   ErrorNote,
   Field,
   IconButton,
-  InlineRowEditor,
   NAVIGATOR_EDGES,
   Screen,
 } from '../components/ui';
@@ -22,6 +22,8 @@ import { useLocations } from '../hooks/useLocations';
 import { buildCatalogGroups, isCatalogGroupOpen } from '../lib/itemCatalog';
 import type { ItemCatalogGroup } from '../lib/itemCatalog';
 import { capitaliseFirst, foldItemName } from '../lib/itemName';
+import { usedAisleNumbers } from '../lib/itemLocationPicker';
+import { parseLayoutLabel } from '../lib/layoutOrder';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
 import type { PendingCorrection } from '../lib/locationItemVotes';
 import type { LocationItemRow } from '../lib/locationItems';
@@ -56,6 +58,8 @@ const catalogGroupOptions = {
  * check to confirm it.
  *
  * Never creates a first tag; that stays in Shopping Mode and the list's Location pin.
+ * The edit opens the Item location picker (#154), the same chips as those two; its
+ * "Missing one? Tell us" link opens Feedback with this Store attached.
  * Propose/confirm is a deliberate local copy of `ShoppingScreen`'s flow (this codebase
  * duplicates small per-screen logic rather than sharing it across screens with different
  * context). Names show as `capitaliseFirst` of the folded stored name: accents and inner
@@ -87,7 +91,6 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
   // Mirrors `editingItemId` so an in-flight write can tell whether its editor is still open.
   const editingItemIdRef = useRef<string | null>(null);
   const writingRef = useRef<Set<string>>(new Set());
-  const [correctionDraft, setCorrectionDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -107,6 +110,18 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
       scrollRef.current?.scrollTo({ y: 0, animated: true });
     }
   }, [error]);
+
+  // The Store's aisle numbers already in use: the picker's quick chips (#154).
+  const usedAisles = useMemo(
+    () =>
+      locationItems.status === 'loaded'
+        ? usedAisleNumbers(
+            locationItems.items.map((row) => row.section),
+            (label) => parseLayoutLabel(label, foldItemName),
+          )
+        : [],
+    [locationItems],
+  );
 
   const [search, setSearch] = useState('');
   // Empty means every group is collapsed. Search never writes it (see `isCatalogGroupOpen`).
@@ -202,13 +217,11 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
     setError(null);
     editingItemIdRef.current = id;
     setEditingItemId(id);
-    setCorrectionDraft('');
   }
 
   function cancelEditing() {
     editingItemIdRef.current = null;
     setEditingItemId(null);
-    setCorrectionDraft('');
   }
 
   // Closes the editor only if it still belongs to `id` (a slow write must not close another row's).
@@ -218,12 +231,20 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
     }
   }
 
-  async function submitCorrection(item: LocationItemRow) {
-    if (
-      correctionDraft.trim().length === 0 ||
-      pending.has(item.id) ||
-      writingRef.current.has(item.id)
-    ) {
+  // "Missing one? Tell us": closes the picker and opens Feedback with the subject and the
+  // Store filled in (#154).
+  function reportMissingLocation() {
+    cancelEditing();
+    navigation.navigate('Feedback', {
+      fromScreen: 'LocationCatalog',
+      title: 'Item location missing',
+      storeName: location?.name,
+      locationId,
+    });
+  }
+
+  async function submitCorrection(item: LocationItemRow, label: string) {
+    if (pending.has(item.id) || writingRef.current.has(item.id)) {
       return;
     }
 
@@ -236,7 +257,7 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
         client,
         locationId,
         item.name,
-        capitaliseFirst(correctionDraft),
+        label,
       );
 
       if (!outcome.ok) {
@@ -371,16 +392,14 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
                 editDisabled={pending.has(item.id)}
                 editor={
                   editingItemId === item.id ? (
-                    <InlineRowEditor
-                      value={correctionDraft}
-                      onChangeText={setCorrectionDraft}
-                      placeholder={`Currently: ${item.section}`}
-                      accessibilityLabel={`New item location for ${displayName}`}
-                      onSubmit={() => void submitCorrection(item)}
+                    <ItemLocationPicker
+                      itemName={displayName}
+                      currentLabel={item.section}
+                      usedAisles={usedAisles}
+                      onPick={(label) => void submitCorrection(item, label)}
                       onCancel={cancelEditing}
+                      onReportMissing={reportMissingLocation}
                       busy={pending.has(item.id)}
-                      submitDisabled={correctionDraft.trim().length === 0}
-                      maxLength={60}
                     />
                   ) : undefined
                 }

@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { ItemLocationPicker } from '../components/ItemLocationPicker';
 import {
   Banner,
   Body,
@@ -12,7 +13,6 @@ import {
   EmptyState,
   ErrorNote,
   Field,
-  InlineRowEditor,
   NAVIGATOR_EDGES,
   PendingCorrectionLine,
   PrimaryButton,
@@ -28,8 +28,9 @@ import type { ListsView } from '../hooks/useLists';
 import { useLocations } from '../hooks/useLocations';
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocationItemVotes } from '../hooks/useLocationItemVotes';
-import { capitaliseFirst, foldItemName } from '../lib/itemName';
-import { sortByLayoutOrder } from '../lib/layoutOrder';
+import { foldItemName } from '../lib/itemName';
+import { usedAisleNumbers } from '../lib/itemLocationPicker';
+import { parseLayoutLabel, sortByLayoutOrder } from '../lib/layoutOrder';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
 import {
@@ -252,6 +253,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * success and, by an effect, if the item disappears from `view` first (another member
  * removed it).
  *
+ * Issue #154: the location editor is now `ItemLocationPicker` (chips, no typing), so there
+ * is no draft: `submitTag` and `submitCorrection` take the picked label. Its "Missing one?
+ * Tell us" link opens Feedback with the Store attached (`reportMissingLocation`).
+ *
  * Issue #111: each row's `stepper` slot holds a `QuantityControl` (a "+" at 1, a "×N" chip
  * above it) and the chip opens `QuantityEditor` in the row's `editor` slot
  * (`quantityEditingId`, a third single slot beside `editingItemId` and
@@ -289,6 +294,19 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   const { view: itemVotes, refresh: refreshLocationItemVotes } = useLocationItemVotes(
     client,
     list?.locationId ?? null,
+  );
+
+  // The Store's aisle numbers already in use: the picker's quick chips (#154). Above the
+  // early returns below, like every hook here.
+  const usedAisles = useMemo(
+    () =>
+      locationItems.status === 'loaded'
+        ? usedAisleNumbers(
+            locationItems.items.map((row) => row.section),
+            (label) => parseLayoutLabel(label, foldItemName),
+          )
+        : [],
+    [locationItems],
   );
 
   const [pending, setPending] = useState<Set<string>>(new Set());
@@ -367,7 +385,6 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   // proposes a correction to a tagged one is derived from the item's current section
   // at render time, not stored — so the two flows can't drift apart.
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [locationDraft, setLocationDraft] = useState('');
   // Mirrors `editingItemId` synchronously so a write that resolves later can tell
   // whether its own row's editor is still the open one (see `finishEditing`).
   const editingItemIdRef = useRef<string | null>(null);
@@ -546,13 +563,11 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     setQuantityEditingId(null);
     editingItemIdRef.current = itemId;
     setEditingItemId(itemId);
-    setLocationDraft('');
   }
 
   function cancelEditing() {
     editingItemIdRef.current = null;
     setEditingItemId(null);
-    setLocationDraft('');
   }
 
   // Closes the editor only if it is still the one for `itemId`: the user may have
@@ -564,15 +579,26 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     }
   }
 
-  async function submitTag(item: ListItemRow) {
+  // "Missing one? Tell us": closes the picker and opens the feedback form with the subject
+  // and the Store filled in (#154).
+  function reportMissingLocation() {
     if (!list || list.locationId === null) {
       return;
     }
-    if (
-      locationDraft.trim().length === 0 ||
-      pending.has(item.id) ||
-      writingRef.current.has(item.id)
-    ) {
+    cancelEditing();
+    navigation.navigate('Feedback', {
+      fromScreen: 'Shopping',
+      title: 'Item location missing',
+      storeName: storeName ?? undefined,
+      locationId: list.locationId,
+    });
+  }
+
+  async function submitTag(item: ListItemRow, label: string) {
+    if (!list || list.locationId === null) {
+      return;
+    }
+    if (pending.has(item.id) || writingRef.current.has(item.id)) {
       return;
     }
 
@@ -585,7 +611,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
         client,
         list.locationId,
         item.name,
-        locationDraft,
+        label,
       );
 
       if (!outcome.ok) {
@@ -605,15 +631,11 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     }
   }
 
-  async function submitCorrection(item: ListItemRow) {
+  async function submitCorrection(item: ListItemRow, label: string) {
     if (!list || list.locationId === null) {
       return;
     }
-    if (
-      locationDraft.trim().length === 0 ||
-      pending.has(item.id) ||
-      writingRef.current.has(item.id)
-    ) {
+    if (pending.has(item.id) || writingRef.current.has(item.id)) {
       return;
     }
 
@@ -626,7 +648,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
         client,
         list.locationId,
         item.name,
-        capitaliseFirst(locationDraft),
+        label,
       );
 
       if (!outcome.ok) {
@@ -1001,18 +1023,16 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
               }
               editor={
                 editing ? (
-                  <InlineRowEditor
-                    value={locationDraft}
-                    onChangeText={setLocationDraft}
-                    placeholder={section !== null ? `Currently: ${section}` : 'Aisle 4'}
-                    accessibilityLabel={
-                      section !== null ? `New item location for ${item.name}` : `Item location for ${item.name}`
+                  <ItemLocationPicker
+                    itemName={item.name}
+                    currentLabel={section}
+                    usedAisles={usedAisles}
+                    onPick={(label) =>
+                      void (section !== null ? submitCorrection(item, label) : submitTag(item, label))
                     }
-                    onSubmit={() => void (section !== null ? submitCorrection(item) : submitTag(item))}
                     onCancel={cancelEditing}
+                    onReportMissing={reportMissingLocation}
                     busy={pending.has(item.id)}
-                    submitDisabled={locationDraft.trim().length === 0}
-                    maxLength={60}
                   />
                 ) : quantityEditingId === item.id ? (
                   <QuantityEditor

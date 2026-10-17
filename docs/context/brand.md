@@ -63,5 +63,5 @@ The Settings footer: two lines, `Cartel. v<version> · Live | Preview | Dev` the
 _Avoid_: Build stamp, About page
 
 **Feedback**:
-The "Report issue" screen, entered from the single "Report issue" control on Settings only. No type choice and no "what should happen" field; Device / OS is captured automatically; name, title and screenshot are optional. On success a plain "thanks" banner (no issue number); on failure the form is kept. See Report issue in `household.md`.
+The "Report issue" screen, entered from the single "Report issue" control on Settings and from the Item location picker's "Missing one? Tell us" link (#154: title "Item location missing" pre-filled, still editable, and a read-only "Store: ..." line sent as the report's first line). No type choice and no "what should happen" field; Device / OS is captured automatically; name, title and screenshot are optional. On success a plain "thanks" banner (no issue number); on failure the form is kept. See Report issue in `household.md`.
 _Avoid_: Support, contact us, ticket
