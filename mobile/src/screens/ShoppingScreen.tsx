@@ -29,7 +29,7 @@ import { useLocations } from '../hooks/useLocations';
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocationItemVotes } from '../hooks/useLocationItemVotes';
 import { foldItemName } from '../lib/itemName';
-import { usedAisleNumbers } from '../lib/itemLocationPicker';
+import { MISSING_LOCATION_TITLE, usedAisleNumbers } from '../lib/itemLocationPicker';
 import { parseLayoutLabel, sortByLayoutOrder } from '../lib/layoutOrder';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
@@ -588,7 +588,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     cancelEditing();
     navigation.navigate('Feedback', {
       fromScreen: 'Shopping',
-      title: 'Item location missing',
+      title: MISSING_LOCATION_TITLE,
       storeName: storeName ?? undefined,
       locationId: list.locationId,
     });

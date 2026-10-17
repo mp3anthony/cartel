@@ -1,7 +1,7 @@
 /**
  * Pure rules behind the Item location picker (#154): which chips show and which one is
  * current, the Store's already-used aisle numbers, the aisle number control, and the
- * text of the "Item location missing" report.
+ * text of the "Item location missing" report (its subject and title fallback).
  *
  * No runtime imports (only `import type`), like `layoutOrder.ts` and `itemCatalog.ts`,
  * so `scripts/check-item-location-picker.mjs` can run it under Node's type stripping,
@@ -65,17 +65,28 @@ export function nudgeAisle(current: number | null, delta: 1 | -1, max: number): 
 }
 
 /**
- * True when picking `label` would not change where the item is, so the picker just closes
- * (a write would be refused as `correction_matches_current`). Compared as places, so it
- * matches how the current chip is marked: "Aisle 22" is the same as "isle 022".
+ * True only when `label` is exactly the stored label, so the picker just closes (a write
+ * would be refused as `correction_matches_current`). Deliberately exact, not compared as
+ * places: an older label such as "Dairy section" or "isle 022" still marks the matching
+ * chip, but tapping that chip sends the standard label ("Dairy", "Aisle 22") so the
+ * label can be tidied. A case-only difference is applied at once by the database;
+ * anything else goes through as a normal correction.
  */
-export function isSameAsCurrent(label: string, current: string | null, parse: ParseLabel): boolean {
-  if (current === null) return false;
-  const a = parse(label);
-  const b = parse(current);
-  if (a.kind === 'department' && b.kind === 'department') return a.label === b.label;
-  if (a.kind === 'aisle' && b.kind === 'aisle') return a.aisle === b.aisle;
-  return false;
+export function isSameAsCurrent(label: string, current: string | null): boolean {
+  return current !== null && label === current;
+}
+
+/** Subject the "Missing one? Tell us" link pre-fills on the Feedback form. */
+export const MISSING_LOCATION_TITLE = 'Item location missing';
+
+/**
+ * The report's title: what the user typed, else the pre-filled subject, else empty (the
+ * Edge Function then makes one). Clearing the field must not leave the report with only a
+ * Store line for a title.
+ */
+export function reportTitle(typed: string, prefilled: string | undefined): string {
+  const t = typed.trim();
+  return t !== '' ? t : (prefilled?.trim() ?? '');
 }
 
 /** The report body for a missing Item location: the Store on its own line, then the user's text. */

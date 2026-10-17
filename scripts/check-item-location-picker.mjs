@@ -4,15 +4,17 @@
 // --experimental-strip-types.
 //
 // Checks mobile/src/lib/itemLocationPicker.ts: chip list and current-chip marking,
-// the Store's used aisle numbers, the aisle number control, the no-op check and the
-// report body. Does NOT check: the component or the screen wiring.
+// the Store's used aisle numbers, the aisle number control, the no-op check (exact
+// match only) and the report body and title. Does NOT check: the component or the screen wiring.
 import { isDeepStrictEqual } from 'node:util';
 
 import {
   isSameAsCurrent,
+  MISSING_LOCATION_TITLE,
   nudgeAisle,
   parseAisleDraft,
   pickerChips,
+  reportTitle,
   usedAisleNumbers,
   withStoreLine,
 } from '../mobile/src/lib/itemLocationPicker.ts';
@@ -74,9 +76,10 @@ for (const [n, delta, want] of [
 // isSameAsCurrent.
 for (const [label, current, want] of [
   ['Dairy', 'Dairy', true],
-  ['Dairy', 'dairy section', true],
+  ['Dairy', 'dairy section', false],
+  ['Dairy', 'dairy', false],
   ['Aisle 22', 'Aisle 22', true],
-  ['Aisle 22', 'isle 022', true],
+  ['Aisle 22', 'isle 022', false],
   ['Aisle 22', 'Aisle 20', false],
   ['Dairy', 'Deli', false],
   ['Dairy', 'Aisle 22', false],
@@ -84,8 +87,15 @@ for (const [label, current, want] of [
   ['Dairy', null, false],
   ['Aisle 22', null, false],
 ]) {
-  expect(`isSameAsCurrent(${label}, ${current})`, isSameAsCurrent(label, current, parse), want);
+  expect(`isSameAsCurrent(${label}, ${current})`, isSameAsCurrent(label, current), want);
 }
+
+// reportTitle / MISSING_LOCATION_TITLE.
+expect('MISSING_LOCATION_TITLE', MISSING_LOCATION_TITLE, 'Item location missing');
+expect('reportTitle empty falls back', reportTitle('', MISSING_LOCATION_TITLE), 'Item location missing');
+expect('reportTitle blank falls back trimmed', reportTitle('  ', ' X '), 'X');
+expect('reportTitle typed wins', reportTitle('Bulk bins', 'X'), 'Bulk bins');
+expect('reportTitle nothing', reportTitle('', undefined), '');
 
 // withStoreLine.
 expect('withStoreLine', withStoreLine('New World Riccarton', 'Bulk bins'), 'Store: New World Riccarton\n\nBulk bins');

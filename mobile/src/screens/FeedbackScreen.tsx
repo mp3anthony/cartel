@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -17,7 +17,8 @@ import {
   SecondaryButton,
 } from '../components/ui';
 import { submitFeedback } from '../lib/feedback';
-import { withStoreLine } from '../lib/itemLocationPicker';
+import { reportTitle, withStoreLine } from '../lib/itemLocationPicker';
+import { loadLocations } from '../lib/locations';
 import {
   uploadFeedbackScreenshot,
   validateScreenshot,
@@ -34,7 +35,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Feedback'> & {
 /**
  * The #69 report form. Reached from the "Report issue" button on `SettingsScreen` and,
  * since #154, from the Item location picker's "Missing one? Tell us" link (title
- * "Item location missing" and the Store attached). `fromScreen` arrives as a route param
+ * "Item location missing" and the Store attached once its name is known; the Store's ID
+ * is never shown or sent, and a cleared title falls back to the pre-filled one).
+ * `fromScreen` arrives as a route param
  * set by each caller rather than something this screen reads off the navigator itself: by
  * the time this screen is mounted, the navigator's own "current route" is already
  * `Feedback`, not wherever the user tapped from. A new entry point supplies its own screen
@@ -59,9 +62,27 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
   const [name, setName] = useState('');
   const [title, setTitle] = useState(route.params?.title ?? '');
   // The Store a report is about, when it came from the Item location picker (#154). Shown
-  // read-only and sent as the report's first line. The item's name is deliberately not
-  // attached: reports are public GitHub issues.
-  const storeLine = route.params?.storeName ?? route.params?.locationId ?? null;
+  // read-only and sent as the report's first line, only once its name is known: the ID is
+  // never shown or sent, and a blank name counts as missing. If the caller had no name yet,
+  // it is looked up here from `locationId`. The Settings path has neither, so no lookup
+  // runs. The item's name is deliberately not attached: reports are public GitHub issues.
+  const paramStoreName = route.params?.storeName?.trim() || undefined;
+  const paramLocationId = route.params?.locationId;
+  const [resolvedName, setResolvedName] = useState<string | null>(null);
+  const storeLine = paramStoreName ?? resolvedName;
+
+  useEffect(() => {
+    if (paramStoreName || !paramLocationId) return;
+    let active = true;
+    void loadLocations(client).then((outcome) => {
+      if (!active || !outcome.ok) return;
+      const found = outcome.value.find((location) => location.id === paramLocationId)?.name.trim();
+      if (found) setResolvedName(found);
+    });
+    return () => {
+      active = false;
+    };
+  }, [paramStoreName, paramLocationId, client]);
   const [whatsHappening, setWhatsHappening] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,7 +176,7 @@ export function FeedbackScreen({ navigation, route, client }: Props) {
 
     const outcome = await submitFeedback(client, {
       name,
-      title,
+      title: reportTitle(title, route.params?.title),
       whatsHappening: storeLine ? withStoreLine(storeLine, whatsHappening) : whatsHappening,
       screenshotUrl,
       fromScreen: route.params?.fromScreen ?? 'Settings',
