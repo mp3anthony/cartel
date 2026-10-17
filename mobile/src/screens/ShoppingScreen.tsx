@@ -26,11 +26,10 @@ import { useListItems } from '../hooks/useListItems';
 import { useQuantityStepper } from '../hooks/useQuantityStepper';
 import type { ListsView } from '../hooks/useLists';
 import { useLocations } from '../hooks/useLocations';
-import { useLocationCheckoffs } from '../hooks/useLocationCheckoffs';
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocationItemVotes } from '../hooks/useLocationItemVotes';
-import { capitaliseFirst } from '../lib/itemName';
-import { computeRouteOrder } from '../lib/locationCheckoffs';
+import { capitaliseFirst, foldItemName } from '../lib/itemName';
+import { sortByLayoutOrder } from '../lib/layoutOrder';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
 import {
@@ -96,10 +95,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * screen, matching the low-friction, walking-through-the-store spirit the rest of
  * this screen already has.
  *
- * Slice 7 adds both reordering and a "Finish shopping" button. Items render via
- * `computeRouteOrder` (`../lib/locationCheckoffs`) rather than in whatever order
- * `useListItems` returns — a read-time sort only, `position` is never written
- * (03-SPEC.md § Slice 7's Agreed block). "Finish shopping" is confirm-gated like
+ * Slice 7 adds both reordering and a "Finish shopping" button. Items render in Layout
+ * order (#153, `../lib/layoutOrder`; it replaced Slice 7's learned `computeRouteOrder`)
+ * rather than in whatever order `useListItems` returns — a read-time sort only,
+ * `position` is never written (03-SPEC.md § Slice 7's Agreed block). "Finish shopping" is confirm-gated like
  * this screen's siblings' occasional destructive/one-way actions and records one
  * `location_checkoffs` row, snapshotting whatever's checked, in check-off
  * order, the moment it's pressed (originally via a direct client write,
@@ -131,7 +130,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  *
  * Slice 9 makes "Finish shopping" write two independent rows instead of one.
  * The pre-existing `location_checkoffs` write (anonymous, feeds route
- * learning) is unchanged; alongside it, the finish-shopping write also wrote
+ * learning, kept for #151) is unchanged; alongside it, the finish-shopping write also wrote
  * a household-attributed `shop_sessions` row (originally via a direct client
  * write, `recordShopSession()` — folded into `finish_shopping()` by issue
  * #58, see below) — the full item snapshot plus which of them were checked —
@@ -169,10 +168,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * `pending` is keyed by an *existing* item's id, and a not-yet-inserted item
  * has none, so folding this into `pending` isn't possible; a brand-new,
  * separate ref/state pair is the correct shape here, not a shortcut. The new
- * item needs no ordering logic of its own: `computeRouteOrder`'s tier-3
- * fallback (no check-off history, no section tag) already keeps a
- * newly-added item in its entry-order position via `Array.prototype.sort`'s
- * stability, confirmed by reading that function rather than assumed. Nothing here is
+ * item needs no ordering logic of its own: it has no Item location yet, so
+ * `sortByLayoutOrder` puts it last, behind the other untagged items (its index
+ * tie-break keeps input order), until someone tags it. Nothing here is
  * gated on a list's finish state any more: a finished list is simply reusable.
  *
  * Batch E (#32) briefly gave untagged items a labeled "+ Tag aisle" affordance;
@@ -288,11 +286,6 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     list?.locationId ?? null,
   );
 
-  const { view: checkoffs, refresh: refreshCheckoffs } = useLocationCheckoffs(
-    client,
-    list?.locationId ?? null,
-  );
-
   const { view: itemVotes, refresh: refreshLocationItemVotes } = useLocationItemVotes(
     client,
     list?.locationId ?? null,
@@ -402,8 +395,8 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   // Effective checked state for a row: the optimistic overlay above wins while a
   // value is present, otherwise falls back to whatever the database last reported.
   // Used everywhere a row's checked state matters — the row's own `checked` prop,
-  // the caption's `checkedCount`, and nowhere else (`computeRouteOrder` stays reading
-  // `checkoffs`/`locationItems`, unrelated to this per-item toggle state).
+  // the caption's `checkedCount`, and nowhere else (the Layout order sort reads
+  // `locationItems`, unrelated to this per-item toggle state).
   function isChecked(item: ListItemRow): boolean {
     return optimisticChecked.has(item.id) ? optimisticChecked.get(item.id)! : item.checkedAt !== null;
   }
@@ -715,7 +708,6 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
       // Refresh so this screen reflects whatever is now true server-side: after Done
       // the items are unticked, after Continue they stay ticked and recorded.
       await refresh();
-      await refreshCheckoffs();
       await onListsChanged();
       setConfirmingFinish(false);
 
@@ -855,13 +847,12 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   }
 
   // Past this point `list.locationId` is known non-null, so `useLocationItems`
-  // and `useLocationCheckoffs` above were both called with a real id rather
+  // and `useLocationItemVotes` above were both called with a real id rather
   // than null — these gates are safe to merge with (loading) and mirror
   // (error) the existing view.status ones.
   if (
     view.status === 'loading' ||
     locationItems.status === 'loading' ||
-    checkoffs.status === 'loading' ||
     itemVotes.status === 'loading'
   ) {
     return (
@@ -883,14 +874,6 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     return (
       <Screen edges={NAVIGATOR_EDGES}>
         <ErrorNote message={locationItems.message} />
-      </Screen>
-    );
-  }
-
-  if (checkoffs.status === 'error') {
-    return (
-      <Screen edges={NAVIGATOR_EDGES}>
-        <ErrorNote message={checkoffs.message} />
       </Screen>
     );
   }
@@ -917,7 +900,12 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   }
 
   const items = view.items;
-  const orderedItems = computeRouteOrder(items, locationItems.items, checkoffs.checkoffs);
+  // Layout order (#153): read-time only, `position` is never written.
+  const orderedItems = sortByLayoutOrder(items, {
+    getName: (item) => item.name,
+    getLabel: (item) => sectionForItemName(locationItems.items, item.name),
+    fold: foldItemName,
+  });
   const checkedCount = items.filter((item) => isChecked(item)).length;
   // Ticks not yet recorded as a shop. An item ticked just now (optimistic overlay) counts
   // as new even if the stale `recordedAt` still shows, because untick-then-retick clears

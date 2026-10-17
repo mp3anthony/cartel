@@ -50,7 +50,7 @@ Where an item sits inside a store (an aisle or area, e.g. "Aisle 4"), matched by
 _Avoid_: Section (in the UI), aisle (as a name for the whole concept; **Aisle** below is one option in the set), category, label
 
 **Layout order sequence**:
-_Decided in #112, not built:_ the fixed standard set of Item locations, identical for all stores, in NZ shop-floor wording: Fruit & Veg, Butchery, Seafood, Deli, Bakery, Dairy, Chilled, then Aisles in numeric order (parsed as numbers, so 2 before 20 and 22), then Frozen, Health & Beauty, Pharmacy, Beer & Wine. It drives Shopping Mode's **Layout order** (`shopping.md`).
+The fixed standard set of Item locations, identical for all stores, in NZ shop-floor wording: Fruit & Veg, Butchery, Seafood, Deli, Bakery, Dairy, Chilled, then Aisles in numeric order (parsed as numbers, so 2 before 20 and 22), then Frozen, Health & Beauty, Pharmacy, Beer & Wine. It drives Shopping Mode's **Layout order** (`shopping.md`). _Sorting built in #153 (0.0.63)_ in `mobile/src/lib/layoutOrder.ts`, which reads labels forgivingly with rules 1 and 2 of the C2 migration (so "dairy section" is Dairy, "isle 04" is Aisle 4); the migration's synonym map (rule 3, e.g. "Meat") is not applied, so such a label sorts as unknown. _The picker that restricts typing is still #154, not built._
 _Avoid_: Produce, Meat (use Fruit & Veg, Butchery)
 
 **Aisle**:

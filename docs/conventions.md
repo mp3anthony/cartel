@@ -9,7 +9,7 @@ Binding build and design-process rules. Vocabulary lives in `docs/context/`; thi
 - `03-SPEC.md`: generated from the CRD; the build breakdown and technical guardrails. Section 0 holds the locked invariants.
 - `CHANGE-LOG.md`: append-only inbox for out-of-spec requests.
 - `mobile/src/theme/tokens.ts` is the source of truth for the palette, not the design document. `node scripts/check-design-reference.mjs` checks that every hex in the `.cartel-light` and `.cartel-dark` blocks of `02-DESIGN-REFERENCE.html` matches `tokens.ts` and that every palette hex appears as text in the page body; it does not check the page-chrome `--p-*` values, the shadow values or which token name a quoted hex label sits beside. Run it after changing either file.
-- Pre-PR checks, not in CI (Node 22.18+, run directly): `node scripts/check-item-catalog.mjs` covers the pure grouping and search logic in `mobile/src/lib/itemCatalog.ts`; run it before any PR touching the Item catalog. `node scripts/check-item-name-parity.mjs` keeps the client name fold, its fixtures and the generated SQL assertions in step with the database `fold_item_name` (see `docs/environment.md` and ADR 0008).
+- Pre-PR checks, not in CI (Node 22.18+, run directly): `node scripts/check-item-catalog.mjs` covers the pure grouping and search logic in `mobile/src/lib/itemCatalog.ts`; run it before any PR touching the Item catalog. `node scripts/check-layout-order.mjs` covers Shopping Mode's Layout order in `mobile/src/lib/layoutOrder.ts`; run it before any PR touching that sort or the label rules. `node scripts/check-item-name-parity.mjs` keeps the client name fold, its fixtures and the generated SQL assertions in step with the database `fold_item_name` (see `docs/environment.md` and ADR 0008).
 
 ## Data and backend
 
@@ -22,7 +22,7 @@ Binding build and design-process rules. Vocabulary lives in `docs/context/`; thi
 - **Shared tables get household-equal DELETE policies** that reuse the SELECT predicate, never owner-only. `locations` has an open UPDATE grant on the chain column only.
 - **Two households racing to tag one item** are arbitrated by the unique key; the loser's `23505` is treated as success and the refresh picks the winner. Correction votes are the opposite: the same voter repeating a vote is rejected (`already_voted`).
 - **`attachLocation(client, listId, locationId)`** covers attach, change and detach (null detaches); there is no separate detach function.
-- **Sorting is read-time.** `position` is a fractional key; check-off never writes it, and route order is computed at render.
+- **Sorting is read-time.** `position` is a fractional key; check-off never writes it, and Layout order is computed at render.
 - **Bulk copy** writes one multi-row insert built by the single private key generator in `lists.ts`, so a failure leaves no partial list.
 - **RLS tests** are plain SQL in `supabase/tests/rls_*.sql`, run through the Supabase MCP `execute_sql` against the hosted project. There is no unit-test framework and no mocks: testing is those assertions plus live-browser and live-deploy verification.
 - **`humanise()` must map every new RPC exception code** (for example `already_finished`, `nothing_checked`, `no_location`) or raw strings leak to users.
