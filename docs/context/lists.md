@@ -23,6 +23,7 @@ Turning a personal list into a shared list. One-way: a shared list can never be 
 _Avoid_: Promote (older spec wording), publish, unshare, demote
 
 **Start new list from this** (copy):
+_Decided with Ant (session 54, #229, not yet built):_ the History button for this action is relabelled "Reuse list" and moves into the shop pop-up; the term and behaviour here are unchanged.
 Copies a finished shop or a current list into a new, unchecked list, with a prefilled name and the same "Share with" choice. Each item keeps its Quantity on both routes. From History it copies the full original snapshot of the shop and always attaches that shop's store; from list detail it copies current items and attaches a store only if the source has one. The source is never changed. Copying from History folds items that are the same (per **Item**) into one, Quantities summed and clamped to 99; old snapshots are never rewritten.
 _Avoid_: Duplicate, clone, template, re-shop
 
