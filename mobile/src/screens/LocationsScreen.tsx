@@ -20,7 +20,7 @@ import { loadShopSessionLocationCounts } from '../lib/shopSessions';
 import {
   findNearbyLocations,
   orderByVisits,
-  PICKER_NEARBY_RADIUS_M,
+  NEARBY_RADIUS_M,
   roundToNearest10,
   type NearbyLocation,
 } from '../lib/locations';
@@ -203,7 +203,7 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
         return;
       }
 
-      const nearby = await findNearbyLocations(client, perm.lat, perm.lng, PICKER_NEARBY_RADIUS_M);
+      const nearby = await findNearbyLocations(client, perm.lat, perm.lng, NEARBY_RADIUS_M);
 
       if (!nearby.ok) {
         setNearbyState({ status: 'error', message: nearby.message });

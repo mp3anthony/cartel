@@ -127,8 +127,9 @@ export function Card({ children }: { children: ReactNode }) {
  *
  * Buttons are content-sized by default (left-aligned, like text). `fullWidth` is only
  * for the single main action of a form or an irreversible commit step
- * (`02-DESIGN-REFERENCE.html`, "Decided in #110"). It is meaningless inside a row parent
- * such as `ButtonRow`, and `compact` ignores it.
+ * (`02-DESIGN-REFERENCE.html`, "Decided in #110"), plus the equal-width pair on Home's
+ * Start a shop card (#213), where the row parent sizes each slot. It is meaningless inside
+ * a wrapping `ButtonRow`, and `compact` ignores it.
  */
 export function PrimaryButton({
   label,
@@ -1503,6 +1504,8 @@ function createStyles(tokens: Tokens) {
     },
     buttonFullWidth: {
       alignSelf: 'stretch',
+      // Less side padding than the content-sized pill, so a label fits in a half-width slot (#213).
+      paddingHorizontal: tokens.space.sm,
     },
     buttonRow: {
       flexDirection: 'row',
