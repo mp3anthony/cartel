@@ -24,7 +24,7 @@ import type { Household } from '../lib/household';
 import { attachLocation, createList } from '../lib/lists';
 import {
   findNearbyLocations,
-  NEARBY_STORE_RADIUS_M,
+  NEARBY_RADIUS_M,
   roundToNearest10,
   type LocationRow,
   type NearbyLocation,
@@ -56,7 +56,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'> & {
  *
  * Hero: one card per shop in progress (a list with at least one ticked item, #89), read
  * straight off `listsView`, whose counts stay live through the lists channel. With none, the
- * hero is a "Start a shop" card (New list, and a Nearby stores chip), so Home is never empty.
+ * hero is a "Start a shop" card (New list and Nearby stores, an equal-width pair), so Home is never empty.
  *
  * Stores row: stores in the shop history, most-shopped first, then any store attached to one
  * of the user's lists, in list order. A tap does what a donut legend tap does: start or
@@ -69,7 +69,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'> & {
  *
  * The nearby check is passive (the #23 Problem Agreement): it runs only on a tap, never on
  * mount or focus, because a location permission prompt on every cold open would surprise.
- * Its denied/error states stay scoped to the hero card and never touch `error`.
+ * Its denied/error states stay scoped to the hero card and never touch `error`. The Nearby
+ * button stays in place and reads "Check again" once a check has completed; the radius is
+ * the shared `NEARBY_RADIUS_M` (2 km, #213).
  *
  * Pending corrections no longer appear here; they live only in the Store's Item catalog
  * ("Proposed: X").
@@ -94,6 +96,10 @@ export function DashboardScreen({
   // Entirely separate from `error` on purpose: a denied location permission stays scoped
   // to the hero card and never touches any other section's state.
   const [nearbyState, setNearbyState] = useState<NearbyState>({ status: 'idle' });
+  // Re-entry guard for the Nearby check (a ref, set synchronously) and whether a check has
+  // completed once, which switches the button's label to "Check again".
+  const nearbyBusyRef = useRef(false);
+  const [hasChecked, setHasChecked] = useState(false);
 
   const refreshStats = useCallback(async () => {
     const outcome = await loadShopSessionStats(client);
@@ -220,28 +226,37 @@ export function DashboardScreen({
    * Runs only on a tap, never on mount, never on focus (see the header comment).
    */
   async function checkNearby() {
+    if (nearbyBusyRef.current) {
+      return;
+    }
+    nearbyBusyRef.current = true;
     setNearbyState({ status: 'checking' });
 
-    const perm = await requestLocation();
+    try {
+      const perm = await requestLocation();
 
-    if (perm.status === 'denied') {
-      setNearbyState({ status: 'denied' });
-      return;
+      if (perm.status === 'denied') {
+        setNearbyState({ status: 'denied' });
+        return;
+      }
+
+      if (perm.status === 'error') {
+        setNearbyState({ status: 'error', message: perm.message });
+        return;
+      }
+
+      const nearby = await findNearbyLocations(client, perm.lat, perm.lng, NEARBY_RADIUS_M);
+
+      if (!nearby.ok) {
+        setNearbyState({ status: 'error', message: nearby.message });
+        return;
+      }
+
+      setNearbyState({ status: 'found', results: nearby.value });
+    } finally {
+      nearbyBusyRef.current = false;
+      setHasChecked(true);
     }
-
-    if (perm.status === 'error') {
-      setNearbyState({ status: 'error', message: perm.message });
-      return;
-    }
-
-    const nearby = await findNearbyLocations(client, perm.lat, perm.lng, NEARBY_STORE_RADIUS_M);
-
-    if (!nearby.ok) {
-      setNearbyState({ status: 'error', message: nearby.message });
-      return;
-    }
-
-    setNearbyState({ status: 'found', results: nearby.value });
   }
 
   const chartSegments: DonutSegment[] = (stats?.locationCounts ?? []).map((entry) => ({
@@ -264,41 +279,43 @@ export function DashboardScreen({
     );
   }
 
-  const nearbyChip =
-    nearbyState.status === 'idle' ? (
-      <SecondaryButton label="Nearby stores" onPress={() => void checkNearby()} />
-    ) : null;
+  // Always rendered, in place: it reads "Check again" once a check has completed (also while
+  // re-checking, so it does not flip back), and is disabled while a check runs.
+  const nearbyButton = (
+    <SecondaryButton
+      fullWidth
+      label={hasChecked ? 'Check again' : 'Nearby stores'}
+      disabled={nearbyState.status === 'checking'}
+      onPress={() => void checkNearby()}
+    />
+  );
 
-  const nearbyResults =
-    nearbyState.status === 'idle' ? null : (
-      <View style={styles.nearby}>
-        {nearbyState.status === 'checking' ? (
-          <ActivityIndicator color={tokens.color.accent} />
-        ) : nearbyState.status === 'denied' ? (
-          <Body>Location Services isn't available, so nearby stores can't be checked this session.</Body>
-        ) : nearbyState.status === 'error' ? (
-          <ErrorNote message={nearbyState.message} />
-        ) : nearbyState.results.length === 0 ? (
-          <Body>No stores nearby right now.</Body>
-        ) : (
-          nearbyState.results.map((result) => (
-            <Row
-              key={result.id}
-              leading={<StoreBadge chain={locationChain(result.id)} />}
-              label={`${result.name} — ${roundToNearest10(result.distanceM)}m away`}
-              onPress={() => void startOrContinueAtLocation(result.id)}
-            />
-          ))
-        )}
-        {nearbyState.status === 'denied' ||
-        nearbyState.status === 'error' ||
-        nearbyState.status === 'found' ? (
-          <View style={styles.leftAligned}>
-            <SecondaryButton label="Check again" onPress={() => void checkNearby()} />
-          </View>
-        ) : null}
-      </View>
-    );
+  // The outer View is a polite live region so a screen reader hears the outcome.
+  const nearbyResults = (
+    <View style={styles.nearby} accessibilityLiveRegion="polite" aria-live="polite">
+      {nearbyState.status === 'idle' ? null : nearbyState.status === 'checking' ? (
+        <ActivityIndicator
+          color={tokens.color.accent}
+          accessibilityLabel="Checking for nearby stores"
+        />
+      ) : nearbyState.status === 'denied' ? (
+        <Body>Location Services isn't available, so nearby stores can't be checked this session.</Body>
+      ) : nearbyState.status === 'error' ? (
+        <ErrorNote message={nearbyState.message} />
+      ) : nearbyState.results.length === 0 ? (
+        <Body>No stores nearby right now.</Body>
+      ) : (
+        nearbyState.results.map((result) => (
+          <Row
+            key={result.id}
+            leading={<StoreBadge chain={locationChain(result.id)} />}
+            label={`${result.name} — ${roundToNearest10(result.distanceM)}m away`}
+            onPress={() => void startOrContinueAtLocation(result.id)}
+          />
+        ))
+      )}
+    </View>
+  );
 
   return (
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
@@ -313,7 +330,7 @@ export function DashboardScreen({
         household={household}
         onResume={(listId) => navigation.navigate('ListDetail', { listId })}
         onNewList={() => navigation.navigate('Lists')}
-        nearby={{ chip: nearbyChip, results: nearbyResults }}
+        nearby={{ button: nearbyButton, results: nearbyResults }}
       />
 
       {storesRowEntries.length > 0 ? (
@@ -360,9 +377,6 @@ function createStyles(tokens: Tokens) {
     },
     nearby: {
       gap: tokens.space.sm,
-    },
-    leftAligned: {
-      alignItems: 'flex-start',
     },
   });
 }
