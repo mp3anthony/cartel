@@ -44,7 +44,7 @@
 
 Can start now:
 
-1. Build #229 on Ant's go (fresh session; plan reviewed, see Current state). Also get Ant's calls D1 to D3 on #211, then build it. #211: Get Ant's calls D1 to D3 on #211, then build it (Code Writer, Docs, separate Code Reviewer, 0.0.70).
+1. Build #229 on Ant's go (fresh session; plan reviewed, see Current state; Code Writer, Docs, separate Code Reviewer, 0.0.70). Also get Ant's calls D1 to D3 on #211, then build it (0.0.71 if #229 lands first).
 2. Live-check the #216 History tap-through on iPhone (Ant), noting #229 will rework that screen; #110 closes after #229.
 3. #103 (rebases onto the new Home; confirm the exact ordering with Ant when picking it up), then #90 (Leave household goes in the Settings Household section; stops at the plan for Ant: RLS, deleting a household). #151 (learned walking order) is parked and needs its own grill; #123 is low priority, whenever.
 
