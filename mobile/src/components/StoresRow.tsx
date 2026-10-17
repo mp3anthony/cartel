@@ -17,7 +17,8 @@ const TILE_WIDTH = 76;
  * caller decides how); it does not open the Store page. The circle mirrors `StoreBadge`'s
  * rules at a larger size (that component stays 16pt, no size prop): neutral border colour
  * for an unknown chain, a coloured ring where the chain needs one, and an outline for
- * PAK'nSAVE, whose yellow has near-zero contrast on a light surface.
+ * PAK'nSAVE, whose yellow has near-zero contrast on a light surface. Names wrap in full
+ * (#214): tiles keep a fixed width and are top-aligned, so the row grows to the tallest name.
  */
 export function StoresRow({
   stores,
@@ -65,7 +66,7 @@ export function StoresRow({
             >
               {busy ? <ActivityIndicator color={tokens.color.textPrimary} /> : null}
             </View>
-            <Text style={styles.name} numberOfLines={2}>
+            <Text style={styles.name}>
               {store.name}
             </Text>
           </Pressable>
@@ -78,6 +79,7 @@ export function StoresRow({
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     content: {
+      alignItems: 'flex-start',
       gap: tokens.space.sm,
     },
     tile: {
@@ -104,6 +106,7 @@ function createStyles(tokens: Tokens) {
       color: tokens.color.textPrimary,
       fontSize: tokens.fontSize.caption,
       textAlign: 'center',
+      alignSelf: 'stretch',
     },
   });
 }

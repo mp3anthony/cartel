@@ -50,8 +50,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'> & {
 
 /**
  * Home, as the #110 dashboard (#144, #145): a hero, a Stores row, two graph tiles ("Where you
- * shop" and "How often you shop", `HomeGraphs`) and recent activity. The graphs animate on
- * mount, once per mount, never when the history is refetched.
+ * shop" and "How often you shop", `HomeGraphs`). The graphs animate on mount, once per
+ * mount, never when the history is refetched. Recent activity was removed in #214; History
+ * lives in the nav.
  *
  * Hero: one card per shop in progress (a list with at least one ticked item, #89), read
  * straight off `listsView`, whose counts stay live through the lists channel. With none, the
@@ -250,9 +251,6 @@ export function DashboardScreen({
     chain: locationChain(entry.locationId),
   }));
 
-  const recentSessions =
-    shopSessionsView.status === 'loaded' ? shopSessionsView.sessions.slice(0, 3) : [];
-
   const loadingCore =
     listsView.status === 'loading' ||
     locationsView.status === 'loading' ||
@@ -338,42 +336,12 @@ export function DashboardScreen({
           onStorePress={(locationId) => void startOrContinueAtLocation(locationId)}
         />
       ) : null}
-
-      {recentSessions.length > 0 ? (
-        <View style={styles.section}>
-          <Text accessibilityRole="header" style={styles.sectionLabel}>
-            Recent activity
-          </Text>
-          {recentSessions.map((session) => (
-            <View key={session.id} style={styles.activityLine}>
-              <StoreBadge chain={locationChain(session.locationId)} />
-              <Text style={styles.activityText} numberOfLines={2}>
-                {`${locationName(session.locationId)} · ${formatSessionDate(session.completedAt)}`}
-                {session.listName ? (
-                  <Text style={styles.activityList}>{`  ${session.listName}`}</Text>
-                ) : null}
-              </Text>
-            </View>
-          ))}
-          <View style={styles.leftAligned}>
-            <SecondaryButton label="See all history" onPress={() => navigation.navigate('History')} />
-          </View>
-        </View>
-      ) : null}
     </Screen>
   );
 }
 
 function formatToday(): string {
   return new Date().toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-function formatSessionDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -395,20 +363,6 @@ function createStyles(tokens: Tokens) {
     },
     leftAligned: {
       alignItems: 'flex-start',
-    },
-    activityLine: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: tokens.space.sm,
-    },
-    activityText: {
-      flexShrink: 1,
-      color: tokens.color.textPrimary,
-      fontSize: tokens.fontSize.body,
-    },
-    activityList: {
-      color: tokens.color.textSecondary,
-      fontSize: tokens.fontSize.caption,
     },
   });
 }
