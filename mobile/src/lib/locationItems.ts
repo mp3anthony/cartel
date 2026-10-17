@@ -92,6 +92,38 @@ export async function loadLocationItems(
 }
 
 /**
+ * How many Item locations were created at one Store in a window (#229, "N items located"):
+ * strictly after `after` (null for no lower bound, the Store's first shop) up to and
+ * including `upTo`. A head count: no rows come back. Takes the raw timestamp strings and
+ * never round-trips them through `Date`, which would cut the microseconds Postgres keeps. An
+ * approximation by design: the table has no creator, so tags by other members count too.
+ */
+export async function countLocationItemsCreated(
+  client: SupabaseClient,
+  locationId: string,
+  after: string | null,
+  upTo: string,
+): Promise<Outcome<number>> {
+  let query = client
+    .from('location_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('location_id', locationId)
+    .lte('created_at', upTo);
+
+  if (after !== null) {
+    query = query.gt('created_at', after);
+  }
+
+  const { count, error } = await query;
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  return { ok: true, value: count ?? 0 };
+}
+
+/**
  * Records that an item lives in a given section at a location.
  *
  * A bare `INSERT`, not `.upsert()` and not an insert-then-select fallback. The

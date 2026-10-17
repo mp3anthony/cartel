@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { CloseIcon } from '../components/HeaderIcons';
+import { ChevronIcon, ChevronRightIcon } from '../components/ScopeIcon';
+import { GraphPopup } from '../components/GraphPopup';
+import { StoreBadge } from '../components/StoreBadge';
 import {
   ButtonRow,
-  Card,
-  CheckTarget,
   Confirm,
+  CheckTarget,
   EmptyState,
   ErrorNote,
   Field,
@@ -17,8 +20,7 @@ import {
   Screen,
   SecondaryButton,
 } from '../components/ui';
-import { ChevronIcon } from '../components/ScopeIcon';
-import { CloseIcon } from '../components/HeaderIcons';
+import { useItemsLocated } from '../hooks/useItemsLocated';
 import { useLocations } from '../hooks/useLocations';
 import { useShopSessions } from '../hooks/useShopSessions';
 import {
@@ -29,6 +31,8 @@ import {
 } from '../lib/historyFilter';
 import type { Household } from '../lib/household';
 import { addItems, attachLocation, createList, itemLabel } from '../lib/lists';
+import type { LocationRow } from '../lib/locations';
+import { formatCompletedAt, itemsLocatedText, shopRowText } from '../lib/shopHistory';
 import {
   deleteAllShopSessions,
   deleteShopSession,
@@ -59,38 +63,39 @@ type Props = NativeStackScreenProps<RootStackParamList, 'History'> & {
  * scoped by the same RLS an owner-or-household-member gets everywhere else
  * in this app (migration 20260811000003).
  *
- * Each entry is a collapsed card (#89): a pressable header with the store as
- * its title, a quieter "{list name} · {date}" line, and a chevron. Expanding it
- * shows what was bought (`checkedItemNames`, in the order it was ticked), then
- * a collapsed "Not bought (n)" group (`notBoughtItems()`), then the entry's
- * actions, "Start new list from this" and "Delete" (with their composer and
- * confirm), which exist only inside an expanded card. "Clear all history"
- * stays at the top. The list name is read through an embed (`list:lists(name)`),
- * so a rename shows up here and a removed list simply drops that part of the
- * line.
+ * Each entry is a compact row (#229): the Store's badge and name, a quieter "date · list
+ * name" line and a chevron. A row opens a pop-up (`GraphPopup`, the Home graph pop-up
+ * pattern) with the Store, "date · list name" and the "N items located" line pinned, a
+ * scrolling body of what was bought (`checkedItemNames`, in the order it was ticked) and a
+ * collapsed "Not bought (n)" group (`notBoughtItems()`), and a pinned footer with the entry's
+ * actions, "Reuse list" and "Delete" side by side. The "New list name" composer opens in the
+ * scrolling body (a footer composer could overflow a short viewport or the iOS keyboard); the
+ * delete Confirm takes the footer. "Clear all history" stays at the top. The list name is
+ * read through an embed (`list:lists(name)`), so a rename shows up here and a removed list
+ * simply drops that part of the line.
  *
- * "Start new list from this" is a template flow: it creates a brand-new list,
+ * The open entry is a snapshot (`openSession`), separate from `popupVisible`: the card's
+ * content survives the fade-out when a delete or a realtime refresh removes the entry, and
+ * closing only flips `popupVisible`.
+ *
+ * "Reuse list" is a template flow: it creates a brand-new list,
  * populates it with the session's `itemNames` (the round's snapshot, not
  * `checkedItemNames` — templating means "give me what I shopped for," not "give
  * me what I already got"), and attaches it to the same location the shop
- * happened at. One inline composer at a time (`copyingSessionId`), matching this
- * codebase's established one-row-at-a-time shape (`ShoppingScreen`'s
- * `editingItemId`, `ListDetailScreen`'s new copy composer below its own action
- * cluster) — deliberately not a shared component with either of those, see
+ * happened at. One composer at a time, matching this codebase's established shape
+ * (`ShoppingScreen`'s `editingItemId`, `ListDetailScreen`'s new copy composer below its own
+ * action cluster) — deliberately not a shared component with either of those, see
  * `ListDetailScreen.tsx`'s own copy-composer comment for why.
  *
- * Two real, permanent-delete actions (issue #57): removing one card
- * (`confirmingDeleteId`, the same in-place-Confirm shape `ListDetailScreen`'s
+ * Two real, permanent-delete actions (issue #57): removing one entry
+ * (`confirmingDelete`, the same in-place-Confirm shape `ListDetailScreen`'s
  * own "Remove list" uses) and "Clear all history", which wipes every entry
  * currently visible to this user under RLS — not just this screen's own
  * capped page (`deleteAllShopSessions`'s own doc comment covers why it isn't
  * scoped to `SHOP_SESSION_HISTORY_CAP`). Neither is soft-delete/undo; both
- * ask first, per the issue's own explicit instruction. A card's copy
- * composer, its own delete confirm, and the screen-level clear-all confirm
- * are mutually exclusive — opening one resets the others, so at most one
- * confirmation is ever on screen at a time. Collapsing a card resets only the
- * composer or confirm that card owns, and never while a write is in flight (the
- * in-flight handler resets on completion).
+ * ask first, per the issue's own explicit instruction. The pop-up's composer and delete
+ * confirm are mutually exclusive, and "Clear all history" is unreachable while the pop-up is
+ * open. Closing the pop-up resets what it owns, never while a write is in flight.
  */
 export function HistoryScreen({ client, household, navigation, onListsChanged, route }: Props) {
   const tokens = useTheme();
@@ -106,111 +111,114 @@ export function HistoryScreen({ client, household, navigation, onListsChanged, r
   const { view, refresh } = useShopSessions(client, filter, filterKey);
   const { view: locationsView } = useLocations(client);
 
-  const [copyingSessionId, setCopyingSessionId] = useState<string | null>(null);
+  // The open entry's snapshot and whether its pop-up shows (see the header comment).
+  const [openSession, setOpenSession] = useState<ShopSessionRow | null>(null);
+  const [popupVisible, setPopupVisible] = useState(false);
+  const [copying, setCopying] = useState(false);
   const [copyName, setCopyName] = useState('');
   const [copyShared, setCopyShared] = useState(false);
-  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingClearAll, setConfirmingClearAll] = useState(false);
-  // Cards start collapsed. Both sets hold session ids; "Not bought" has its own
-  // expansion on top of its card's.
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [notBoughtOpenIds, setNotBoughtOpenIds] = useState<Set<string>>(new Set());
+  const [notBoughtOpen, setNotBoughtOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Guards against a double press before `busy` has rendered.
+  const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
-  // A different filter is a different list: drop any open composer or confirm.
+  // A different filter is a different list: close the pop-up and drop any open composer or
+  // confirm.
   useEffect(() => {
-    setCopyingSessionId(null);
-    setCopyName('');
-    setCopyShared(false);
-    setConfirmingDeleteId(null);
+    setPopupVisible(false);
+    resetPopupState();
     setConfirmingClearAll(false);
     setError(null);
   }, [filterKey]);
+
+  // The open entry vanished (deleted elsewhere, or by a realtime refresh): close the pop-up
+  // but keep the snapshot, so the card does not blank or crash during the fade.
+  useEffect(() => {
+    if (
+      popupVisible &&
+      openSession &&
+      view.status === 'loaded' &&
+      !view.sessions.some((session) => session.id === openSession.id)
+    ) {
+      setPopupVisible(false);
+    }
+  }, [popupVisible, openSession, view]);
+
+  const openStore =
+    openSession && locationsView.status === 'loaded'
+      ? (locationsView.locations.find((location) => location.id === openSession.locationId) ??
+        null)
+      : null;
+  const itemsLocated = useItemsLocated(
+    client,
+    openSession && openStore
+      ? {
+          sessionId: openSession.id,
+          locationId: openSession.locationId,
+          completedAt: openSession.completedAt,
+        }
+      : null,
+  );
 
   function clearFilter() {
     navigation.setParams({ period: undefined, start: undefined, stores: undefined });
   }
 
+  function findStore(locationId: string): LocationRow | null {
+    if (locationsView.status !== 'loaded') {
+      return null;
+    }
+    return locationsView.locations.find((location) => location.id === locationId) ?? null;
+  }
+
   function storeNameFor(locationId: string): string {
-    if (locationsView.status !== 'loaded') {
-      return 'a store';
-    }
-    return locationsView.locations.find((l) => l.id === locationId)?.name ?? 'a store';
+    return findStore(locationId)?.name ?? 'a store';
   }
 
-  function locationNameFor(session: ShopSessionRow): string {
-    if (locationsView.status !== 'loaded') {
-      return 'a store';
-    }
-    return (
-      locationsView.locations.find((location) => location.id === session.locationId)?.name ??
-      'a store'
-    );
+  function resetComposer() {
+    setCopying(false);
+    setCopyName('');
+    setCopyShared(false);
   }
 
-  // The card title: the store, falling back to the list's name when the store cannot
-  // be found (not expected, since location_id is not null).
-  function cardTitleFor(session: ShopSessionRow): string {
-    if (locationsView.status === 'loaded') {
-      const found = locationsView.locations.find((location) => location.id === session.locationId);
-      if (found) {
-        return found.name;
-      }
-    }
-    return session.listName ?? 'a store';
+  function resetPopupState() {
+    resetComposer();
+    setConfirmingDelete(false);
+    setNotBoughtOpen(false);
   }
 
-  function toggleExpanded(session: ShopSessionRow) {
-    const wasExpanded = expandedIds.has(session.id);
-
-    if (wasExpanded && !busy) {
-      // Collapsing resets only what this card owns; another card's open composer or
-      // confirm is left alone. Skipped while busy: the in-flight handler resets on
-      // completion, and resetting now would orphan its state.
-      if (copyingSessionId === session.id) {
-        resetComposer();
-      }
-      if (confirmingDeleteId === session.id) {
-        setConfirmingDeleteId(null);
-      }
+  function openRow(session: ShopSessionRow) {
+    if (busyRef.current) {
+      return;
     }
-
-    setExpandedIds((current) => {
-      const next = new Set(current);
-      if (wasExpanded) {
-        next.delete(session.id);
-      } else {
-        next.add(session.id);
-      }
-      return next;
-    });
+    setError(null);
+    setConfirmingClearAll(false);
+    resetPopupState();
+    setOpenSession(session);
+    setPopupVisible(true);
   }
 
-  function toggleNotBought(session: ShopSessionRow) {
-    setNotBoughtOpenIds((current) => {
-      const next = new Set(current);
-      if (next.has(session.id)) {
-        next.delete(session.id);
-      } else {
-        next.add(session.id);
-      }
-      return next;
-    });
+  // Ignored while a write is in flight: the in-flight handler finishes its own state.
+  function closePopup() {
+    if (busyRef.current) {
+      return;
+    }
+    setPopupVisible(false);
+    setError(null);
+    resetPopupState();
   }
 
   function beginCopy(session: ShopSessionRow) {
     setError(null);
-    setConfirmingDeleteId(null);
+    setConfirmingDelete(false);
     setConfirmingClearAll(false);
-    setCopyingSessionId(session.id);
-    setCopyName(`${locationNameFor(session)} — ${formatCompletedAt(session.completedAt)}`);
-    setCopyShared(false);
-  }
-
-  function resetComposer() {
-    setCopyingSessionId(null);
-    setCopyName('');
+    setCopying(true);
+    setCopyName(
+      `${findStore(session.locationId)?.name ?? 'a store'} — ${formatCompletedAt(session.completedAt)}`,
+    );
     setCopyShared(false);
   }
 
@@ -219,43 +227,46 @@ export function HistoryScreen({ client, household, navigation, onListsChanged, r
     resetComposer();
   }
 
-  function beginDeleteSession(session: ShopSessionRow) {
+  function beginDeleteSession() {
     setError(null);
     resetComposer();
     setConfirmingClearAll(false);
-    setConfirmingDeleteId(session.id);
+    setConfirmingDelete(true);
   }
 
   function cancelDeleteSession() {
     setError(null);
-    setConfirmingDeleteId(null);
+    setConfirmingDelete(false);
   }
 
   async function deleteSessionNow(session: ShopSessionRow) {
-    if (busy) {
+    if (busyRef.current) {
       return;
     }
 
+    busyRef.current = true;
     setBusy(true);
     setError(null);
 
     const outcome = await deleteShopSession(client, session.id);
 
     if (!outcome.ok) {
+      busyRef.current = false;
       setBusy(false);
       setError(outcome.message);
       return;
     }
 
     await refresh();
-    setConfirmingDeleteId(null);
+    // Only hide the card: its state resets on the next open, so the footer does not flip
+    // from the Confirm back to the buttons while it fades.
+    setPopupVisible(false);
+    busyRef.current = false;
     setBusy(false);
   }
 
   function beginClearAll() {
     setError(null);
-    resetComposer();
-    setConfirmingDeleteId(null);
     setConfirmingClearAll(true);
   }
 
@@ -265,16 +276,18 @@ export function HistoryScreen({ client, household, navigation, onListsChanged, r
   }
 
   async function clearAllNow() {
-    if (busy) {
+    if (busyRef.current) {
       return;
     }
 
+    busyRef.current = true;
     setBusy(true);
     setError(null);
 
     const outcome = await deleteAllShopSessions(client);
 
     if (!outcome.ok) {
+      busyRef.current = false;
       setBusy(false);
       setError(outcome.message);
       return;
@@ -282,14 +295,16 @@ export function HistoryScreen({ client, household, navigation, onListsChanged, r
 
     await refresh();
     setConfirmingClearAll(false);
+    busyRef.current = false;
     setBusy(false);
   }
 
   async function submitCopy(session: ShopSessionRow) {
-    if (copyName.trim().length === 0 || busy) {
+    if (copyName.trim().length === 0 || busyRef.current) {
       return;
     }
 
+    busyRef.current = true;
     setBusy(true);
     setError(null);
 
@@ -300,6 +315,7 @@ export function HistoryScreen({ client, household, navigation, onListsChanged, r
     );
 
     if (!createOutcome.ok) {
+      busyRef.current = false;
       setBusy(false);
       setError(createOutcome.message);
       return;
@@ -318,6 +334,7 @@ export function HistoryScreen({ client, household, navigation, onListsChanged, r
     );
 
     if (!addOutcome.ok) {
+      busyRef.current = false;
       setBusy(false);
       setError(addOutcome.message);
       resetComposer();
@@ -330,6 +347,7 @@ export function HistoryScreen({ client, household, navigation, onListsChanged, r
     const attachOutcome = await attachLocation(client, newListId, session.locationId);
 
     if (!attachOutcome.ok) {
+      busyRef.current = false;
       setBusy(false);
       setError(attachOutcome.message);
       resetComposer();
@@ -337,8 +355,11 @@ export function HistoryScreen({ client, household, navigation, onListsChanged, r
     }
 
     await onListsChanged();
+    busyRef.current = false;
     setBusy(false);
     resetComposer();
+    // Close the pop-up first, so it is not left over the list screen.
+    setPopupVisible(false);
     navigation.navigate('ListDetail', { listId: newListId });
   }
 
@@ -389,13 +410,22 @@ export function HistoryScreen({ client, household, navigation, onListsChanged, r
     );
   }
 
+  const popupText = openSession
+    ? shopRowText({
+        storeName: openStore?.name ?? null,
+        listName: openSession.listName,
+        completedAt: openSession.completedAt,
+      })
+    : null;
+  const notBought = openSession ? notBoughtItems(openSession) : [];
+
   return (
     <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
       {filter !== null ? (
         <FilterChip filter={filter} nameFor={storeNameFor} onClear={clearFilter} />
       ) : null}
 
-      {error ? <ErrorNote message={error} /> : null}
+      {error && !popupVisible ? <ErrorNote message={error} /> : null}
 
       {confirmingClearAll ? (
         <Confirm
@@ -413,133 +443,179 @@ export function HistoryScreen({ client, household, navigation, onListsChanged, r
         />
       )}
 
-      {view.sessions.map((session) => {
-        const title = cardTitleFor(session);
-        const secondary = session.listName
-          ? `${session.listName} · ${formatCompletedAt(session.completedAt)}`
-          : formatCompletedAt(session.completedAt);
-        const expanded = expandedIds.has(session.id);
-        const notBought = notBoughtItems(session);
-        const notBoughtOpen = notBoughtOpenIds.has(session.id);
-        const composing = copyingSessionId === session.id;
-        const confirmingDelete = confirmingDeleteId === session.id;
+      {view.sessions.map((session) => (
+        <ShopHistoryRow
+          key={session.id}
+          chain={findStore(session.locationId)?.chain}
+          text={shopRowText({
+            storeName: findStore(session.locationId)?.name ?? null,
+            listName: session.listName,
+            completedAt: session.completedAt,
+          })}
+          onPress={() => openRow(session)}
+        />
+      ))}
 
-        return (
-          <Card key={session.id}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${title}, ${secondary}`}
-              // Both spellings, same as `CheckTarget`: react-native-web 0.21 does not
-              // map `accessibilityState.expanded` to `aria-expanded`.
-              aria-expanded={expanded}
-              accessibilityState={{ expanded }}
-              onPress={() => toggleExpanded(session)}
-              style={({ pressed }) => [styles.cardHeader, pressed && styles.headerPressed]}
-            >
-              <View style={styles.cardHeaderText}>
-                <Text style={styles.locationName}>{title}</Text>
-                <Text style={styles.secondary}>{secondary}</Text>
-              </View>
-              <ChevronIcon expanded={expanded} />
-            </Pressable>
-
-            {expanded ? (
-              <>
-                <View style={styles.itemList}>
-                  {session.checkedItemNames.map((name, index) => (
-                    <Text key={`${name}-${index}`} style={styles.itemLine}>
-                      {itemLabel(name, session.checkedItemQuantities[index] ?? 1)}
-                    </Text>
-                  ))}
-                </View>
-
-                {notBought.length > 0 ? (
-                  <View style={styles.itemList}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Not bought, ${notBought.length}`}
-                      aria-expanded={notBoughtOpen}
-                      accessibilityState={{ expanded: notBoughtOpen }}
-                      onPress={() => toggleNotBought(session)}
-                      style={({ pressed }) => [styles.notBoughtHeader, pressed && styles.headerPressed]}
-                    >
-                      <Text style={styles.notBoughtLabel}>{`Not bought (${notBought.length})`}</Text>
-                      <ChevronIcon expanded={notBoughtOpen} />
-                    </Pressable>
-                    {notBoughtOpen
-                      ? notBought.map(({ name, quantity }, index) => (
-                          <Text key={`${name}-${index}`} style={styles.notBoughtLine}>
-                            {itemLabel(name, quantity)}
-                          </Text>
-                        ))
-                      : null}
-                  </View>
-                ) : null}
-
-                {composing ? (
-                  <View style={styles.composer}>
-                    <Field
-                      label="New list name"
-                      value={copyName}
-                      onChangeText={setCopyName}
-                      autoCapitalize="sentences"
-                      autoFocus
-                      maxLength={60}
-                      editable={!busy}
-                      onSubmitEditing={() => void submitCopy(session)}
-                      returnKeyType="done"
-                    />
-                    {household ? (
-                      <Row
-                        label={`Share with ${household.name}`}
-                        leading={
-                          <CheckTarget
-                            checked={copyShared}
-                            onToggle={() => setCopyShared(!copyShared)}
-                            accessibilityLabel={`Share with ${household.name}`}
-                            disabled={busy}
-                          />
-                        }
-                      />
-                    ) : null}
-                    <ButtonRow>
-                      <PrimaryButton
-                        label="Create"
-                        onPress={() => void submitCopy(session)}
-                        busy={busy}
-                        disabled={copyName.trim().length === 0}
-                      />
-                      <SecondaryButton label="Cancel" onPress={cancelCopy} disabled={busy} />
-                    </ButtonRow>
-                  </View>
-                ) : confirmingDelete ? (
-                  <Confirm
-                    message="This permanently deletes this shop from your history. This can’t be undone."
-                    confirmLabel="Delete"
-                    onConfirm={() => void deleteSessionNow(session)}
-                    onCancel={cancelDeleteSession}
-                    busy={busy}
-                  />
-                ) : (
-                  <ButtonRow>
+      {openSession && popupText ? (
+        <GraphPopup
+          visible={popupVisible}
+          title={popupText.title}
+          onClose={closePopup}
+          pinned={
+            <View style={styles.popupPinned}>
+              <Text style={styles.secondary}>{popupText.secondary}</Text>
+              {openStore ? (
+                <Text accessibilityLiveRegion="polite" style={styles.itemsLocated}>
+                  {itemsLocated.status === 'loaded'
+                    ? itemsLocatedText(itemsLocated.count)
+                    : itemsLocated.status === 'error'
+                      ? 'Couldn’t count items located'
+                      : 'Counting items located…'}
+                </Text>
+              ) : null}
+            </View>
+          }
+          footer={
+            <>
+              {error ? <ErrorNote message={error} /> : null}
+              {confirmingDelete ? (
+                <Confirm
+                  message="This permanently deletes this shop from your history. This can’t be undone."
+                  confirmLabel="Delete"
+                  onConfirm={() => void deleteSessionNow(openSession)}
+                  onCancel={cancelDeleteSession}
+                  busy={busy}
+                />
+              ) : copying ? null : (
+                // Deliberate exception to content-sized buttons (#229): an equal-width pair
+                // filling the footer, sized by the row parent as on Home's Start a shop card.
+                <View style={styles.popupFooterButtons}>
+                  <View style={styles.popupFooterSlot}>
                     <SecondaryButton
-                      label="Start new list from this"
-                      onPress={() => beginCopy(session)}
+                      label="Reuse list"
+                      onPress={() => beginCopy(openSession)}
                       disabled={busy}
+                      fullWidth
                     />
+                  </View>
+                  <View style={styles.popupFooterSlot}>
                     <SecondaryButton
                       label="Delete"
-                      onPress={() => beginDeleteSession(session)}
+                      onPress={beginDeleteSession}
+                      disabled={busy}
+                      fullWidth
+                    />
+                  </View>
+                </View>
+              )}
+            </>
+          }
+        >
+          {copying ? (
+            <View style={styles.composer}>
+              <Field
+                label="New list name"
+                value={copyName}
+                onChangeText={setCopyName}
+                autoCapitalize="sentences"
+                autoFocus
+                maxLength={60}
+                editable={!busy}
+                onSubmitEditing={() => void submitCopy(openSession)}
+                returnKeyType="done"
+              />
+              {household ? (
+                <Row
+                  label={`Share with ${household.name}`}
+                  leading={
+                    <CheckTarget
+                      checked={copyShared}
+                      onToggle={() => setCopyShared(!copyShared)}
+                      accessibilityLabel={`Share with ${household.name}`}
                       disabled={busy}
                     />
-                  </ButtonRow>
-                )}
-              </>
-            ) : null}
-          </Card>
-        );
-      })}
+                  }
+                />
+              ) : null}
+              <ButtonRow>
+                <PrimaryButton
+                  label="Create"
+                  onPress={() => void submitCopy(openSession)}
+                  busy={busy}
+                  disabled={copyName.trim().length === 0}
+                />
+                <SecondaryButton label="Cancel" onPress={cancelCopy} disabled={busy} />
+              </ButtonRow>
+            </View>
+          ) : null}
+
+          <View style={styles.itemList}>
+            {openSession.checkedItemNames.map((name, index) => (
+              <Text key={`${name}-${index}`} style={styles.itemLine}>
+                {itemLabel(name, openSession.checkedItemQuantities[index] ?? 1)}
+              </Text>
+            ))}
+          </View>
+
+          {notBought.length > 0 ? (
+            <View style={styles.itemList}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Not bought, ${notBought.length}`}
+                aria-expanded={notBoughtOpen}
+                accessibilityState={{ expanded: notBoughtOpen }}
+                onPress={() => setNotBoughtOpen(!notBoughtOpen)}
+                style={({ pressed }) => [styles.notBoughtHeader, pressed && styles.headerPressed]}
+              >
+                <Text style={styles.notBoughtLabel}>{`Not bought (${notBought.length})`}</Text>
+                <ChevronIcon expanded={notBoughtOpen} />
+              </Pressable>
+              {notBoughtOpen
+                ? notBought.map(({ name, quantity }, index) => (
+                    <Text key={`${name}-${index}`} style={styles.notBoughtLine}>
+                      {itemLabel(name, quantity)}
+                    </Text>
+                  ))
+                : null}
+            </View>
+          ) : null}
+        </GraphPopup>
+      ) : null}
     </Screen>
+  );
+}
+
+/**
+ * One shop as a compact row (#229), styled like the Stores screen's `StorePickerRow`: the
+ * Store's chain badge, its name wrapping in full, "date · list name" underneath and a chevron.
+ * The whole row is one button that opens the shop's pop-up.
+ */
+function ShopHistoryRow({
+  chain,
+  text,
+  onPress,
+}: {
+  chain: string | null | undefined;
+  text: { title: string; secondary: string; accessibilityLabel: string };
+  onPress: () => void;
+}) {
+  const tokens = useTheme();
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={text.accessibilityLabel}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+    >
+      <StoreBadge chain={chain} />
+      <View style={styles.rowText}>
+        <Text style={styles.rowTitle}>{text.title}</Text>
+        <Text style={styles.secondary}>{text.secondary}</Text>
+      </View>
+      <ChevronRightIcon />
+    </Pressable>
   );
 }
 
@@ -589,39 +665,55 @@ function FilterChip({
   );
 }
 
-function formatCompletedAt(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    // The card header is a button; `minHeight` carries the 44pt floor (hitSlop does
-    // nothing on react-native-web).
-    cardHeader: {
+    // The row is a button; `minHeight` carries the 44pt floor (hitSlop does nothing on
+    // react-native-web).
+    row: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: tokens.space.md,
       minHeight: tokens.minTouchTarget,
+      paddingHorizontal: tokens.space.md,
+      paddingVertical: tokens.space.sm,
+      backgroundColor: tokens.color.surface,
+      borderRadius: tokens.radius.md,
     },
-    cardHeaderText: {
+    rowPressed: {
+      backgroundColor: tokens.color.surfaceSunken,
+    },
+    rowText: {
       flex: 1,
       gap: tokens.space.xs,
+    },
+    rowTitle: {
+      fontSize: tokens.fontSize.body,
+      fontWeight: '600',
+      color: tokens.color.textPrimary,
     },
     headerPressed: {
       opacity: 0.7,
     },
-    locationName: {
-      fontSize: tokens.fontSize.title,
-      fontWeight: '600',
-      color: tokens.color.textPrimary,
-    },
     secondary: {
       fontSize: tokens.fontSize.caption,
       color: tokens.color.textSecondary,
+    },
+    popupPinned: {
+      gap: tokens.space.xs,
+    },
+    itemsLocated: {
+      fontSize: tokens.fontSize.caption,
+      fontWeight: '600',
+      color: tokens.color.textSecondary,
+    },
+    popupFooterButtons: {
+      flexDirection: 'row',
+      gap: tokens.space.sm,
+    },
+    // Equal slots for the footer pair, as on Home's Start a shop card (#213).
+    popupFooterSlot: {
+      flex: 1,
+      minWidth: 0,
     },
     itemList: {
       gap: tokens.space.xs,
