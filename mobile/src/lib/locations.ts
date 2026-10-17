@@ -44,17 +44,10 @@ type NearbyLocationRecord = {
 };
 
 /**
- * Radius for the dashboard's passive nearby-store nudge: a walking distance, not a
- * dedup check. A plain judgement call, not a locked constant other code depends on.
+ * One radius for Home's Nearby check and the Stores page's "Find stores near me"
+ * (Ant, 2026-10-17, #213). Not a locked constant other code depends on.
  */
-export const NEARBY_STORE_RADIUS_M = 200;
-
-/**
- * Radius for the Stores picker's "Find stores near me". Wider than the dashboard
- * nudge because the picker is for choosing a store to attach, not a quick
- * "you're at a store" hint (Ant decided 2 km).
- */
-export const PICKER_NEARBY_RADIUS_M = 2000;
+export const NEARBY_RADIUS_M = 2000;
 
 /**
  * Rounds a metre distance to the nearest 10 for display next to a nearby store. The

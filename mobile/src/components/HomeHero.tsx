@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ButtonRow, PrimaryButton } from './ui';
+import { PrimaryButton } from './ui';
 import { ProgressRing } from './ProgressRing';
 import { ScopeIcon } from './ScopeIcon';
 import { StoreBadge } from './StoreBadge';
@@ -10,7 +10,7 @@ import type { ListRow } from '../lib/lists';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
-export type NearbyParts = { chip: ReactNode; results: ReactNode };
+export type NearbyParts = { button: ReactNode; results: ReactNode };
 
 type StoreInfo = { name: string; chain: string | null } | null;
 
@@ -38,7 +38,7 @@ export function HomeHero({
   household: Household | null;
   onResume: (listId: string) => void;
   onNewList: () => void;
-  /** The caller owns the nearby check: `chip` sits beside New list, `results` renders below the buttons. */
+  /** The caller owns the nearby check: `button` sits beside New list, `results` renders below the buttons. */
   nearby: NearbyParts;
 }) {
   const tokens = useTheme();
@@ -135,10 +135,13 @@ function StartAShop({ onNewList, nearby }: { onNewList: () => void; nearby: Near
     <View style={styles.startCard}>
       <Text style={styles.listName}>Start a shop</Text>
       <Text style={styles.quiet}>Make a list, or find a store near you.</Text>
-      <ButtonRow>
-        <PrimaryButton label="New list" onPress={onNewList} />
-        {nearby.chip}
-      </ButtonRow>
+      {/* Deliberate exception to content-sized buttons (#213): an equal-width pair filling the card. */}
+      <View style={styles.heroButtons}>
+        <View style={styles.heroButtonSlot}>
+          <PrimaryButton label="New list" onPress={onNewList} fullWidth />
+        </View>
+        <View style={styles.heroButtonSlot}>{nearby.button}</View>
+      </View>
       {nearby.results}
     </View>
   );
@@ -193,6 +196,14 @@ function createStyles(tokens: Tokens) {
     startCard: {
       ...card,
       gap: tokens.space.sm,
+    },
+    heroButtons: {
+      flexDirection: 'row',
+      gap: tokens.space.sm,
+    },
+    heroButtonSlot: {
+      flex: 1,
+      minWidth: 0,
     },
     quiet: {
       color: tokens.color.textSecondary,
