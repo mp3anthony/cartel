@@ -2,51 +2,88 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CountUp } from './CountUp';
-import { DonutChart, DonutRing, type DonutSegment } from './DonutChart';
-import { ChevronIcon } from './ScopeIcon';
-import { ShopFrequencyBars } from './ShopFrequencyBars';
-import { bucketShops, MONTHS_SHOWN, WEEKS_SHOWN } from '../lib/shopFrequency';
+import { DonutRing, storeColorMap, type DonutSegment } from './DonutChart';
+import { GraphPopup } from './GraphPopup';
+import { ShopFrequencyBars, type BarBucket, type BarLabel } from './ShopFrequencyBars';
+import {
+  bucketShops,
+  MONTHS_SHOWN,
+  stackBucket,
+  WEEKS_SHOWN,
+  type ShopBucket,
+  type ShopInput,
+} from '../lib/shopFrequency';
+import { MAX_NAMED_STORES, OTHER_KEY } from '../lib/storeColors';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
 type GraphId = 'where' | 'often';
 
 const CHART_HEIGHT = 88;
-const DETAIL_BARS_HEIGHT = 120;
+const POPUP_BARS_HEIGHT = 120;
+const POPUP_RING_SIZE = 160;
+const POPUP_RING_STROKE = 22;
 
 /**
  * Home's two graph tiles (#145), side by side: "Where you shop" (shops per Store, a donut)
- * and "How often you shop" (shops per week, bars). Tapping a tile opens a full-width detail
- * card directly below the row; tapping the same tile closes it, tapping the other switches.
- * One open at a time. The detail card is a sibling of the tiles, never inside a Pressable,
- * because the donut legend has tappable rows of its own.
+ * and "How often you shop" (shops per week, stacked bars). Tapping a tile opens its graph in
+ * a pop-up card (#215, `GraphPopup`); one is open at a time. The tiles are previews: the
+ * Where tile shows only the donut, the How-often tile the 8-week stacked bars.
  *
- * Motion: the tiles' charts and numbers animate on mount, and the detail chart animates
- * when it is expanded (it mounts then). Once per mount, never on a refetch: new data just
- * shows (see `useMountProgress`).
+ * Where pop-up: the ring pinned at the top and one row per Store (colour swatch, full name,
+ * shops and share). A row starts or continues a shop at that Store and closes the pop-up
+ * first. How-often pop-up: "Last 8 weeks" and "Last 6 months" stacked bars, then a legend.
  *
- * Windows: the tile bars are the current week plus the previous 7, weeks starting Monday in
- * local time; the detail is the current month plus the previous 5. Older shops are left out
- * of the bars but still counted in the donut. Bucketing is DST-safe (see `bucketShops`).
+ * Colour: one map for everything (`storeColorMap`, the donut's rule). The top 5 Stores by
+ * lifetime shops keep their chain colour (or an accent tint by rank); every other Store is
+ * the neutral "Other stores" colour, one segment per bar and one legend row.
+ *
+ * Motion: the tiles' charts and numbers animate on mount; a pop-up's chart mounts when it
+ * opens, so it plays once per opening. Nothing moves under Reduce Motion (see
+ * `useMountProgress`). Windows: weeks start Monday in local time, the last 8 weeks and the
+ * last 6 months; older shops are left out of the bars but still counted in the donut.
+ * Bucketing is DST-safe (see `bucketShops`).
  *
  * Existing data only: shop counts per Store and completion times. Category and spending
  * graphs are out of spec (see CHANGE-LOG.md).
  */
 export function HomeGraphs({
   segments,
-  completedAt,
+  shops: shopList,
   onStorePress,
 }: {
   segments: DonutSegment[];
-  completedAt: string[];
+  shops: ShopInput[];
   onStorePress: (locationId: string) => void;
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const [expanded, setExpanded] = useState<GraphId | null>(null);
+  const [open, setOpen] = useState<GraphId | null>(null);
 
-  const weeks = useMemo(() => bucketShops(completedAt, new Date(), 'week', WEEKS_SHOWN), [completedAt]);
-  const months = useMemo(() => bucketShops(completedAt, new Date(), 'month', MONTHS_SHOWN), [completedAt]);
+  const colors = useMemo(() => storeColorMap(segments, tokens), [segments, tokens]);
+  const nameById = useMemo(() => new Map(segments.map((s) => [s.key, s.label])), [segments]);
+  const rankById = useMemo(() => new Map(colors.ranked.map((r) => [r.key, r])), [colors]);
+
+  const colorFor = useMemo(
+    () => (locationId: string) => {
+      const entry = rankById.get(locationId);
+      return entry?.named
+        ? { key: locationId, color: entry.color, rank: entry.rank }
+        : { key: OTHER_KEY, color: colors.otherColor, rank: MAX_NAMED_STORES };
+    },
+    [rankById, colors.otherColor],
+  );
+
+  const weeks = useMemo(() => bucketShops(shopList, new Date(), 'week', WEEKS_SHOWN), [shopList]);
+  const months = useMemo(() => bucketShops(shopList, new Date(), 'month', MONTHS_SHOWN), [shopList]);
+  const weekBars = useMemo<BarBucket[]>(
+    () => weeks.map((b) => ({ start: b.start, count: b.count, segments: stackBucket(b, colorFor) })),
+    [weeks, colorFor],
+  );
+  const monthBars = useMemo<BarBucket[]>(
+    () => months.map((b) => ({ start: b.start, count: b.count, segments: stackBucket(b, colorFor) })),
+    [months, colorFor],
+  );
 
   const total = segments.reduce((sum, s) => sum + s.value, 0);
   const top = segments.reduce<DonutSegment | null>(
@@ -55,23 +92,76 @@ export function HomeGraphs({
   );
   const weeksTotal = weeks.reduce((sum, b) => sum + b.count, 0);
 
-  const whereLabel = `Where you shop, ${shops(total)}${top ? `, most at ${top.label}` : ''}`;
-  const oftenLabel = `How often you shop, ${shops(weeksTotal)} in the last ${WEEKS_SHOWN} weeks`;
+  const whereLabel = `Where you shop, ${shopsText(total)}${top ? `, most at ${top.label}` : ''}, opens details`;
+  const oftenLabel = `How often you shop, ${shopsText(weeksTotal)} in the last ${WEEKS_SHOWN} weeks, opens details`;
 
-  const monthsLabel = months
-    .map((b) => `${b.start.toLocaleDateString(undefined, { month: 'long' })}, ${shops(b.count)}`)
-    .join('. ');
+  // Where rows: every Store with a shop, in colour-map order (most shops first).
+  const whereRows = colors.ranked.flatMap((entry) => {
+    const segment = segments.find((s) => s.key === entry.key);
+    return segment && segment.value > 0 ? [{ segment, color: entry.color }] : [];
+  });
 
-  const toggle = (id: GraphId) => setExpanded((current) => (current === id ? null : id));
+  // Day-of-month of each Monday, with the short month on the first column and wherever the
+  // month changes.
+  const weekLabels = useMemo<BarLabel[]>(
+    () =>
+      weeks.map((b, i) => {
+        const day = String(b.start.getDate());
+        const changed = i === 0 || weeks[i - 1].start.getMonth() !== b.start.getMonth();
+        return changed
+          ? { line1: day, line2: b.start.toLocaleDateString(undefined, { month: 'short' }) }
+          : day;
+      }),
+    [weeks],
+  );
+  const monthLabels = useMemo<BarLabel[]>(
+    () => months.map((b) => b.start.toLocaleDateString(undefined, { month: 'short' })),
+    [months],
+  );
+
+  // Screen-reader text for one bar: its period, then the shops per Store.
+  const describeFor = (buckets: ShopBucket[], head: (bucket: ShopBucket) => string) => {
+    return (bar: BarBucket) => {
+      const bucket = buckets.find((b) => b.start.getTime() === bar.start.getTime());
+      if (!bucket) {
+        return '';
+      }
+      if (bucket.count === 0) {
+        return `${head(bucket)}: no shops`;
+      }
+      const parts = Object.entries(bucket.byLocation)
+        .sort(
+          ([a, ac], [b, bc]) =>
+            bc - ac || (nameById.get(a) ?? '').localeCompare(nameById.get(b) ?? ''),
+        )
+        .map(([id, count]) => `${count} at ${nameById.get(id) ?? 'a store'}`);
+      return `${head(bucket)}: ${shopsText(bucket.count)}, ${parts.join(', ')}`;
+    };
+  };
+
+  // Legend: Stores with a shop in the 6-month window, rank order, plus "Other stores" if a
+  // tail Store appears.
+  const legendIds = new Set<string>();
+  for (const b of months) {
+    for (const id of Object.keys(b.byLocation)) {
+      legendIds.add(id);
+    }
+  }
+  const legendRows = colors.ranked.filter((r) => r.named && legendIds.has(r.key));
+  const legendHasOther = [...legendIds].some((id) => !rankById.get(id)?.named);
+
+  const select = (locationId: string) => {
+    setOpen(null);
+    onStorePress(locationId);
+  };
 
   return (
     <View style={styles.wrap}>
       <View style={styles.tiles}>
         <GraphTile
           title="Where you shop"
-          open={expanded === 'where'}
           accessibilityLabel={whereLabel}
-          onPress={() => toggle('where')}
+          onPress={() => setOpen('where')}
           chart={<DonutRing segments={segments} size={CHART_HEIGHT} stroke={14} />}
           figure={
             <>
@@ -82,10 +172,9 @@ export function HomeGraphs({
         />
         <GraphTile
           title="How often you shop"
-          open={expanded === 'often'}
           accessibilityLabel={oftenLabel}
-          onPress={() => toggle('often')}
-          chart={<ShopFrequencyBars buckets={weeks} height={CHART_HEIGHT} />}
+          onPress={() => setOpen('often')}
+          chart={<ShopFrequencyBars buckets={weekBars} height={CHART_HEIGHT} />}
           figure={
             <>
               <CountUp value={weeksTotal} style={styles.figureNumber} />
@@ -97,50 +186,87 @@ export function HomeGraphs({
         />
       </View>
 
-      {expanded === 'where' ? (
-        <View style={styles.detail}>
-          <Text accessibilityRole="header" style={styles.detailTitle}>
-            Where you shop
-          </Text>
-          <DonutChart segments={segments} onSegmentPress={onStorePress} />
-        </View>
-      ) : null}
+      <GraphPopup
+        visible={open === 'where'}
+        title="Where you shop"
+        onClose={() => setOpen(null)}
+        pinned={<DonutRing segments={segments} size={POPUP_RING_SIZE} stroke={POPUP_RING_STROKE} />}
+      >
+        {whereRows.map(({ segment, color }) => {
+          const percent = total > 0 ? Math.round((segment.value / total) * 100) : 0;
+          const count = shopsText(segment.value);
+          return (
+            <Pressable
+              key={segment.key}
+              accessibilityRole="button"
+              accessibilityLabel={`${segment.label}, ${count}, ${percent}%, start or continue a shop`}
+              onPress={() => select(segment.key)}
+              style={({ pressed }) => [styles.storeRow, pressed ? styles.storeRowPressed : null]}
+            >
+              <View style={[styles.swatch, { backgroundColor: color }]} />
+              <Text style={styles.storeName}>{segment.label}</Text>
+              <Text style={styles.storeCaption}>{`${count} · ${percent}%`}</Text>
+            </Pressable>
+          );
+        })}
+      </GraphPopup>
 
-      {expanded === 'often' ? (
-        <View style={styles.detail}>
-          <Text accessibilityRole="header" style={styles.detailTitle}>
-            How often you shop
-          </Text>
-          <Text style={styles.detailCaption}>{`Last ${MONTHS_SHOWN} months`}</Text>
-          {/* The bars hide themselves from assistive tech, so this wrapper speaks the real counts. */}
-          <View accessible accessibilityLabel={monthsLabel}>
-            <ShopFrequencyBars
-              buckets={months}
-              height={DETAIL_BARS_HEIGHT}
-              showCounts
-              labels={months.map((b) => b.start.toLocaleDateString(undefined, { month: 'short' }))}
-            />
-          </View>
+      <GraphPopup visible={open === 'often'} title="How often you shop" onClose={() => setOpen(null)}>
+        <Text style={styles.caption}>{`Last ${WEEKS_SHOWN} weeks`}</Text>
+        <ShopFrequencyBars
+          buckets={weekBars}
+          height={POPUP_BARS_HEIGHT}
+          showCounts
+          labels={weekLabels}
+          describe={describeFor(weeks, describeWeek)}
+        />
+        <Text style={styles.caption}>{`Last ${MONTHS_SHOWN} months`}</Text>
+        <ShopFrequencyBars
+          buckets={monthBars}
+          height={POPUP_BARS_HEIGHT}
+          showCounts
+          labels={monthLabels}
+          describe={describeFor(months, describeMonth)}
+        />
+        <View style={styles.legend}>
+          {legendRows.map((entry) => (
+            <View key={entry.key} style={styles.legendRow}>
+              <View style={[styles.swatch, { backgroundColor: entry.color }]} />
+              <Text style={styles.legendName}>{nameById.get(entry.key) ?? 'a store'}</Text>
+            </View>
+          ))}
+          {legendHasOther ? (
+            <View style={styles.legendRow}>
+              <View style={[styles.swatch, { backgroundColor: colors.otherColor }]} />
+              <Text style={styles.legendName}>Other stores</Text>
+            </View>
+          ) : null}
         </View>
-      ) : null}
+      </GraphPopup>
     </View>
   );
 }
 
-function shops(count: number): string {
+function shopsText(count: number): string {
   return `${count} ${count === 1 ? 'shop' : 'shops'}`;
+}
+
+function describeWeek(bucket: ShopBucket): string {
+  return `Week of ${bucket.start.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}`;
+}
+
+function describeMonth(bucket: ShopBucket): string {
+  return bucket.start.toLocaleDateString(undefined, { month: 'long' });
 }
 
 function GraphTile({
   title,
-  open,
   accessibilityLabel,
   onPress,
   chart,
   figure,
 }: {
   title: string;
-  open: boolean;
   accessibilityLabel: string;
   onPress: () => void;
   chart: ReactNode;
@@ -153,23 +279,13 @@ function GraphTile({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      // react-native-web does not map `accessibilityState.expanded` to `aria-expanded`
-      // (the same workaround History uses), so both are set.
-      aria-expanded={open}
-      accessibilityState={{ expanded: open }}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.tile,
-        // The border is always 2px (transparent at rest) so opening never shifts the layout.
-        { borderColor: open ? tokens.color.accent : 'transparent' },
-        pressed ? styles.tilePressed : null,
-      ]}
+      style={({ pressed }) => [styles.tile, pressed ? styles.tilePressed : null]}
     >
       <View style={styles.titleRow}>
         <Text style={styles.tileTitle} numberOfLines={2}>
           {title}
         </Text>
-        <ChevronIcon expanded={open} />
       </View>
       <View style={styles.chartArea}>{chart}</View>
       <View style={styles.figureRow}>{figure}</View>
@@ -193,7 +309,9 @@ function createStyles(tokens: Tokens) {
       flexBasis: 0,
       backgroundColor: tokens.color.surface,
       borderRadius: tokens.radius.lg,
+      // Kept (transparent) so the tile's size is unchanged from when it had an open border.
       borderWidth: 2,
+      borderColor: 'transparent',
       padding: tokens.space.md,
       gap: tokens.space.sm,
       ...tokens.elevation.card,
@@ -206,7 +324,6 @@ function createStyles(tokens: Tokens) {
       minHeight: TITLE_LINE_HEIGHT * 2,
       flexDirection: 'row',
       alignItems: 'flex-start',
-      justifyContent: 'space-between',
       gap: tokens.space.xs,
     },
     tileTitle: {
@@ -237,20 +354,48 @@ function createStyles(tokens: Tokens) {
       color: tokens.color.textSecondary,
       fontSize: tokens.fontSize.caption,
     },
-    detail: {
-      backgroundColor: tokens.color.surface,
-      borderRadius: tokens.radius.lg,
-      padding: tokens.space.md,
-      gap: tokens.space.sm,
-      ...tokens.elevation.card,
+    caption: {
+      color: tokens.color.textSecondary,
+      fontSize: tokens.fontSize.caption,
     },
-    detailTitle: {
+    storeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.sm,
+      minHeight: tokens.minTouchTarget,
+      paddingHorizontal: tokens.space.sm,
+      paddingVertical: tokens.space.xs,
+      borderRadius: tokens.radius.md,
+    },
+    storeRowPressed: {
+      backgroundColor: tokens.color.surfaceSunken,
+    },
+    swatch: {
+      width: 14,
+      height: 14,
+      borderRadius: tokens.radius.sm,
+    },
+    storeName: {
+      flex: 1,
       color: tokens.color.textPrimary,
       fontSize: tokens.fontSize.body,
-      fontWeight: '700',
     },
-    detailCaption: {
+    storeCaption: {
       color: tokens.color.textSecondary,
+      fontSize: tokens.fontSize.caption,
+      fontVariant: ['tabular-nums'],
+    },
+    legend: {
+      gap: tokens.space.xs,
+    },
+    legendRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.sm,
+    },
+    legendName: {
+      flex: 1,
+      color: tokens.color.textPrimary,
       fontSize: tokens.fontSize.caption,
     },
   });
