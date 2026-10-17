@@ -9,13 +9,15 @@ import { useTheme } from '../theme/ThemeProvider';
 import { scrimColor, type Tokens } from '../theme/tokens';
 
 /**
- * The pop-up card for Home's graph tiles (#215). Local to Home on purpose (no second caller,
- * so `ui.tsx` is not widened). A React Native `Modal`: on web, react-native-web gives it
+ * The pop-up card for Home's graph tiles (#215), also used by History's shop details (#229).
+ * Lives beside them rather than in `ui.tsx`, so that file is not widened. A React Native `Modal`: on web, react-native-web gives it
  * `role="dialog"`, `aria-modal`, a focus trap, focus restore and Escape-to-close, so none of
  * that is hand-rolled here.
  *
  * Layout: a centred card (title, close circle, a `pinned` slot that never scrolls, then a
- * scrolling body) over a scrim. The card comes first in the DOM so the close circle is the
+ * scrolling body, then an optional `footer` that never scrolls) over a scrim. `pinned` and
+ * `footer` fill the card's width; a caller that wants its content centred (Home's donut)
+ * centres it itself. The card comes first in the DOM so the close circle is the
  * first focusable element; the scrim is a sibling after it, hidden from assistive tech.
  * Dismiss: close circle, tap the scrim, Escape / system Back. The browser Back button does
  * not close it (no history entry is pushed).
@@ -25,13 +27,16 @@ export function GraphPopup({
   title,
   onClose,
   pinned,
+  footer,
   children,
 }: {
   visible: boolean;
   title: string;
   onClose: () => void;
-  /** Fixed above the scrolling body (the donut ring). */
+  /** Fixed above the scrolling body (the donut ring, a shop's subtitle). */
   pinned?: ReactNode;
+  /** Fixed below the scrolling body (a shop's actions). Keep it short: it never scrolls. */
+  footer?: ReactNode;
   children: ReactNode;
 }) {
   const tokens = useTheme();
@@ -67,10 +72,11 @@ export function GraphPopup({
               onPress={onClose}
             />
           </View>
-          {pinned ? <View style={styles.pinned}>{pinned}</View> : null}
+          {pinned ? <View>{pinned}</View> : null}
           <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
             {children}
           </ScrollView>
+          {footer ? <View style={styles.footer}>{footer}</View> : null}
         </View>
 
         {/* After the card in the DOM so focus starts on the close circle; painted under it
@@ -119,8 +125,8 @@ function createStyles(tokens: Tokens) {
       fontSize: tokens.fontSize.body,
       fontWeight: '700',
     },
-    pinned: {
-      alignItems: 'center',
+    footer: {
+      gap: tokens.space.sm,
     },
     body: {
       flexGrow: 0,

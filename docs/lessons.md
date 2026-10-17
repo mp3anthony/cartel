@@ -73,7 +73,7 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - Scroll-to-top on error can push a focused editor in another row off-screen (accepted). Rapid double-taps in list detail are dropped, not queued.
 - `PrimaryButton` lacks `aria-busy` (react-native-web does not map `busy`). The dialog scrim in `ui.tsx` uses the one theme-invariant `scrimColor`.
 - A denied location permission is sticky until remount, with no retry button or settings link; a "check settings" flow would be new scope.
-- `SHOP_SESSION_HISTORY_CAP` (5) was not live-stress-tested (bulk insert to production was blocked); it rests on code review. The 8 MB screenshot cap is unconfirmed with Ant.
+- `SHOP_SESSION_HISTORY_CAP` (now 20, #229) was not live-stress-tested (bulk insert to production was blocked); it rests on code review. The 8 MB screenshot cap is unconfirmed with Ant.
 - Unverified or cosmetic: the iOS status-bar icon colour (one static choice), and nested-button hydration warnings from `ListDetailScreen` rows.
 - #52 Places search-assist is closed, superseded by #107 (seeded store catalog, ADR 0007). Google Places was rejected because its terms forbid caching or storing Places content, and it needs an API key and billing prepayment. The old local branch `52-google-places-search-assist` is obsolete.
 - Captcha on anonymous sign-in and orphaned households after a member leaves are not built; see `CHANGE-LOG.md`. Item quantities are in scope via #111.

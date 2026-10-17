@@ -62,7 +62,7 @@ function readQuantities(quantities: number[] | null, length: number): number[] {
  * loader below, not a database constraint, the same "cap is a read-time concern"
  * reasoning §Slice 2 applied to `position`.
  */
-export const SHOP_SESSION_HISTORY_CAP = 5;
+export const SHOP_SESSION_HISTORY_CAP = 20;
 
 /**
  * The shop history, newest first: bounded to `SHOP_SESSION_HISTORY_CAP` unless a History
@@ -126,6 +126,34 @@ export type LocationShopCount = {
   locationId: string;
   count: number;
 };
+
+/**
+ * When the household's previous shop at one Store finished, or null for the first one (#229:
+ * the start of that Store's "Items located" window). "Previous" is per Store, so a Continue
+ * shop at another Store never counts, and it is among the shops this user can see under RLS.
+ * Independent of the History filter and the display cap. A shop deleted between this and the
+ * count query only widens the window, which is harmless.
+ */
+export async function loadPreviousShopAt(
+  client: SupabaseClient,
+  locationId: string,
+  completedAt: string,
+): Promise<Outcome<string | null>> {
+  const { data, error } = await client
+    .from('shop_sessions')
+    .select('completed_at')
+    .eq('location_id', locationId)
+    .lt('completed_at', completedAt)
+    .order('completed_at', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    return { ok: false, message: humanise(error) };
+  }
+
+  const rows = (data ?? []) as unknown as { completed_at: string }[];
+  return { ok: true, value: rows[0]?.completed_at ?? null };
+}
 
 /**
  * Every completed shop's `location_id`, uncounted and uncapped — the

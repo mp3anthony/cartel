@@ -119,6 +119,34 @@ export function ChevronIcon({ expanded }: { expanded: boolean }) {
   );
 }
 
+/**
+ * A right-pointing chevron for a row that opens a pop-up (#229). Decorative, like
+ * `ChevronIcon`: the row's own label says what a press does.
+ */
+export function ChevronRightIcon() {
+  const tokens = useTheme();
+
+  return (
+    <Svg
+      width={GLYPH_SIZE}
+      height={GLYPH_SIZE}
+      viewBox="0 0 24 24"
+      fill="none"
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Path
+        d="M9 6l6 6-6 6"
+        stroke={tokens.color.textSecondary}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </Svg>
+  );
+}
+
 const GLYPH_SIZE = 16;
 const CIRCLE_SIZE = 28;
 

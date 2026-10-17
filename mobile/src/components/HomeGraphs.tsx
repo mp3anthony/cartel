@@ -229,7 +229,11 @@ export function HomeGraphs({
         visible={open === 'where'}
         title="Where you shop"
         onClose={() => setOpen(null)}
-        pinned={<DonutRing segments={segments} size={POPUP_RING_SIZE} stroke={POPUP_RING_STROKE} />}
+        pinned={
+          <View style={styles.popupRing}>
+            <DonutRing segments={segments} size={POPUP_RING_SIZE} stroke={POPUP_RING_STROKE} />
+          </View>
+        }
       >
         {whereRows.map(({ segment, color }) => {
           const percent = total > 0 ? Math.round((segment.value / total) * 100) : 0;
@@ -369,6 +373,10 @@ function GraphTile({
 function createStyles(tokens: Tokens) {
   const TITLE_LINE_HEIGHT = Math.round(tokens.fontSize.caption * 1.3);
   return StyleSheet.create({
+    // The pop-up's pinned slot fills the card (#229), so the ring centres itself.
+    popupRing: {
+      alignItems: 'center',
+    },
     wrap: {
       gap: tokens.space.sm,
     },
