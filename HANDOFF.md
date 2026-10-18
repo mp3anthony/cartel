@@ -19,7 +19,6 @@
 
 - **Session 52 (#223, #215 shipped, 0.0.67/0.0.68):** both reviewed clean by a separate agent; #215's review caught a week-chart baseline bug, fixed before merge. Stores row tiles widened 76 to 96px (#223). #215: both Home graph tiles open a pop-up card (`GraphPopup`); Where you shop pins the donut and scrolls the Store list (a row tap closes the pop-up then starts or continues a shop); How often you shop has bars stacked per Store (top 5 chain colours, the rest one "Other stores" grey), plus 8-week and 6-month views and a legend. Decisions are in `docs/context/shopping.md`; no-chevron tiles and the weekly label format were the Planner's choices, not Ant's. Live-checked by Ant in session 53; open items are carried in Current state.
 
-
 - **Session 51 (#214, #213 shipped, 0.0.65/0.0.66):** Stores row names wrap in full (top-aligned tiles); Recent activity removed from Home; equal-width hero buttons; shared `NEARBY_RADIUS_M` = 2000; `fullWidth` buttons gain `space.sm` horizontal padding; button-width exception in `docs/conventions.md` and `02-DESIGN-REFERENCE.html` (cites #213). The Nearby button reads "Check again" after a check: the Planner's choice, not Ant's.
 
 - **Session 49 (#153, #154 shipped, 0.0.63/0.0.64; #112 Shopping order parent):** both reviewed clean; Ant said live looks good. #153: Shopping Mode uses the fixed Layout order (`mobile/src/lib/layoutOrder.ts`); labels read forgivingly (rules 1 and 2 of migration_106 `c2_target_label`, no synonym rule 3); unknown labels sort after Beer & Wine, grouped; untagged last; the learned `computeRouteOrder` sort and `useLocationCheckoffs` hooks removed, `finish_shopping` still writes the check-off record (kept for #151). #154: `ItemLocationPicker` chips (Shopping Mode, list Location pin, Item catalog edit), Aisle number 1 to 999 (`MAX_AISLE`), quick chips for the Store's used aisles, "Missing one? Tell us" opens Feedback ("Item location missing" plus a "Store: <name>" line; `report-feedback` untouched, v5). Follow-ups are in #211 (Store UUID fallback in the report, title fallback when cleared, stale line `docs/context/locations.md:49`, nits). Not exercised in a browser or on an iPhone: picker at 375px (chip wrap, aisle row, negative-margin link target), number pad on iOS, Return in the aisle field, Back from Feedback, dark mode picker, VoiceOver ("Dairy, current"), the reordered Shopping Mode feel after a tag or correction. Nits, unfixed: sort not memoised; old route-learning wording in `03-SPEC.md`. #112 remaining: #151 (learned walking order) parked, needs its own grill; slice 3 (label migration of free-text labels) not built, so old cached clients can still create free-text labels. The #114 parent may be closeable once Ant has checked live; confirm with him.
@@ -47,7 +46,6 @@
 Can start now:
 
 1. Nothing queued. #151 (learned walking order) is parked and needs its own grill; #123 is low priority, whenever. Ant picks the next ticket.
-
 
 ## Where things live
 
