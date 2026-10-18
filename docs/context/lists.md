@@ -16,6 +16,7 @@ _Avoid_: Private list, my list
 
 **Shared list**:
 A list visible to every member of the owner's household. Marked everywhere by the house icon (spoken label "Shared with {household name}"), never a text badge. A new list can be created shared via the "Share with {household name}" checkbox.
+When a member leaves the household (#90), shared lists stay with the household; the leaver may keep personal copies, which arrive as ordinary personal lists.
 _Avoid_: Household list (older spec wording), team list
 
 **Share with household**:

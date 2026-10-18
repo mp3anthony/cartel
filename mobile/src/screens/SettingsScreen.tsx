@@ -1,13 +1,20 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { useFocusEffect, type NavigationProp } from '@react-navigation/native';
+import {
+  CommonActions,
+  useFocusEffect,
+  type NavigationProp,
+  type NavigationState,
+} from '@react-navigation/native';
 
 import {
+  Banner,
   Body,
   ButtonRow,
   Card,
+  CheckTarget,
   ErrorNote,
   IconButton,
   NAVIGATOR_EDGES,
@@ -17,7 +24,16 @@ import {
   SegmentedControl,
 } from '../components/ui';
 import { appVersion, buildChannel, buildChannelLabel } from '../lib/buildInfo';
-import { createInvite, type HouseholdState, type Invite, type Outcome } from '../lib/household';
+import type { ListsView } from '../hooks/useLists';
+import {
+  createInvite,
+  leaveHousehold,
+  type HouseholdState,
+  type Invite,
+  type Outcome,
+} from '../lib/household';
+import { leaveConfirmText, leftBannerText } from '../lib/leaveHouseholdText';
+import { planAfterLeave } from '../navigation/afterLeave';
 import type { RootStackParamList } from '../navigation/types';
 import { pressFill, pressScaleFill, useReduceMotion } from '../theme/motion';
 import { useTheme, useThemeMode } from '../theme/ThemeProvider';
@@ -39,6 +55,13 @@ import type { Tokens } from '../theme/tokens';
  * same by hand. A failed reload keeps what is on screen and shows the error in place
  * (`useHousehold.reload`).
  *
+ * Leave household (#90) is a button under the invite one that opens a confirm card in
+ * place. A last member's card warns that leaving deletes the household. On success the
+ * household and list index reload, the stack is reset to a fresh Home plus this page
+ * (`planAfterLeave`), and a one-time banner here says what happened. The shared-list count
+ * in the card comes from the list index and is only wording; the server decides what is
+ * copied or deleted.
+ *
  * "Report issue" (top right) is local to this page, replacing the floating pill
  * #69 first put here. The version and copyright footer is pinned to the bottom of the
  * page, or sits under the content when it is long enough to scroll; the strings come
@@ -48,11 +71,15 @@ export function SettingsScreen({
   client,
   household,
   onReload,
+  listsView,
+  onListsChanged,
   navigation,
 }: {
   client: SupabaseClient;
   household: HouseholdState;
   onReload: () => Promise<Outcome<void>>;
+  listsView: ListsView;
+  onListsChanged: () => Promise<void>;
   navigation: NavigationProp<RootStackParamList>;
 }) {
   const tokens = useTheme();
@@ -66,6 +93,17 @@ export function SettingsScreen({
   const [reloadError, setReloadError] = useState<string | null>(null);
   const busyRef = useRef(false);
   const reloadingRef = useRef(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [copyLists, setCopyLists] = useState(true);
+  const [leaving, setLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
+  const [leftBanner, setLeftBanner] = useState<{ id: number; message: string } | null>(null);
+  const leavingRef = useRef(false);
+
+  const sharedListCount =
+    listsView.status === 'loaded'
+      ? listsView.lists.filter((list) => list.householdId !== null).length
+      : null;
 
   const runReload = useCallback(async () => {
     if (reloadingRef.current) {
@@ -91,6 +129,83 @@ export function SettingsScreen({
       void runReload();
     }, [runReload]),
   );
+
+  // The banner is one-time: it goes when the page loses focus, like Home's (#103). A
+  // leave in flight keeps its card open through a blur.
+  useEffect(() => {
+    return navigation.addListener('blur', () => {
+      setLeftBanner(null);
+      if (!leavingRef.current) {
+        setLeaveOpen(false);
+      }
+    });
+  }, [navigation]);
+
+  function openLeave() {
+    setLeaveError(null);
+    setLeftBanner(null);
+    setCopyLists(true);
+    setLeaveOpen(true);
+  }
+
+  async function confirmLeave() {
+    if (leavingRef.current || household.status !== 'member') {
+      return;
+    }
+    const householdName = household.household.name;
+    const lastMember = household.memberCount === 1;
+    const text = leaveConfirmText({ householdName, sharedListCount, lastMember });
+    leavingRef.current = true;
+    setLeaving(true);
+    setLeaveError(null);
+
+    try {
+      const outcome = await leaveHousehold(client, {
+        copyLists: text.copyLabel !== null && copyLists,
+        allowDelete: lastMember,
+      });
+
+      if (!outcome.ok) {
+        setLeaveError(outcome.message);
+        // The member count may be stale (household_would_be_deleted); refresh it.
+        void runReload();
+        return;
+      }
+
+      const [reloaded] = await Promise.all([onReload(), onListsChanged()]);
+      if (!reloaded.ok) {
+        // A second tap resolves as already_left.
+        setLeaveError(reloaded.message);
+        return;
+      }
+
+      if (navigation.isFocused()) {
+        const message = leftBannerText({
+          householdName,
+          outcome: outcome.value.outcome,
+          copiedLists: outcome.value.copiedLists,
+        });
+        // Reset first, then the banner and the card, so a blur fired synchronously by
+        // the reset cannot clear a banner that is not set yet.
+        const state = navigation.getState();
+        const plan = planAfterLeave(state);
+        if (plan) {
+          navigation.dispatch(
+            CommonActions.reset({
+              ...state,
+              routes: plan.routes,
+              index: plan.index,
+            } as NavigationState),
+          );
+        }
+        setLeftBanner({ id: Date.now(), message });
+        setLeaveOpen(false);
+      }
+    } finally {
+      leavingRef.current = false;
+      setLeaving(false);
+    }
+  }
 
   async function generate() {
     if (busyRef.current) {
@@ -142,6 +257,8 @@ export function SettingsScreen({
         )}
       </Pressable>
 
+      {leftBanner ? <Banner key={leftBanner.id} message={leftBanner.message} /> : null}
+
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>HOUSEHOLD</Text>
 
@@ -187,6 +304,25 @@ export function SettingsScreen({
               onPress={generate}
               busy={busy}
             />
+
+            {leaveOpen ? (
+              <LeaveCard
+                text={leaveConfirmText({
+                  householdName: household.household.name,
+                  sharedListCount,
+                  lastMember: household.memberCount === 1,
+                })}
+                copyLists={copyLists}
+                onToggleCopy={() => setCopyLists((value) => !value)}
+                leaving={leaving}
+                error={leaveError}
+                onConfirm={() => void confirmLeave()}
+                onCancel={() => setLeaveOpen(false)}
+                styles={styles}
+              />
+            ) : (
+              <SecondaryButton label="Leave household" onPress={openLeave} />
+            )}
           </>
         ) : (
           <>
@@ -231,6 +367,58 @@ export function SettingsScreen({
         </Text>
       </View>
     </Screen>
+  );
+}
+
+/** The leave confirm card, composed here rather than widening `Confirm`: it needs a heading
+ * and the optional tick. The tick's label is a plain wrapping Text, not a `Row`, whose
+ * one-line label would clip at 375px. */
+function LeaveCard({
+  text,
+  copyLists,
+  onToggleCopy,
+  leaving,
+  error,
+  onConfirm,
+  onCancel,
+  styles,
+}: {
+  text: ReturnType<typeof leaveConfirmText>;
+  copyLists: boolean;
+  onToggleCopy: () => void;
+  leaving: boolean;
+  error: string | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  return (
+    <View accessibilityRole="alert">
+      <Card>
+        <Text style={styles.leaveHeading}>{text.heading}</Text>
+        <Body>{text.body}</Body>
+        {text.copyLabel !== null ? (
+          <View style={styles.copyRow}>
+            <CheckTarget
+              checked={copyLists}
+              onToggle={onToggleCopy}
+              accessibilityLabel={text.copyLabel}
+              disabled={leaving}
+            />
+            <Text
+              accessible={false}
+              style={styles.copyLabel}
+              onPress={leaving ? undefined : onToggleCopy}
+            >
+              {text.copyLabel}
+            </Text>
+          </View>
+        ) : null}
+        {error ? <ErrorNote message={error} /> : null}
+        <PrimaryButton label={text.confirmLabel} onPress={onConfirm} busy={leaving} fullWidth />
+        <SecondaryButton label="Cancel" onPress={onCancel} disabled={leaving} />
+      </Card>
+    </View>
   );
 }
 
@@ -349,6 +537,21 @@ function createStyles(tokens: Tokens) {
     householdName: {
       fontSize: tokens.fontSize.title,
       fontWeight: '700',
+      color: tokens.color.textPrimary,
+    },
+    leaveHeading: {
+      fontSize: tokens.fontSize.body,
+      fontWeight: '700',
+      color: tokens.color.textPrimary,
+    },
+    copyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: tokens.space.sm,
+    },
+    copyLabel: {
+      flexShrink: 1,
+      fontSize: tokens.fontSize.body,
       color: tokens.color.textPrimary,
     },
     memberRow: {
