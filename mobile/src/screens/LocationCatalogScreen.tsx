@@ -22,7 +22,7 @@ import { useLocations } from '../hooks/useLocations';
 import { buildCatalogGroups, isCatalogGroupOpen } from '../lib/itemCatalog';
 import type { ItemCatalogGroup } from '../lib/itemCatalog';
 import { capitaliseFirst, foldItemName } from '../lib/itemName';
-import { usedAisleNumbers } from '../lib/itemLocationPicker';
+import { MISSING_LOCATION_TITLE, usedAisleNumbers } from '../lib/itemLocationPicker';
 import { parseLayoutLabel } from '../lib/layoutOrder';
 import { pendingCorrectionsForItemName, voteLocationItemCorrection } from '../lib/locationItemVotes';
 import type { PendingCorrection } from '../lib/locationItemVotes';
@@ -237,7 +237,7 @@ export function LocationCatalogScreen({ client, navigation, route }: Props) {
     cancelEditing();
     navigation.navigate('Feedback', {
       fromScreen: 'LocationCatalog',
-      title: 'Item location missing',
+      title: MISSING_LOCATION_TITLE,
       storeName: location?.name,
       locationId,
     });

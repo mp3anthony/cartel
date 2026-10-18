@@ -34,7 +34,7 @@ import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocations } from '../hooks/useLocations';
 import type { Household, Outcome } from '../lib/household';
 import { foldItemName } from '../lib/itemName';
-import { usedAisleNumbers } from '../lib/itemLocationPicker';
+import { MISSING_LOCATION_TITLE, usedAisleNumbers } from '../lib/itemLocationPicker';
 import { parseLayoutLabel } from '../lib/layoutOrder';
 import { sectionForItemName, tagItemLocation } from '../lib/locationItems';
 import { voteLocationItemCorrection } from '../lib/locationItemVotes';
@@ -423,7 +423,7 @@ export function ListDetailScreen({
     cancelEditing();
     navigation.navigate('Feedback', {
       fromScreen: 'ListDetail',
-      title: 'Item location missing',
+      title: MISSING_LOCATION_TITLE,
       storeName,
       locationId: list.locationId,
     });

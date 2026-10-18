@@ -63,9 +63,10 @@ export type RootStackParamList = {
    * constant inside `FeedbackScreen` so a new entry point supplies its own name without
    * touching that screen. Optional, with a fallback in `FeedbackScreen`.
    *
-   * `title` pre-fills the (still editable) title; `storeName` and `locationId` make the
-   * form show a read-only "Store: ..." line and send it as the first line of the report
-   * (#154's "Item location missing"). They are set in-app, but the router also maps URL
+   * `title` pre-fills the (still editable) title; `storeName` makes the form show a
+   * read-only "Store: ..." line and send it as the first line of the report (#154's
+   * "Item location missing"). `locationId` is only used to look the name up when
+   * `storeName` is missing; it is never shown or sent. They are set in-app, but the router also maps URL
    * query strings onto params, so someone can hand-write them in a link. That is harmless:
    * they only pre-fill a form the user still reads and sends themselves, and the report
    * goes through the same checked path as any other.

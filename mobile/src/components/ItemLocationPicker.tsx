@@ -75,7 +75,7 @@ export function ItemLocationPicker({
 
   function choose(label: string) {
     if (busy) return;
-    if (isSameAsCurrent(label, currentLabel, parse)) {
+    if (isSameAsCurrent(label, currentLabel)) {
       onCancel();
       return;
     }
@@ -147,6 +147,7 @@ export function ItemLocationPicker({
               }}
               returnKeyType="done"
               blurOnSubmit={false}
+              submitBehavior="submit"
               style={styles.aisleInput}
             />
             <IconButton
