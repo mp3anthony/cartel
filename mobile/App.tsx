@@ -379,6 +379,8 @@ function Bootstrapped({ env }: { env: Env }) {
               client={client}
               household={state}
               onReload={reload}
+              listsView={lists.view}
+              onListsChanged={lists.refresh}
             />
           )}
         </Stack.Screen>

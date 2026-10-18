@@ -25,7 +25,7 @@ The page behind the Settings gear in the bottom nav, labelled "Settings", shown 
 _Avoid_: Household screen, Profile, Account
 
 **Household section**:
-In a household: the household name at the top (read-only), the member count with a small circular icon-only refresh button beside it, and "Invite someone" / "Generate another code" (later also "Leave household", #90). Not in a household: a line saying you are on your own, with "Create a household" and "Join household" buttons that go to the existing setup screen. The household reloads every time Settings opens; the refresh icon covers the moment right after sending an invite code, because the member count is loaded once with no live subscription (rejected: Realtime, too big for #109; rejected: no refresh at all).
+In a household: the household name at the top (read-only), the member count with a small circular icon-only refresh button beside it, and "Invite someone" / "Generate another code", then a secondary "Leave household" button under it that opens a confirm card in place (built in #90). Not in a household: a line saying you are on your own, with "Create a household" and "Join household" buttons that go to the existing setup screen. The household reloads every time Settings opens; the refresh icon covers the moment right after sending an invite code, because the member count is loaded once with no live subscription (rejected: Realtime, too big for #109; rejected: no refresh at all).
 
 **Appearance**:
 Light / Dark / System, shown to everyone on Settings, solo or not. See Theme in `brand.md`.
@@ -44,8 +44,12 @@ A code a member generates ("Invite someone", then "Generate another code") and a
 _Avoid_: Invite link, join key, token
 
 **Joining or moving household**:
-Redeeming a code when you are already in a household is not a silent join: it fails ("You're already in a household. You can only be in one at a time.") rather than merging two households. There is no leave action yet; leaving a household is tracked in #90.
+Redeeming a code when you are already in a household is not a silent join: it fails ("You're already in a household. Leave it in Settings first, then try again.") rather than merging two households. To move, leave first, then join with an invite code.
 _Avoid_: Switch household, merge households
+
+**Leave household**:
+Settings' "Leave household" opens a confirm card in place (decision: `docs/adr/0009-leaving-a-household.md`). Shared lists and shop history stay with the household for the remaining members, and ownership of the leaver's shared lists passes to the earliest-joined member. The card offers an optional tick, on by default, to keep personal copies of the shared lists (hidden when there are none). A last member's leave deletes the household, its shared lists and its history, and the card says so ("Leave and delete household?"). The leaver's unused invite codes stay valid for about 24 hours and are not revoked, so the card says "you'll need an invite code", never "a new one". Afterwards the stack resets to a fresh Home plus Settings, with a one-time banner on Settings. Card and banner wording was the Planner's choice, not Ant's.
+_Avoid_: Quit, exit, delete household
 
 ### Identity
 

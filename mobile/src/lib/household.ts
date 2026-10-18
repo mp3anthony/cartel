@@ -30,7 +30,10 @@ export type Outcome<T> = { ok: true; value: T } | { ok: false; message: string }
 const MESSAGES: Record<string, string> = {
   not_authenticated: 'Your session expired. Restart the app to continue.',
   already_in_household:
-    "You're already in a household. You can only be in one at a time.",
+    "You're already in a household. Leave it in Settings first, then try again.",
+  household_would_be_deleted:
+    "You're now the only member, so leaving would delete the household. Check the details and confirm again.",
+  invalid_leave_request: 'Something went wrong leaving. Try again.',
   not_in_household: 'You need to be in a household first.',
   invalid_or_expired_code:
     "That code isn't valid. Codes are single-use and expire after 24 hours.",
@@ -172,4 +175,48 @@ export async function redeemInvite(
   }
 
   return { ok: true, value: data as string };
+}
+
+export type LeaveResult = {
+  /** `already_left`: the server said we were not in a household (a lost response or
+   * another tab got there first). This call copied nothing. */
+  outcome: 'left' | 'deleted' | 'already_left';
+  copiedLists: number;
+};
+
+/**
+ * Leaves the household (#90). A write, so no JWT-retry wrapper and no automatic retry.
+ * `allowDelete` is the caller's statement that it showed the last-member warning; the
+ * database refuses to delete the household without it.
+ */
+export async function leaveHousehold(
+  client: SupabaseClient,
+  options: { copyLists: boolean; allowDelete: boolean },
+): Promise<Outcome<LeaveResult>> {
+  const { data, error } = await client.rpc('leave_household', {
+    p_copy_lists: options.copyLists,
+    p_allow_delete: options.allowDelete,
+  });
+
+  if (error) {
+    if (error.message.includes('not_in_household')) {
+      return { ok: true, value: { outcome: 'already_left', copiedLists: 0 } };
+    }
+    // Deadlock with a concurrent finish or reset: Postgres aborted this side, nothing changed.
+    if (error.code === '40P01') {
+      return { ok: false, message: 'Something changed at the same moment. Try again.' };
+    }
+    return { ok: false, message: humanise(error) };
+  }
+
+  const row = Array.isArray(data) ? data[0] : null;
+
+  if (!row || (row.outcome !== 'left' && row.outcome !== 'deleted')) {
+    return { ok: false, message: 'Something went wrong leaving. Try again.' };
+  }
+
+  return {
+    ok: true,
+    value: { outcome: row.outcome, copiedLists: Number(row.copied_lists) || 0 },
+  };
 }
