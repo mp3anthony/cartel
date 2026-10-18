@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
+  Banner,
   Body,
   ErrorNote,
   NAVIGATOR_EDGES,
@@ -21,6 +23,11 @@ import { useLocations } from '../hooks/useLocations';
 import { useShopSessions } from '../hooks/useShopSessions';
 import { requestLocation } from '../lib/geolocation';
 import type { Household } from '../lib/household';
+import {
+  clearHomeConfirmation,
+  peekHomeConfirmation,
+  type HomeConfirmation,
+} from '../lib/homeConfirmation';
 import { attachLocation, createList } from '../lib/lists';
 import {
   findNearbyLocations,
@@ -74,6 +81,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'> & {
  * button stays in place and reads "Check again" once a check has completed; the radius is
  * the shared `NEARBY_RADIUS_M` (2 km, #213).
  *
+ * After a shop ends (#103) the user lands here with a one-time confirmation `Banner` above the
+ * rest, read from `lib/homeConfirmation` on focus and cleared on blur, so it never reappears on
+ * returning to Home or after a reload.
+ *
  * Pending corrections no longer appear here; they live only in the Store's Item catalog
  * ("Proposed: X").
  */
@@ -94,6 +105,9 @@ export function DashboardScreen({
   const [busyLocationId, setBusyLocationId] = useState<string | null>(null);
   const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  // The one-time confirmation after a shop ends (#103); null when there is none.
+  const [confirmation, setConfirmation] = useState<HomeConfirmation | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
   // Entirely separate from `error` on purpose: a denied location permission stays scoped
   // to the hero card and never touches any other section's state.
   const [nearbyState, setNearbyState] = useState<NearbyState>({ status: 'idle' });
@@ -101,6 +115,23 @@ export function DashboardScreen({
   // completed once, which switches the button's label to "Check again".
   const nearbyBusyRef = useRef(false);
   const [hasChecked, setHasChecked] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      const entry = peekHomeConfirmation();
+      setConfirmation(entry);
+      if (entry) {
+        scrollRef.current?.scrollTo({ y: 0, animated: false });
+      }
+    }, []),
+  );
+
+  useEffect(() => {
+    return navigation.addListener('blur', () => {
+      clearHomeConfirmation();
+      setConfirmation(null);
+    });
+  }, [navigation]);
 
   const refreshStats = useCallback(async () => {
     const outcome = await loadShopSessionStats(client);
@@ -323,7 +354,8 @@ export function DashboardScreen({
   );
 
   return (
-    <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
+    <Screen edges={NAVIGATOR_EDGES} align="top" scroll scrollRef={scrollRef}>
+      {confirmation ? <Banner key={confirmation.id} message={confirmation.message} /> : null}
       {error ? <ErrorNote message={error} /> : null}
 
       <HomeHero

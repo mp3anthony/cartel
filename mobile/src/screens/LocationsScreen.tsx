@@ -15,6 +15,7 @@ import {
 import { StorePickerRow } from '../components/StorePickerRow';
 import { useLocations } from '../hooks/useLocations';
 import { requestLocation } from '../lib/geolocation';
+import { SHOP_RECORDED_CONTINUE, setHomeConfirmation } from '../lib/homeConfirmation';
 import { attachLocation } from '../lib/lists';
 import { loadShopSessionLocationCounts } from '../lib/shopSessions';
 import {
@@ -24,6 +25,7 @@ import {
   roundToNearest10,
   type NearbyLocation,
 } from '../lib/locations';
+import { backToHome } from '../navigation/backToHome';
 import type { RootStackParamList } from '../navigation/types';
 import { CHAIN_OPTIONS, type Chain } from '../theme/chainColors';
 import { useTheme } from '../theme/ThemeProvider';
@@ -73,7 +75,9 @@ const CHAIN_FILTER_OPTIONS: { value: ChainFilter; label: string }[] = [
  * or a nearby row) calls it, so the attach-vs-outline branch lives in exactly one
  * function. Present, it writes `location_id` onto that list and returns to it; absent,
  * it only sets the outline. `returnTo: 'Shopping'` (#89, "Continue at another store")
- * goes back to the Shopping screen underneath and adds "Keep the current store".
+ * adds "Keep the current store"; a store pick or Keep then ends the finished shop and lands
+ * on Home with a one-time confirmation (#103), not back on Shopping. Backing out sets
+ * nothing and returns to Shopping.
  *
  * The nearby search is passive: a button, never a Location Services prompt on mount
  * (docs/conventions.md). Denial is sticky for this screen's lifetime; there is no
@@ -170,9 +174,12 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
 
       await onListsChanged();
       if (returnToShopping) {
-        // `navigate` would push a second Shopping screen in React Navigation 7; `goBack`
-        // returns to the one already underneath, whose list state has just refreshed.
-        navigation.goBack();
+        // The shop was recorded before this screen opened; now it is over, so land on Home
+        // (#103). Skip if the user already left while the write was in flight.
+        if (navigation.isFocused()) {
+          setHomeConfirmation(SHOP_RECORDED_CONTINUE);
+          backToHome(navigation);
+        }
       } else {
         navigation.popTo('ListDetail', { listId: attachToListId });
       }
@@ -248,7 +255,13 @@ export function LocationsScreen({ client, navigation, onListsChanged, route }: P
       {returnToShopping ? (
         <SecondaryButton
           label="Keep the current store"
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (!navigation.isFocused()) {
+              return;
+            }
+            setHomeConfirmation(SHOP_RECORDED_CONTINUE);
+            backToHome(navigation);
+          }}
           disabled={busy}
         />
       ) : null}

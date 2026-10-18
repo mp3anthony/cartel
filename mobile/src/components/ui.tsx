@@ -1246,7 +1246,8 @@ export function Confirm({
  * hides this instance for the rest of its mount but does not touch anything the
  * caller passed in. No auto-dismiss timer: a confirmation that must not be missed
  * persists until the caller replaces or clears it (ShoppingScreen clears its banner
- * when the next tick is made) or the user dismisses it. A caller that shows
+ * when the next tick is made; Home clears its own when it loses focus, #103) or the user
+ * dismisses it. A caller that shows
  * different messages over one mount should give each a distinct `key`, so a
  * dismissal of the old one does not hide the new one.
  */
