@@ -28,6 +28,13 @@ import type { ListsView } from '../hooks/useLists';
 import { useLocations } from '../hooks/useLocations';
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocationItemVotes } from '../hooks/useLocationItemVotes';
+import {
+  clearHomeConfirmation,
+  LIST_RESET,
+  SHOP_RECORDED_CONTINUE,
+  SHOP_RECORDED_DONE,
+  setHomeConfirmation,
+} from '../lib/homeConfirmation';
 import { foldItemName } from '../lib/itemName';
 import { MISSING_LOCATION_TITLE, usedAisleNumbers } from '../lib/itemLocationPicker';
 import { parseLayoutLabel, sortByLayoutOrder } from '../lib/layoutOrder';
@@ -43,6 +50,7 @@ import {
   type FinishEnding,
   type ListItemRow,
 } from '../lib/lists';
+import { backToHome } from '../navigation/backToHome';
 import { backToLists } from '../navigation/backToLists';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
@@ -156,7 +164,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Shopping'> & {
  * unticks the list and records no shop. The server locks the rows and re-checks live state,
  * so `finishThisShop()`/`resetThisList()` stay single awaited calls with nothing for the
  * client to compensate. `onListsChanged` is still called after a success so the Lists and
- * Home counts reflect it promptly.
+ * Home counts reflect it promptly. Since #103, Done shopping and Reset list then land on
+ * Home (`backToHome`) with a one-time confirmation held in `lib/homeConfirmation` (shown by
+ * `DashboardScreen`, never in the URL); only Continue keeps its note here, because it goes on
+ * to the store picker, whose pick or Keep lands on Home.
  *
  * Issue #63 adds a persistent "Add an item" composer, always rendered (not
  * tap-to-reveal) at the **top** of the item list — above every row, below the
@@ -399,7 +410,8 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
   // Synchronous twin of `finishingShopping` (batched state alone cannot stop a same-tick
   // double submit); same idiom as `addBusyRef`.
   const finishingRef = useRef(false);
-  // The confirmation shown after a finish or reset, or null. Cleared by the next tick.
+  // The note shown after Continue at another store, or null. Cleared by the next tick. (Done
+  // and Reset show theirs on Home instead, #103.)
   const [banner, setBanner] = useState<string | null>(null);
   // The note under the composer after an add that bumped an existing item (#111), or null.
   // Kept until the next add or tick; no timer. `id` makes each note a fresh Banner, so a
@@ -720,6 +732,8 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     finishingRef.current = true;
     setFinishingShopping(true);
     setError(null);
+    // A leftover entry (e.g. from a failed pop) must not show on Home after this attempt.
+    clearHomeConfirmation();
     try {
       const outcome = await finishShopping(client, list.id, ending);
       if (!outcome.ok) {
@@ -734,12 +748,14 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
       setConfirmingFinish(false);
 
       if (ending === 'continue') {
-        setBanner('Shop recorded. Ticked items stay ticked for the next store.');
+        setBanner(SHOP_RECORDED_CONTINUE);
         // `returnTo` makes the picker go back here (not push a second Shopping screen)
         // once a store is chosen, and offers "Keep the current store".
         navigation.navigate('Locations', { attachToListId: list.id, returnTo: 'Shopping' });
-      } else {
-        setBanner('Shop recorded. Your list is unticked and ready for next time.');
+      } else if (navigation.isFocused()) {
+        // Done shopping lands on Home (#103); the one-time note shows there, not here.
+        setHomeConfirmation(SHOP_RECORDED_DONE);
+        backToHome(navigation);
       }
     } finally {
       finishingRef.current = false;
@@ -763,6 +779,7 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
     finishingRef.current = true;
     setFinishingShopping(true);
     setError(null);
+    clearHomeConfirmation();
     try {
       const outcome = await resetList(client, list.id);
       if (!outcome.ok) {
@@ -773,7 +790,10 @@ export function ShoppingScreen({ client, lists, navigation, onListsChanged, rout
       await refresh();
       await onListsChanged();
       setConfirmingFinish(false);
-      setBanner('List reset. Everything is unticked and ready for next time.');
+      if (navigation.isFocused()) {
+        setHomeConfirmation(LIST_RESET);
+        backToHome(navigation);
+      }
     } finally {
       finishingRef.current = false;
       setFinishingShopping(false);

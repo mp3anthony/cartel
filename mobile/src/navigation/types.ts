@@ -34,8 +34,9 @@ export type RootStackParamList = {
    * outline. Present, a finalized selection (row tap, merge-confirm, or a
    * just-created location) writes that location onto the named list instead of
    * merely outlining it, then returns to that list. `returnTo: 'Shopping'` (#89, set by
-   * "Continue at another store") makes it go back to the Shopping screen underneath
-   * instead of navigating to the list, and adds a "Keep the current store" button.
+   * "Continue at another store") adds a "Keep the current store" button, and a store pick
+   * or Keep lands on Home with a one-time confirmation (#103) instead of going back to
+   * Shopping or the list; backing out returns to Shopping.
    * Only ever set via in-app
    * `navigation.navigate(...)`, never a URL — see `linking.config.screens` in
    * App.tsx for why it carries no path template of its own.
