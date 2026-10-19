@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
+import type { PageScroll } from '../hooks/usePageScroll';
 import { useBottomNavReserved } from '../navigation/bottomNavReserve';
 import { useTheme } from '../theme/ThemeProvider';
 import { pressFill, pressScale, pressScaleFill, useReduceMotion } from '../theme/motion';
@@ -50,6 +51,7 @@ export function Screen({
   align = 'center',
   scroll = false,
   scrollRef,
+  pageScroll,
 }: {
   children: ReactNode;
   edges?: readonly Edge[];
@@ -57,6 +59,8 @@ export function Screen({
   scroll?: boolean;
   /** Handle on the ScrollView (only used when `scroll`), e.g. to scroll to an error. */
   scrollRef?: Ref<ScrollView>;
+  /** Scroll tracking for drag auto-scroll (#123); replaces `scrollRef` when both are given. */
+  pageScroll?: PageScroll;
 }) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -66,10 +70,22 @@ export function Screen({
   const edges = pillReserved ? edgesProp.filter((edge) => edge !== 'bottom') : edgesProp;
 
   if (scroll) {
+    if (__DEV__ && pageScroll && scrollRef) {
+      console.warn('Screen: pass either scrollRef or pageScroll, not both; pageScroll wins.');
+    }
+
     return (
       <SafeAreaView edges={edges} style={styles.ground}>
         <ScrollView
-          ref={scrollRef}
+          ref={pageScroll ? pageScroll.ref : scrollRef}
+          {...(pageScroll
+            ? {
+                onScroll: pageScroll.onScroll,
+                scrollEventThrottle: 16,
+                onLayout: pageScroll.onLayout,
+                onContentSizeChange: pageScroll.onContentSizeChange,
+              }
+            : null)}
           style={styles.scrollFrame}
           contentContainerStyle={[
             styles.scrollContent,

@@ -32,6 +32,7 @@ import { useQuantityStepper } from '../hooks/useQuantityStepper';
 import type { ListsView } from '../hooks/useLists';
 import { useLocationItems } from '../hooks/useLocationItems';
 import { useLocations } from '../hooks/useLocations';
+import { usePageScroll } from '../hooks/usePageScroll';
 import type { Household, Outcome } from '../lib/household';
 import { foldItemName } from '../lib/itemName';
 import { MISSING_LOCATION_TITLE, usedAisleNumbers } from '../lib/itemLocationPicker';
@@ -174,6 +175,9 @@ export function ListDetailScreen({
   const confirmingRemoveIdRef = useRef<string | null>(null);
   // Item ids in the order a drop has just asked for, until its write settles.
   const [pendingOrder, setPendingOrder] = useState<string[] | null>(null);
+
+  // Page scroll tracking so a held drag can scroll the page near its edge (#123).
+  const pageScroll = usePageScroll();
 
   const list =
     lists.status === 'loaded'
@@ -661,7 +665,7 @@ export function ListDetailScreen({
       : null;
 
   return (
-    <Screen edges={NAVIGATOR_EDGES} align="top" scroll>
+    <Screen edges={NAVIGATOR_EDGES} align="top" scroll pageScroll={pageScroll}>
       <View style={styles.scope}>
         <ScopeIcon shared={list.householdId !== null} householdName={household?.name ?? null} />
       </View>
@@ -748,6 +752,7 @@ export function ListDetailScreen({
 
       <ReorderableList
         items={items}
+        autoScroll={pageScroll}
         disabled={dragDisabled}
         dimmed={editingId !== null || confirmingRemoveId !== null || quantityEditingId !== null}
         handleIcon={<DragHandleIcon />}

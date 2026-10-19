@@ -16,6 +16,14 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 
+import type { PageScroll } from '../hooks/usePageScroll';
+import {
+  edgeScrollVelocity,
+  effectiveDragDy,
+  isArmed,
+  nextScrollOffset,
+  targetIndex,
+} from '../lib/dragReorder';
 import { useTheme } from '../theme/ThemeProvider';
 import type { Tokens } from '../theme/tokens';
 
@@ -40,6 +48,15 @@ import type { Tokens } from '../theme/tokens';
  * write and must show the new order itself until the write lands, because this
  * component goes back to the `items` prop the moment the drag ends. Reduce-motion skips
  * the shifting animation: rows just jump.
+ *
+ * Auto-scroll (#123): with `autoScroll` (the page's scroll handle) a held drag near the top
+ * or bottom of the visible page scrolls it, and the dragged row keeps following the
+ * finger because its offset adds the page's scroll since the grant. A frame loop runs
+ * only while a drag is live and the page can scroll. It works only because the handle's
+ * `onPanResponderTerminationRequest` is false: react-native-web's ResponderSystem ends
+ * the active responder when an ancestor scrolls unless that returns false
+ * (ResponderSystem.js ~331). The finger position is a page position (`moveY`), while web
+ * `measureInWindow` is viewport-relative, so `usePageScroll` converts (docs/lessons.md).
  */
 export type ReorderableListProps<T extends { id: string }> = {
   items: T[];
@@ -51,6 +68,8 @@ export type ReorderableListProps<T extends { id: string }> = {
   disabled?: boolean;
   /** Dims the handles; defaults to `disabled`. Lets a transient disable (a write in flight) skip the dimming. */
   dimmed?: boolean;
+  /** The page's scroll handle; when set, a drag near the page edge scrolls it. */
+  autoScroll?: PageScroll;
 };
 
 const SETTLE_MS = 120;
@@ -63,6 +82,7 @@ export function ReorderableList<T extends { id: string }>({
   onDrop,
   disabled = false,
   dimmed = disabled,
+  autoScroll,
 }: ReorderableListProps<T>) {
   const tokens = useTheme();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -77,6 +97,26 @@ export function ReorderableList<T extends { id: string }>({
   const dy = useRef(new Animated.Value(0)).current;
   const shifts = useRef(new Map<string, Animated.Value>()).current;
   const reduceMotionRef = useRef(false);
+  // Auto-scroll state, all refs: the frame loop never closes over props or state.
+  const autoScrollRef = useRef(autoScroll);
+  autoScrollRef.current = autoScroll;
+  const frameRef = useRef<number | null>(null);
+  const lastFrameAtRef = useRef<number | null>(null);
+  const gestureDyRef = useRef(0);
+  const fingerYRef = useRef(0);
+  const scrollAtGrantRef = useRef(0);
+  const viewportRef = useRef<{ top: number; bottom: number } | null>(null);
+  const armedRef = useRef(false);
+  const dragTokenRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     void AccessibilityInfo.isReduceMotionEnabled().then((on) => {
@@ -109,24 +149,12 @@ export function ReorderableList<T extends { id: string }>({
   function targetFor(id: string, dragDy: number) {
     const order = snapshotRef.current;
     const from = order.findIndex((item) => item.id === id);
+    const heights = order.map((item) => heightsRef.current.get(item.id) ?? 0);
 
-    if (from < 0) {
-      return 0;
-    }
-
-    let top = 0;
-    const centres = order.map((item) => {
-      const h = heightsRef.current.get(item.id) ?? 0;
-      const centre = top + h / 2;
-      top += h;
-      return centre;
-    });
-    const draggedCentre = centres[from] + dragDy;
-
-    return centres.filter((centre, index) => index !== from && centre < draggedCentre).length;
+    return targetIndex(heights, from, dragDy);
   }
 
-  function begin(id: string) {
+  function begin(id: string, fingerY: number) {
     if (latest.current.disabled || dragIdRef.current !== null) {
       return;
     }
@@ -137,16 +165,43 @@ export function ReorderableList<T extends { id: string }>({
     dy.setValue(0);
     setTarget(targetRef.current);
     setDragId(id);
+
+    gestureDyRef.current = 0;
+    fingerYRef.current = fingerY;
+    armedRef.current = false;
+    viewportRef.current = null;
+    scrollAtGrantRef.current = 0;
+    lastFrameAtRef.current = null;
+
+    const scroller = autoScrollRef.current;
+
+    // A page that cannot scroll behaves exactly as before: no measuring, no frame loop.
+    if (scroller && scroller.getMaxOffset() > 0) {
+      scrollAtGrantRef.current = scroller.getOffset();
+      dragTokenRef.current += 1;
+      const token = dragTokenRef.current;
+      scroller.measureViewport((top, bottom) => {
+        if (dragTokenRef.current === token && dragIdRef.current === id) {
+          viewportRef.current = { top, bottom };
+        }
+      });
+      frameRef.current = requestAnimationFrame(tick);
+    }
   }
 
-  function move(id: string, dragDy: number) {
-    if (dragIdRef.current !== id) {
-      return;
-    }
+  // Moves the dragged row to the finger plus however far the page has scrolled since the
+  // grant, and retargets. Reads refs only, so the frame loop is safe on a stale closure.
+  function apply(id: string) {
+    const scroller = autoScrollRef.current;
+    const eff = effectiveDragDy(
+      gestureDyRef.current,
+      scroller ? scroller.getOffset() : scrollAtGrantRef.current,
+      scrollAtGrantRef.current,
+    );
 
-    dy.setValue(dragDy);
+    dy.setValue(eff);
 
-    const next = targetFor(id, dragDy);
+    const next = targetFor(id, eff);
 
     if (next !== targetRef.current) {
       targetRef.current = next;
@@ -154,9 +209,56 @@ export function ReorderableList<T extends { id: string }>({
     }
   }
 
+  function move(id: string, gestureDy: number, fingerY: number) {
+    if (dragIdRef.current !== id) {
+      return;
+    }
+
+    gestureDyRef.current = gestureDy;
+    fingerYRef.current = fingerY;
+    apply(id);
+  }
+
+  function tick(timestamp: number) {
+    frameRef.current = null;
+    const id = dragIdRef.current;
+    const scroller = autoScrollRef.current;
+
+    if (id === null || !scroller) {
+      return;
+    }
+
+    const dt = lastFrameAtRef.current === null ? 0 : timestamp - lastFrameAtRef.current;
+    lastFrameAtRef.current = timestamp;
+    const viewport = viewportRef.current;
+
+    if (viewport) {
+      const velocity = edgeScrollVelocity(fingerYRef.current, viewport.top, viewport.bottom);
+      armedRef.current = isArmed(armedRef.current, velocity, gestureDyRef.current);
+
+      if (armedRef.current && velocity !== 0) {
+        const current = scroller.getOffset();
+        const next = nextScrollOffset(current, velocity, dt, scroller.getMaxOffset());
+
+        if (next !== current) {
+          scroller.scrollTo(next);
+        }
+      }
+    }
+
+    apply(id);
+    frameRef.current = requestAnimationFrame(tick);
+  }
+
   function end(id: string, drop: boolean) {
     if (dragIdRef.current !== id) {
       return;
+    }
+
+    // After the stale-id guard, so a stale onEnd cannot stop another drag's loop.
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
     }
 
     const order = snapshotRef.current;
@@ -247,8 +349,8 @@ export function ReorderableList<T extends { id: string }>({
             disabled={disabled}
             dimmed={dimmed}
             onStep={(direction) => step(item.id, direction)}
-            onBegin={() => begin(item.id)}
-            onMove={(value) => move(item.id, value)}
+            onBegin={(fingerY) => begin(item.id, fingerY)}
+            onMove={(gestureDy, fingerY) => move(item.id, gestureDy, fingerY)}
             onEnd={(drop) => end(item.id, drop)}
           >
             {handleIcon}
@@ -287,8 +389,8 @@ function DragHandle({
   disabled: boolean;
   dimmed: boolean;
   onStep: (direction: -1 | 1) => void;
-  onBegin: () => void;
-  onMove: (dy: number) => void;
+  onBegin: (fingerY: number) => void;
+  onMove: (dy: number, fingerY: number) => void;
   onEnd: (drop: boolean) => void;
   children: ReactNode;
 }) {
@@ -304,8 +406,9 @@ function DragHandle({
       // Nothing may take the gesture off the handle once it has it.
       onPanResponderTerminationRequest: () => false,
       onShouldBlockNativeResponder: () => true,
-      onPanResponderGrant: () => callbacks.current.onBegin(),
-      onPanResponderMove: (_event, gesture) => callbacks.current.onMove(gesture.dy),
+      onPanResponderGrant: (_event, gesture) => callbacks.current.onBegin(gesture.y0),
+      onPanResponderMove: (_event, gesture) =>
+        callbacks.current.onMove(gesture.dy, gesture.moveY),
       onPanResponderRelease: () => callbacks.current.onEnd(true),
       onPanResponderTerminate: () => callbacks.current.onEnd(false),
     }),

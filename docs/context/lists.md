@@ -47,7 +47,7 @@ On list detail the check circle ticks an item and tapping the name renames it; i
 _Avoid_: Tick, complete, mark done
 
 **Manual order**:
-The order the user arranged by dragging the handle on the left of a row (list detail only; Shopping Mode has no handle). Stored as a fractional key and only read-sorted; checking off never reorders (Shopping Mode's fixed Layout order is computed separately, #153; this manual order only places items with no Item location).
+The order the user arranged by dragging the handle on the left of a row (list detail only; Shopping Mode has no handle). Stored as a fractional key and only read-sorted; checking off never reorders (Shopping Mode's fixed Layout order is computed separately, #153; this manual order only places items with no Item location). On a list long enough to scroll, holding a drag near the top or bottom of the visible page scrolls it (faster the closer to the edge, #123) and the dragged row keeps following the finger.
 _Avoid_: Sort, move up/down
 
 **Remove** (item):
