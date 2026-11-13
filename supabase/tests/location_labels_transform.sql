@@ -2,6 +2,12 @@
 -- (issue #106, Slice 4b and #155 -- migration 20261012000000_location_labels_votes.sql,
 -- revert supabase/rollback/106_c2_revert.sql).
 --
+-- NOT RUNNABLE SINCE #112 (20261114000000_item_location_standard_labels.sql). Its
+-- fixtures write pre-C2 free-text labels and proposals ("Cleaning", "Aisle 4a",
+-- "greengrocer") that the #112 trigger and CHECK constraints now refuse, and it runs
+-- c2_revert_data, which re-inserts such labels. Do not run it; it is retired with
+-- schema migration_106. The #112 label rules are tested in item_location_labels.sql.
+--
 -- WHY THIS EXISTS. Production has no disposable copy (docs/lessons.md), and the real
 -- data will probably hit none of the interesting branches (a duplicate pair, a proposal
 -- that equals the mapped label, an unmapped proposal on a surviving tag, a cleared tag

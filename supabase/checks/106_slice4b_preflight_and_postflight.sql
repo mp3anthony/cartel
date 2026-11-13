@@ -7,6 +7,12 @@
 -- last result, so run them one at a time) and returns a single JSON value. Post each
 -- result on #106 (or #155). Nothing here writes, creates or locks anything.
 --
+-- HISTORICAL SINCE #112 (20261114000000_item_location_standard_labels.sql): the vote
+-- function no longer contains capitalise_first(p_proposed_section) (it reads the
+-- proposal with item_location_label), so PRE-3 'vote_fn_is_c2' and POST-1
+-- 'capitalises' now read false by design. Do not re-run these as live checks; use
+-- supabase/checks/112_item_location_guard_preflight.sql instead.
+--
 -- PRE-0 and PRE-1 COUNTS ARE ADVISORY until Migration C1 (slice 4a) is applied: before
 -- it, fold merges (D5) and the votes deleted with a losing tag (D13) are still
 -- counted. C1 was applied on 2026-10-10, so the counts below are now exact for the
