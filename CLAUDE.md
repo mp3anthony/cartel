@@ -40,7 +40,7 @@ The orchestrator is a pure decision-making partner. **Ant is not a software deve
 2. **Scope check** (below).
 3. **Problem agreement:** the orchestrator interrogates the problem with Ant, agrees the outcome, and files the GitHub issue with a plain-language section: what the issue is for and what is being done (no test checklist). Before filing, the orchestrator has an Investigator check `CONTEXT-MAP.md`, `docs/context/` and prior issues for earlier related work; if it was looked at before or relates to an older issue, the report is added to that issue as a comment, or the issue is reopened, instead of becoming a duplicate. This is the approval gate before any planning.
 4. **Autonomous execution:** once the plan is approved, Investigator, Planner, Code Writer, Docs, without interrupting Ant, except on an escalation trigger.
-5. **Preview and labelling:** code goes to a preview branch; routing per Review and merge below.
+5. **PR and merge:** code goes on a branch and PR; after the independent review the orchestrator merges a clean PR itself or asks Ant first, per Review and merge approval below.
 6. **Wrap-up:** when asked, summarize progress into a clean commit, update the PR description, and rewrite `HANDOFF.md` (including exactly which ticket/section of `03-SPEC.md` was last active). `HANDOFF.md` holds where-we-left-off only; git history holds prior versions. Durable facts go to their home in the pointers above, never into `HANDOFF.md`.
 
 ### Scope-check triage
@@ -55,9 +55,10 @@ After plan approval, subagents work autonomously **except** when (a) the change 
 
 ### Review and merge approval
 
-- The app is public but only reachable through a link from Ant, and he tests in the live environment whenever he likes, so testing never blocks a PR.
-- A review that comes back **clean**: the orchestrator advises Ant "clean to merge" and labels the PR `needs-merge-approval`; Ant approves the merge when he is ready.
-- A review that finds **actual issues**, or **genuine ambiguity**: surface to Ant instead of advising a merge; once resolved, it goes to Ant the same way.
+- The app is public but only reachable through a link from Ant. He tests in live production after merge, whenever he likes, until the app has a separate store or testing environment (Google Play / App Store), so testing never blocks a PR.
+- **Clean code PR: the orchestrator merges it (since 2026-11-13).** Clean means: independent review approved, checks and build pass, no locked-invariant touch, version bumped, and any prod set-up (migration, env var) already done. The orchestrator merges it without asking, normally at wrap-up (a clean PR can merge in the same pass as the wrap-up), then tells Ant in plain language what changed plus 1-3 lines on what to check in the live app (iPhone).
+- **Ask Ant first** when the review finds actual issues or genuine ambiguity, a locked invariant is touched, or the orchestrator judges he should look (for example a risky prod data change). Label the PR `needs-merge-approval` and merge only on his go.
+- **Draft PRs** (big features, multi-slice work) stay open until Ant asks to merge.
 - **Docs-only PRs:** a PR changing only documentation or tooling scripts (no app code, no behaviour) never goes in front of Ant. A subagent (never the author) reviews it, the orchestrator fixes anything found, then merges. No version bump. Escalate only if the review finds a locked-invariant touch or real ambiguity.
 - `needs-manual-test`: disabled by default; see Labels.
 
@@ -71,7 +72,7 @@ Aim for roughly 150k-180k context tokens per session/ticket. Not a mechanical cu
 
 ### Branching
 
-Never commit directly to `main`; work only on milestone branches. Merges follow Ant's approval (docs-only PRs excepted).
+Never commit directly to `main`; work only on milestone branches. The orchestrator merges clean code PRs and docs-only PRs; anything else merges on Ant's go (see Review and merge approval).
 
 ### Labels
 
@@ -79,5 +80,5 @@ Never commit directly to `main`; work only on milestone branches. Merges follow 
 - `needs-info`: manual input required from Ant; always paired with a direct message to him, never left silent.
 - `ready-for-agent` / `ready-for-human`: whether the agent team can execute the whole ticket, or part needs Ant directly (a design call, third-party dashboard config, account setup).
 - `needs-manual-test`: pings Ant for hands-on verification before merge. Disabled by default; only for a long-running multi-issue integration PR.
-- `needs-merge-approval`: the default for every reviewed code PR (clean, or once issues are resolved with Ant); Ant approves the merge. Not used for docs-only PRs.
+- `needs-merge-approval`: only on a code PR actually waiting on Ant (an ask-first case in Review and merge approval); not the default. Not used for docs-only PRs.
 - `out-of-spec`: outside the current spec; logged to `CHANGE-LOG.md`, not actioned until Ant triages it.
