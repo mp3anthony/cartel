@@ -69,8 +69,10 @@ export function nudgeAisle(current: number | null, delta: 1 | -1, max: number): 
  * would be refused as `correction_matches_current`). Deliberately exact, not compared as
  * places: an older label such as "Dairy section" or "isle 022" still marks the matching
  * chip, but tapping that chip sends the standard label ("Dairy", "Aisle 22") so the
- * label can be tidied. A case-only difference is applied at once by the database;
- * anything else goes through as a normal correction.
+ * label can be tidied as a normal correction. Since #112 the database stores only
+ * standard labels, so this only matters for a copy loaded before the guard; the
+ * database reads a case- or spacing-only difference as the same label and refuses it
+ * as `correction_matches_current`.
  */
 export function isSameAsCurrent(label: string, current: string | null): boolean {
   return current !== null && label === current;

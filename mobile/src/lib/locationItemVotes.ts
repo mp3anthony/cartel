@@ -129,12 +129,14 @@ export function pendingCorrectionsForItemName(
  * way either row changes.
  *
  * Unlike `tagItemLocation`'s lenient treatment of a losing race, every error
- * here — including a rejected re-vote by the same user (`already_voted`), a
- * proposal identical to the current value (`correction_matches_current`), or a
- * correction proposed against an untagged item (`item_not_tagged`) — is
- * surfaced to the caller via `humanise()`, not swallowed. None of these are
- * benign races the caller's own refresh already resolves; each means nothing
- * happened toward the correction the caller intended.
+ * here is surfaced to the caller via `humanise()`, not swallowed: a rejected
+ * re-vote by the same user (`already_voted`), a proposal identical to the
+ * current value (`correction_matches_current`), a correction proposed against an
+ * untagged item (`item_not_tagged`), and (since #112) a proposal that is not a
+ * standard Item location, whose plain-English database message `humanise()`
+ * passes through as it is. None of these are benign races the caller's own
+ * refresh already resolves; each means nothing happened toward the correction
+ * the caller intended.
  */
 export async function voteLocationItemCorrection(
   client: SupabaseClient,
@@ -146,9 +148,9 @@ export async function voteLocationItemCorrection(
     p_location_id: locationId,
     // Tags are stored folded. The RPC folds the name itself since migration
     // 20261011000000; the fold is still sent so this works against the old
-    // lower(btrim) function too. Since migration 20261012000000 the RPC also
-    // capitalises the proposal itself (picker labels already carry one) and applies a case-
-    // or whitespace-only change at once: no second voter, no pending vote.
+    // lower(btrim) function too. Since migration 20261114000000 (#112) the RPC
+    // reads the proposal as a standard Item location ("aisle 7" is "Aisle 7";
+    // picker labels already are one) and refuses anything else.
     p_item_name: normalizeItemName(itemName),
     p_proposed_section: proposedSection,
   });

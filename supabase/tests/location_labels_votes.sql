@@ -1,8 +1,13 @@
 -- Behaviour tests for vote_location_item_correction after Migration C2 (issue #106,
--- Slice 4b and #155 -- migration 20261012000000_location_labels_votes.sql): the
--- proposal is stored with a leading capital, a change of case or spacing only is
--- applied at once with no second user, a real correction still waits for a second
--- independent voter, and the function's definition, lock and grants are right.
+-- Slice 4b and #155 -- migration 20261012000000_location_labels_votes.sql) as changed
+-- by #112 (20261114000000_item_location_standard_labels.sql): the proposal is read
+-- as a standard Item location ("aisle 9" is stored "Aisle 9"), a real correction still
+-- waits for a second independent voter, and the function's definition, lock and
+-- grants are right. Since #112 a proposal that differs from the label only by case or
+-- spacing reads as the same standard label, so it is refused as
+-- correction_matches_current (C2 applied it at once with one voter; that branch is now
+-- unreachable). The #112 label rules themselves are tested in
+-- item_location_labels.sql.
 --
 -- HOW TO RUN: paste this whole file into the Supabase SQL editor (or the MCP
 -- `execute_sql` tool) against project chacavfoewyiwrfgvxtj, AFTER the migration is
@@ -13,20 +18,22 @@
 -- transforms of the same migration are tested in location_labels_transform.sql.
 --
 -- WHAT IT GUARDS. 0 the function's definition: security definer, empty search_path,
--- folds the name, capitalises the proposal, locks the tag row FOR UPDATE, executable
--- by authenticated only. 1 a proposal is stored capitalised ("aisle 9" becomes
--- "Aisle 9") and does not change the label. 2 a second independent voter applies it
--- and clears the item's votes. 3 a case-only proposal ("AISLE 9" on "Aisle 9")
--- applies at once with ONE voter, clears a sibling pending vote and leaves no vote
--- row; the label is then put back the same way. 4 a spacing-only proposal applies at
--- once. 5 proposing "dairy" on "Dairy" is still refused (correction_matches_current)
--- and leaves no row. 6 a raw item name ("MILK  ", an accented one) finds its folded
--- tag. 7 already_voted still works. 8 item_not_tagged still works. 9 a blank
--- proposal still hits the proposed_section CHECK (23514) and leaves no row.
+-- folds the name, reads the proposal with item_location_label (#112), locks the tag
+-- row FOR UPDATE, executable by authenticated only. 1 a proposal is stored as the
+-- standard label ("aisle 9" becomes "Aisle 9") and does not change the label. 2 a
+-- second independent voter applies it and clears the item's votes. 3 a case-only
+-- proposal ("AISLE 9" on "Aisle 9") is refused (correction_matches_current), leaves
+-- no row and keeps a sibling pending vote. 4 a spacing-only proposal ("aisle  4" on
+-- "Aisle 4") is refused the same way. 5 proposing "dairy" on "Dairy" is still refused
+-- (correction_matches_current) and leaves no row. 6 a raw item name ("MILK  ", an
+-- accented one) finds its folded tag. 7 already_voted still works. 8 item_not_tagged
+-- still works. 9 a blank proposal is refused with 23514 and the #112 message and
+-- leaves no row.
 --
 -- Fixtures are the premise, not the thing under test, so they are inserted as the
--- owning role (which bypasses RLS; the tidy trigger still capitalises a new tag's
--- section). Only the behaviour assertions run as `authenticated`.
+-- owning role (which bypasses RLS; since #112 the standard-label trigger still reads a
+-- new tag's section, so cheese's 'aisle  04' is stored 'Aisle 4'). Only the behaviour
+-- assertions run as `authenticated`.
 -- `request.jwt.claims` must be set *before* the role switch. All non-ASCII text is
 -- written as U& escapes.
 
@@ -34,7 +41,7 @@ begin;
 
 -- ---------------------------------------------------------------------------
 -- Fixtures. E, F and G share nothing. One store LOC. Tags: milk (Aisle 3), cheese
--- (Aisle, two spaces, 4), bread (Dairy), jalapeno (Aisle 5).
+-- (inserted as 'aisle  04', stored 'Aisle 4'), bread (Dairy), jalapeno (Aisle 5).
 -- ---------------------------------------------------------------------------
 
 insert into auth.users (id, is_anonymous) values
@@ -49,7 +56,7 @@ insert into public.locations (id, name, lat, lng, chain, created_by) values
 
 insert into public.location_items (location_id, name, section) values
   ('83000000-0000-4000-8000-000000000155', 'milk', 'Aisle 3'),
-  ('83000000-0000-4000-8000-000000000155', 'cheese', 'Aisle  4'),
+  ('83000000-0000-4000-8000-000000000155', 'cheese', 'aisle  04'),
   ('83000000-0000-4000-8000-000000000155', 'bread', 'Dairy'),
   ('83000000-0000-4000-8000-000000000155', 'jalapeno', 'Aisle 5');
 
@@ -76,8 +83,9 @@ begin
     raise exception 'FAIL: the vote function does not fold the item name';
   end if;
 
-  if def not like '%public.capitalise_first(p_proposed_section)%' then
-    raise exception 'FAIL: the vote function does not capitalise the proposal';
+  if def not like '%public.item_location_label(p_proposed_section)%'
+     or def like '%public.capitalise_first(p_proposed_section)%' then
+    raise exception 'FAIL: the vote function does not read the proposal with item_location_label (#112)';
   end if;
 
   if def not ilike '%for update%' then
@@ -99,7 +107,8 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
--- Assertion 1 -- a real correction waits, and the proposal is stored capitalised.
+-- Assertion 1 -- a real correction waits, and the proposal is stored as the standard
+-- label.
 -- As E, propose 'aisle 9' for milk (now Aisle 3): one vote row 'Aisle 9', label
 -- unchanged.
 -- ---------------------------------------------------------------------------
@@ -154,10 +163,10 @@ end $$;
 reset role;
 
 -- ---------------------------------------------------------------------------
--- Assertion 3 -- a case-only proposal applies at once. G leaves a pending vote
--- ('Aisle 40') on milk. Then E proposes 'AISLE 9' on 'Aisle 9': it applies with E
--- alone, milk is now 'AISLE 9', G's vote is gone and no row was left for E. E then
--- proposes 'Aisle 9' (case-only back): milk is 'Aisle 9' again.
+-- Assertion 3 -- a case-only proposal is refused (#112). G leaves a pending vote
+-- ('Aisle 40') on milk. Then E proposes 'AISLE 9' on 'Aisle 9': it reads as 'Aisle 9',
+-- so it is refused as correction_matches_current, milk stays 'Aisle 9', E leaves no
+-- row and G's sibling vote is still there.
 -- ---------------------------------------------------------------------------
 
 select set_config('request.jwt.claims',
@@ -182,39 +191,40 @@ select set_config('request.jwt.claims',
 set local role authenticated;
 
 do $$
+declare
+  msg text;
 begin
-  perform public.vote_location_item_correction(
-    '83000000-0000-4000-8000-000000000155', 'milk', 'AISLE 9');
+  begin
+    perform public.vote_location_item_correction(
+      '83000000-0000-4000-8000-000000000155', 'milk', 'AISLE 9');
+  exception when others then
+    msg := sqlerrm;
+  end;
 
-  if (select section from public.location_items
-      where location_id = '83000000-0000-4000-8000-000000000155' and name = 'milk') <> 'AISLE 9' then
-    raise exception 'FAIL: a case-only proposal did not apply at once with a single voter';
+  if msg is distinct from 'correction_matches_current' then
+    raise exception 'FAIL: a case-only proposal (AISLE 9 on Aisle 9) gave % (null = accepted), expected correction_matches_current', msg;
   end if;
-
-  if (select count(*) from public.location_item_votes
-      where location_id = '83000000-0000-4000-8000-000000000155' and item_name = 'milk') <> 0 then
-    raise exception 'FAIL: a case-only apply left vote rows behind (E''s own, or G''s sibling vote)';
-  end if;
-
-  perform public.vote_location_item_correction(
-    '83000000-0000-4000-8000-000000000155', 'milk', 'Aisle 9');
 
   if (select section from public.location_items
       where location_id = '83000000-0000-4000-8000-000000000155' and name = 'milk') <> 'Aisle 9' then
-    raise exception 'FAIL: putting the label back with a case-only proposal did not apply';
+    raise exception 'FAIL: the refused case-only proposal changed milk''s label';
   end if;
 
   if (select count(*) from public.location_item_votes
-      where location_id = '83000000-0000-4000-8000-000000000155' and item_name = 'milk') <> 0 then
-    raise exception 'FAIL: the second case-only apply left a vote row behind';
+      where location_id = '83000000-0000-4000-8000-000000000155'
+        and item_name = 'milk' and proposed_section = 'Aisle 40') <> 1
+     or (select count(*) from public.location_item_votes
+         where location_id = '83000000-0000-4000-8000-000000000155' and item_name = 'milk') <> 1 then
+    raise exception 'FAIL: the refused case-only proposal left a row, or removed G''s pending vote';
   end if;
 end $$;
 
 reset role;
 
 -- ---------------------------------------------------------------------------
--- Assertion 4 -- a spacing-only proposal applies at once. As E, propose 'Aisle 4'
--- on cheese (stored 'Aisle  4' with two spaces).
+-- Assertion 4 -- a spacing-only proposal is refused (#112). cheese was inserted as
+-- 'aisle  04' and stored as 'Aisle 4'; as E, propose 'aisle  4' (two spaces): it
+-- reads as 'Aisle 4', so correction_matches_current, and no row is left.
 -- ---------------------------------------------------------------------------
 
 select set_config('request.jwt.claims',
@@ -222,23 +232,28 @@ select set_config('request.jwt.claims',
 set local role authenticated;
 
 do $$
+declare
+  msg text;
 begin
   if (select section from public.location_items
-      where location_id = '83000000-0000-4000-8000-000000000155' and name = 'cheese') <> 'Aisle  4' then
-    raise exception 'FAIL: fixture: cheese should start as ''Aisle  4'' with two spaces';
+      where location_id = '83000000-0000-4000-8000-000000000155' and name = 'cheese') <> 'Aisle 4' then
+    raise exception 'FAIL: fixture: cheese inserted as ''aisle  04'' should be stored as ''Aisle 4''';
   end if;
 
-  perform public.vote_location_item_correction(
-    '83000000-0000-4000-8000-000000000155', 'cheese', 'Aisle 4');
+  begin
+    perform public.vote_location_item_correction(
+      '83000000-0000-4000-8000-000000000155', 'cheese', 'aisle  4');
+  exception when others then
+    msg := sqlerrm;
+  end;
 
-  if (select section from public.location_items
-      where location_id = '83000000-0000-4000-8000-000000000155' and name = 'cheese') <> 'Aisle 4' then
-    raise exception 'FAIL: a spacing-only proposal did not apply at once';
+  if msg is distinct from 'correction_matches_current' then
+    raise exception 'FAIL: a spacing-only proposal gave % (null = accepted), expected correction_matches_current', msg;
   end if;
 
   if (select count(*) from public.location_item_votes
       where location_id = '83000000-0000-4000-8000-000000000155' and item_name = 'cheese') <> 0 then
-    raise exception 'FAIL: a spacing-only apply left a vote row behind';
+    raise exception 'FAIL: the refused spacing-only proposal left a vote row behind';
   end if;
 end $$;
 
@@ -246,7 +261,7 @@ reset role;
 
 -- ---------------------------------------------------------------------------
 -- Assertion 5 -- proposing 'dairy' on bread ('Dairy') is refused: the proposal is
--- capitalised first, so it equals the label. No vote row is left.
+-- read as the standard label first, so it equals the label. No vote row is left.
 -- ---------------------------------------------------------------------------
 
 select set_config('request.jwt.claims',
@@ -383,8 +398,8 @@ end $$;
 reset role;
 
 -- ---------------------------------------------------------------------------
--- Assertion 9 -- a blank proposal is still refused by the proposed_section CHECK
--- (23514), not accepted: it is empty after capitalise_first trims it. No row is left.
+-- Assertion 9 -- a blank proposal is refused with 23514 and the #112 message (it reads
+-- as no standard label), not accepted. No row is left.
 -- ---------------------------------------------------------------------------
 
 select set_config('request.jwt.claims',
@@ -394,16 +409,19 @@ set local role authenticated;
 do $$
 declare
   st text;
+  msg text;
 begin
   begin
     perform public.vote_location_item_correction(
       '83000000-0000-4000-8000-000000000155', 'jalapeno', '   ');
   exception when others then
     st := sqlstate;
+    msg := sqlerrm;
   end;
 
-  if st is distinct from '23514' then
-    raise exception 'FAIL: a blank proposal gave sqlstate % (null = accepted), expected 23514', st;
+  if st is distinct from '23514'
+     or msg is distinct from 'That isn''t a standard Item location. Pick a section, or Aisle 1 to 999.' then
+    raise exception 'FAIL: a blank proposal gave (sqlstate %, %) (null = accepted), expected 23514 and the #112 message', st, msg;
   end if;
 
   -- voter_id is not readable by authenticated, so count the item's rows instead:

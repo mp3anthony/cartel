@@ -7,11 +7,13 @@
  * type stripping, which cannot resolve extension-less relative imports. For that
  * reason the item-name fold is injected (`fold`); callers pass `foldItemName`.
  *
- * Labels are read forgivingly, with rules 1 and 2 of `migration_106.c2_target_label`
- * (supabase/migrations/20261012000000_location_labels_votes.sql): "dairy section" is
- * Dairy, "isle 04" is Aisle 4. Rule 3 (its approved synonym map, such as "Meat") is
- * deliberately not here: such a label is just an unknown one and sorts after the
- * standard ones.
+ * Labels are read forgivingly, with exactly the rules of the database's
+ * `public.item_location_label` (supabase/migrations/20261114000000_item_location_standard_labels.sql,
+ * #112): "dairy section" is Dairy, "isle 04" is Aisle 4, and the one synonym "Meat" is
+ * Butchery (Ant's call, D2). Anything else is an unknown label and sorts after the
+ * standard ones (the database refuses it since #112, so only old cached data can hold
+ * one). `scripts/check-layout-order.mjs` holds this file and the SQL to the shared
+ * cases in supabase/tests/item_location_label_cases.json.
  */
 
 export type Fold = (text: string) => string;
@@ -57,6 +59,8 @@ const OTHER_RANK = LAYOUT_ORDER_SEQUENCE.length;
 const NONE_RANK = LAYOUT_ORDER_SEQUENCE.length + 1;
 
 const DEPARTMENTS = LAYOUT_ORDER_SEQUENCE.filter((slot): slot is Department => slot !== 'Aisle');
+/** The only synonym (#112, D2), keyed like a department on the stripped key. */
+const SYNONYMS: ReadonlyMap<string, Department> = new Map([['meat', 'Butchery']]);
 const AISLE_PATTERN = /^(?:aisle|isle|ailse|asile) ?(?:no\.?|number|#)? ?0*([1-9][0-9]{0,2})$/;
 
 /** Where a stored label sits in the walk. Null, empty and whitespace-only are `none`. */
@@ -68,7 +72,7 @@ export function parseLayoutLabel(label: string | null, fold: Fold): LayoutPlace 
   const k1 = k0
     .replace(/^the | (section|department|dept|area|counter|aisle|isle|bay)$/g, '')
     .replace(/ and /g, ' & ');
-  const department = DEPARTMENTS.find((d) => fold(d) === k1);
+  const department = DEPARTMENTS.find((d) => fold(d) === k1) ?? SYNONYMS.get(k1);
   if (department) return { kind: 'department', label: department };
 
   const match = AISLE_PATTERN.exec(k0);

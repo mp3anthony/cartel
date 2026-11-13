@@ -3,6 +3,11 @@
 -- the Supabase SQL editor (or send it through the MCP) only if the slice 4b
 -- production run must be undone.
 --
+-- DO NOT RUN AFTER #112 (20261114000000_item_location_standard_labels.sql) unless
+-- supabase/rollback/112_item_location_guard_revert.sql has been run first: this
+-- script re-inserts old non-standard labels, which the #112 trigger and CHECK
+-- constraints refuse, and restores a vote function without the #112 guard.
+--
 -- It undoes 20261012000000_location_labels_votes.sql using the backups and logs that
 -- migration created in schema migration_106:
 --   * the data half is migration_106.c2_revert_data(null), a function the migration
