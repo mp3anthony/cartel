@@ -78,7 +78,6 @@ One line each. These were learned the hard way; do not relitigate them. Producti
 - Unverified or cosmetic: the iOS status-bar icon colour (one static choice), and nested-button hydration warnings from `ListDetailScreen` rows.
 - #52 Places search-assist is closed, superseded by #107 (seeded store catalog, ADR 0007). Google Places was rejected because its terms forbid caching or storing Places content, and it needs an API key and billing prepayment. The old local branch `52-google-places-search-assist` is obsolete.
 - Captcha on anonymous sign-in is not built; see `CHANGE-LOG.md`. Item quantities are in scope via #111.
-- `docs/research/todoist-list-ui.md` draws on Ant's screenshots, not a primary source.
 - Quantity control is a "+" at 1 and a "×N" chip that opens an inline editor from 2 up, not an inline "− 2 +": with a store attached the inline stepper left about 38pt for the item name on a 390pt iPhone. Quantity writes are deltas, so never retry `adjust_item_quantity` or `add_list_item`.
 - The Supabase MCP `execute_sql` against production can be refused by the permission classifier; verify through the app, or ask Ant to run the SQL.
 - Driving the app in the in-app browser: `type` plus Return does not reliably submit the add-item field; fill it with `form_input`, then click "+". Click by `ref` or by frame coordinates, never screenshot pixels. A fresh origin can show "JWT issued at future" (#117); it should self-heal, and if it still shows, tap Try again.

@@ -4,11 +4,11 @@ Cartel is a shared shopping-list app for households: lists that live with a hous
 
 ## Contexts
 
-- [Household](./docs/context/household.md) — who you shop with: the household, its members, invite codes and anonymous identity
-- [Lists](./docs/context/lists.md) — the lists themselves: personal and shared lists, items, check-off, copying and the row and editor primitives
-- [Locations](./docs/context/locations.md) — the global, anonymous store layer: stores, chains, item locations, corrections, the Item catalog and the planned seeded Store catalog
-- [Shopping](./docs/context/shopping.md) — the act of shopping: Shopping Mode, Layout order, finishing a shop, history and the dashboard
-- [Brand](./docs/context/brand.md) — palettes, theme, chain colours, the app icon and voice, plus the app shell (menu, version footer, feedback)
+- [Household](./docs/context/household.md): who you shop with: the household, its members, invite codes and anonymous identity
+- [Lists](./docs/context/lists.md): the lists themselves: personal and shared lists, items, check-off, copying and the row and editor primitives
+- [Locations](./docs/context/locations.md): the global, anonymous store layer: stores, chains, item locations, corrections, the Item catalog and the seeded Store catalog
+- [Shopping](./docs/context/shopping.md): the act of shopping: Shopping Mode, Layout order, finishing a shop, history and the dashboard
+- [Brand](./docs/context/brand.md): palettes, theme, chain colours, the app icon and voice, plus the app shell (menu, version footer, feedback)
 
 ## Relationships
 
@@ -20,6 +20,4 @@ Cartel is a shared shopping-list app for households: lists that live with a hous
 
 **Old words:** `03-SPEC.md`, the ADRs and the code use pre-#94 words: location = Store, section = Item location. Mapping in `docs/context/locations.md`; read it before the spec.
 
-Workflow and process terms (orchestrator, subagents, labels, tickets, wrap-up) live in `CLAUDE.md`. Architectural decisions live in `docs/adr/`. Docs record only what the code cannot explain.
-
-Non-glossary knowledge: binding build rules in `docs/conventions.md`, hard-won lessons and known items in `docs/lessons.md`, hosting, database and operations facts in `docs/environment.md`.
+Other knowledge: `docs/conventions.md`, `docs/lessons.md`, `docs/environment.md`, `docs/workflow.md` (process terms and roles); decisions in `docs/adr/`.

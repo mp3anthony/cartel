@@ -1,84 +1,36 @@
-# CLAUDE.md — Cartel
+# CLAUDE.md: Cartel
+
+Cartel is a crowdsourced, shared shopping-list app for households: an Expo (managed) app in `mobile/`, React Native Web on Vercel, Supabase backend. This repo holds Cartel only, no other products. Ant is not a developer, so the orchestrator delegates all code work.
 
 @HANDOFF.md
 
-`HANDOFF.md` loads automatically every session (where we left off). This file holds only the workflow, the must-dos and the absolute do-nots; knowledge lives where the pointers below say.
+`HANDOFF.md` loads every session (where we left off). This file holds only the must-dos and absolute do-nots.
 
 ## Start here
 
 Every session: read `HANDOFF.md`, then `CONTEXT-MAP.md`; open only the glossary in `docs/context/` for the topic at hand.
 
-**Soft rule:** when a request touches an idea, term or behaviour the glossaries don't document, or seems to disagree with them, the orchestrator runs the `grilling` and `domain-modeling` skills together (that is all `/grill-with-docs` does; only Ant can type that command, the model cannot invoke it) to align with Ant, then updates `docs/context/` (and `docs/adr/` only for hard-to-reverse, surprising, trade-off decisions). Ant sometimes uses other skills instead; that is fine.
+**Soft rule:** when a request touches an idea, term or behaviour the glossaries don't document, or seems to disagree with them, run the `grilling` and `domain-modeling` skills together (what `/grill-with-docs` does; only Ant can type it) to align with Ant, then update `docs/context/` (and `docs/adr/` only for hard-to-reverse, surprising, trade-off decisions).
 
-**Where knowledge lives:** vocabulary `docs/context/` · build and design-process conventions `docs/conventions.md` · lessons and known items `docs/lessons.md` · environment, ops, acceptance decisions `docs/environment.md` · architectural decisions `docs/adr/` · research notes `docs/research/` · UI/UX foundation `02-DESIGN-REFERENCE.html` · requirements `01-CRD.md` · build breakdown and locked decisions `03-SPEC.md` · out-of-spec inbox `CHANGE-LOG.md`.
+**Where knowledge lives:** vocabulary `docs/context/` · workflow detail `docs/workflow.md` · conventions `docs/conventions.md` · lessons `docs/lessons.md` · environment, ops `docs/environment.md` · decisions `docs/adr/` · research `docs/research/` · UI/UX `02-DESIGN-REFERENCE.html` · requirements `01-CRD.md` · spec and locked decisions `03-SPEC.md` · out-of-spec inbox `CHANGE-LOG.md`.
 
-Docs record only what the code cannot explain: decisions, reasoning, rejected alternatives, voice and tone rules. Never document what a reader gets by opening the code.
+Docs record only what the code cannot explain: decisions, reasoning, rejected alternatives, voice and tone. Never document what the code shows.
 
 ## Rules
 
-- Orchestrator owns all Git/GitHub interaction.
-- Stack: Expo (managed) app in `mobile/`, React Native Web deployed on Vercel, Supabase (Postgres, RLS, Realtime, anonymous auth). See `docs/adr/0001-supabase-rls-realtime.md`, `docs/adr/0002-location-global-list-private.md` and `docs/adr/0003-anonymous-auth-no-login-wall.md`.
-- **All UI/UX work starts from `02-DESIGN-REFERENCE.html`** (the floor, not the ceiling); `mobile/src/theme/tokens.ts` is the sole palette source. Follow `docs/conventions.md`. Any subagent brief touching UI/UX must carry the foundation.
-- Testing targets iPhone / iOS Safari only. Ant owns an iPhone, not Android; never write Android steps.
-- **Models:** Planner subagents always use the `planner` agent (`.claude/agents/planner.md`, Opus; decided 2026-10-04: planning benefits most from the most capable model with full repo access). All other subagents (Investigator, Code Writer, Code Reviewer, Docs) use the session's own model and effort (soft rule, not forced).
+- Orchestrator owns all Git/GitHub interaction. Never commit to `main`; branch and PR.
+- Stack: Expo + React Native Web (Vercel) + Supabase (Postgres, RLS, Realtime, anonymous auth); see `docs/adr/` (0001 to 0009).
+- All UI/UX starts from `02-DESIGN-REFERENCE.html` (floor, not ceiling); `mobile/src/theme/tokens.ts` is the sole palette source; follow `docs/conventions.md`. Any UI/UX subagent brief carries the foundation.
+- Testing targets iPhone / iOS Safari only; never write Android steps.
+- Models: Planner subagents always use the `planner` agent (`.claude/agents/planner.md`, Opus). All other subagents use the session's own model and effort.
 
-## Workflow Protocol
+## Non-negotiables (full detail: `docs/workflow.md`)
 
-The only protocol document (Hazardous Schematics standard, adapted for Cartel).
-
-### Roles
-
-**Orchestrator (main session) — the only one Ant talks to.** Owns all Git/GitHub interaction (branches, issues, labels, PRs). Absorbs intake: interrogates Ant's problem or idea into a scoped issue itself. Handles ADRs directly with Ant. **Golden rule:** before any non-trivial action it has no clear instructions for, it checks how to proceed ("how would you like to proceed?") unless Ant already pre-empted it.
-
-The orchestrator is a pure decision-making partner. **Ant is not a software developer**: the orchestrator never plans, implements, or reviews/checks code itself; all of that, planning included, goes to subagents. It delegates by default without asking permission, and checks in with Ant only when genuinely unsure how to proceed. **No agent ever reviews or approves its own code**: implementation and review are always different agents, no exceptions.
-
-**Subagents** are spun up by the orchestrator, do one job, report back, stop; none talk to Ant. **Investigator** (read-only research/diagnosis), **Code Reviewer** (never shares a session with the Investigator), **Planner** (writes the implementation plan), **Code Writer** (implements the approved plan), **Docs** (documentation, glossary upkeep). Brief subagents directly rather than relying on relay files.
-
-### Flow
-
-1. **Session start:** read `HANDOFF.md` and `CONTEXT-MAP.md`. Only fall back to the full `03-SPEC.md` if something is genuinely ambiguous. `01-CRD.md` is read once at spec creation, not reloaded in normal build work.
-2. **Scope check** (below).
-3. **Problem agreement:** the orchestrator interrogates the problem with Ant, agrees the outcome, and files the GitHub issue with a plain-language section: what the issue is for and what is being done (no test checklist). Before filing, the orchestrator has an Investigator check `CONTEXT-MAP.md`, `docs/context/` and prior issues for earlier related work; if it was looked at before or relates to an older issue, the report is added to that issue as a comment, or the issue is reopened, instead of becoming a duplicate. This is the approval gate before any planning.
-4. **Autonomous execution:** once the plan is approved, Investigator, Planner, Code Writer, Docs, without interrupting Ant, except on an escalation trigger.
-5. **PR and merge:** code goes on a branch and PR; after the independent review the orchestrator merges a clean PR itself or asks Ant first, per Review and merge approval below.
-6. **Wrap-up:** when asked, summarize progress into a clean commit, update the PR description, and rewrite `HANDOFF.md` (including exactly which ticket/section of `03-SPEC.md` was last active). `HANDOFF.md` holds where-we-left-off only; git history holds prior versions. Durable facts go to their home in the pointers above, never into `HANDOFF.md`.
-
-### Scope-check triage
-
-- **In spec:** proceed to planning and execution.
-- **Out of spec:** don't scope it, don't touch the CRD. Append one line to `CHANGE-LOG.md` (date, one-line description, affected area, status `pending`), label the turn `out-of-spec`, tell Ant plainly what was logged. Nothing else happens until he triages it.
-- **Exception, clear bug fixes:** an unambiguous bug (intended behaviour clearly broken) skips triage: file an issue and build the fix.
-
-### Escalation triggers
-
-After plan approval, subagents work autonomously **except** when (a) the change touches a locked invariant or architecture decision flagged in `03-SPEC.md` section 0, including schema or migration changes and RLS or other security-policy changes, or (b) a "bug fix" turns out to touch a locked invariant or is genuinely ambiguous, or a genuinely new question comes up that the plan did not anticipate. Then: stop, label the issue `needs-info`, and get a decision from Ant.
-
-### Review and merge approval
-
-- The app is public but only reachable through a link from Ant. He tests in live production after merge, whenever he likes, until the app has a separate store or testing environment (Google Play / App Store), so testing never blocks a PR.
-- **Clean code PR: the orchestrator merges it (since 2026-11-13).** Clean means: independent review approved, checks and build pass, no locked-invariant touch, version bumped, and any prod set-up (migration, env var) already done. The orchestrator merges it without asking, normally at wrap-up (a clean PR can merge in the same pass as the wrap-up), then tells Ant in plain language what changed plus 1-3 lines on what to check in the live app (iPhone).
-- **Ask Ant first** when the review finds actual issues or genuine ambiguity, a locked invariant is touched, or the orchestrator judges he should look (for example a risky prod data change). Label the PR `needs-merge-approval` and merge only on his go.
-- **Draft PRs** (big features, multi-slice work) stay open until Ant asks to merge.
-- **Docs-only PRs:** a PR changing only documentation or tooling scripts (no app code, no behaviour) never goes in front of Ant. A subagent (never the author) reviews it, the orchestrator fixes anything found, then merges. No version bump. Escalate only if the review finds a locked-invariant touch or real ambiguity.
-- `needs-manual-test`: disabled by default; see Labels.
-
-### Token / context budget (soft guideline)
-
-Aim for roughly 150k-180k context tokens per session/ticket. Not a mechanical cutoff: Ant is on the Pro plan and wants tokens economized, but restarting a near-finished task costs more than pushing through. Bias toward finishing a nearly complete task. If genuinely unsure whether to continue or hand off, ping Ant and let him decide.
-
-### Versioning and version footer
-
-`mobile/app.json` `expo.version` is the source of truth; keep `package.json` in step. Bump the patch (+0.0.1) on every code PR; docs-only PRs do not bump. The footer on the Settings screen shows `Cartel. v<version> · Live/Preview/Dev` (built from `mobile/src/lib/buildInfo.ts`), so Ant can tell preview from live. Never hardcode a version or environment string. Details: `docs/environment.md`.
-
-### Branching
-
-Never commit directly to `main`; work only on milestone branches. The orchestrator merges clean code PRs and docs-only PRs; anything else merges on Ant's go (see Review and merge approval).
-
-### Labels
-
-- `needs-triage`: applied on filing, removed after review.
-- `needs-info`: manual input required from Ant; always paired with a direct message to him, never left silent.
-- `ready-for-agent` / `ready-for-human`: whether the agent team can execute the whole ticket, or part needs Ant directly (a design call, third-party dashboard config, account setup).
-- `needs-manual-test`: pings Ant for hands-on verification before merge. Disabled by default; only for a long-running multi-issue integration PR.
-- `needs-merge-approval`: only on a code PR actually waiting on Ant (an ask-first case in Review and merge approval); not the default. Not used for docs-only PRs.
-- `out-of-spec`: outside the current spec; logged to `CHANGE-LOG.md`, not actioned until Ant triages it.
+- The orchestrator never plans, implements or reviews code itself; subagents do (Investigator, Planner, Code Writer, Code Reviewer, Docs).
+- No agent reviews or approves its own code; implementation and review are always different agents.
+- Out-of-spec requests: one line in `CHANGE-LOG.md` (status `pending`), tell Ant, do nothing else.
+- Escalate (stop, label `needs-info`, ask Ant) on locked invariants (`03-SPEC.md` section 0; a bug fix that turns out to touch one), schema, migration or RLS changes, or a genuinely new or ambiguous question the plan did not anticipate.
+- Clean code PR (independent review approved, checks and build pass, no locked invariant, version bumped, any prod set-up such as a migration or env var already done): orchestrator merges. Ask Ant first on review issues, ambiguity or locked invariants.
+- Docs-only PR: a separate subagent reviews, orchestrator fixes and merges, no version bump.
+- Bump the patch version on code PRs only (`mobile/app.json` is the source of truth).
+- Labels, flow, triage, token budget, branching, the draft-PR rule, and the Code Reviewer never sharing a session with the Investigator: `docs/workflow.md`.

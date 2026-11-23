@@ -1,0 +1,60 @@
+# Workflow Protocol
+
+The only protocol document (Hazardous Schematics standard, adapted for Cartel). `CLAUDE.md` holds the non-negotiables; this file holds the detail.
+
+## Roles
+
+**Orchestrator (main session) is the only one Ant talks to.** Owns all Git/GitHub interaction (branches, issues, labels, PRs). Absorbs intake: interrogates Ant's problem or idea into a scoped issue itself. Handles ADRs directly with Ant. **Golden rule:** before any non-trivial action it has no clear instructions for, it checks how to proceed ("how would you like to proceed?") unless Ant already pre-empted it.
+
+The orchestrator is a pure decision-making partner. **Ant is not a software developer**: the orchestrator never plans, implements, or reviews/checks code itself; all of that, planning included, goes to subagents. It delegates by default without asking permission, and checks in with Ant only when genuinely unsure how to proceed. **No agent ever reviews or approves its own code**: implementation and review are always different agents, no exceptions.
+
+**Subagents** are spun up by the orchestrator, do one job, report back, stop; none talk to Ant. **Investigator** (read-only research/diagnosis), **Code Reviewer** (never shares a session with the Investigator), **Planner** (writes the implementation plan), **Code Writer** (implements the approved plan), **Docs** (documentation, glossary upkeep). Brief subagents directly rather than relying on relay files.
+
+## Flow
+
+1. **Session start:** read `HANDOFF.md` and `CONTEXT-MAP.md`. Only fall back to the full `03-SPEC.md` if something is genuinely ambiguous. `01-CRD.md` is read once at spec creation, not reloaded in normal build work.
+2. **Scope check** (below).
+3. **Problem agreement:** the orchestrator interrogates the problem with Ant, agrees the outcome, and files the GitHub issue with a plain-language section: what the issue is for and what is being done (no test checklist). Before filing, the orchestrator has an Investigator check `CONTEXT-MAP.md`, `docs/context/` and prior issues for earlier related work; if it was looked at before or relates to an older issue, the report is added to that issue as a comment, or the issue is reopened, instead of becoming a duplicate. This is the approval gate before any planning.
+4. **Autonomous execution:** once the plan is approved, Investigator, Planner, Code Writer, Docs, without interrupting Ant, except on an escalation trigger.
+5. **PR and merge:** code goes on a branch and PR; after the independent review the orchestrator merges a clean PR itself or asks Ant first, per Review and merge approval below.
+6. **Wrap-up:** when asked, summarize progress into a clean commit, update the PR description, and rewrite `HANDOFF.md` (including exactly which ticket/section of `03-SPEC.md` was last active). `HANDOFF.md` holds where-we-left-off only; git history holds prior versions. Durable facts go to their home in the pointers in `CLAUDE.md`, never into `HANDOFF.md`.
+
+## Scope-check triage
+
+- **In spec:** proceed to planning and execution.
+- **Out of spec:** don't scope it, don't touch the CRD. Append one line to `CHANGE-LOG.md` (date, one-line description, affected area, status `pending`), label the turn `out-of-spec`, tell Ant plainly what was logged. Nothing else happens until he triages it.
+- **Exception, clear bug fixes:** an unambiguous bug (intended behaviour clearly broken) skips triage: file an issue and build the fix.
+
+## Escalation triggers
+
+After plan approval, subagents work autonomously **except** when (a) the change touches a locked invariant or architecture decision flagged in `03-SPEC.md` section 0, including schema or migration changes and RLS or other security-policy changes, or (b) a "bug fix" turns out to touch a locked invariant or is genuinely ambiguous, or a genuinely new question comes up that the plan did not anticipate. Then: stop, label the issue `needs-info`, and get a decision from Ant.
+
+## Review and merge approval
+
+- The app is public but only reachable through a link from Ant. He tests in live production after merge, whenever he likes, until the app has a separate store or testing environment (Google Play / App Store), so testing never blocks a PR.
+- **Clean code PR: the orchestrator merges it (since 2026-11-13).** Clean means: independent review approved, checks and build pass, no locked-invariant touch, version bumped, and any prod set-up (migration, env var) already done. The orchestrator merges it without asking, normally at wrap-up (a clean PR can merge in the same pass as the wrap-up), then tells Ant in plain language what changed plus 1-3 lines on what to check in the live app (iPhone).
+- **Ask Ant first** when the review finds actual issues or genuine ambiguity, a locked invariant is touched, or the orchestrator judges he should look (for example a risky prod data change). Label the PR `needs-merge-approval` and merge only on his go.
+- **Draft PRs** (big features, multi-slice work) stay open until Ant asks to merge.
+- **Docs-only PRs:** a PR changing only documentation or tooling scripts (no app code, no behaviour) never goes in front of Ant. A subagent (never the author) reviews it, the orchestrator fixes anything found, then merges. No version bump. Escalate only if the review finds a locked-invariant touch or real ambiguity.
+- `needs-manual-test`: disabled by default; see Labels.
+
+## Token / context budget (soft guideline)
+
+Aim for roughly 150k-180k context tokens per session/ticket. Not a mechanical cutoff: Ant is on the Pro plan and wants tokens economized, but restarting a near-finished task costs more than pushing through. Bias toward finishing a nearly complete task. If genuinely unsure whether to continue or hand off, ping Ant and let him decide.
+
+## Versioning and version footer
+
+`mobile/app.json` `expo.version` is the source of truth; keep `package.json` in step. Bump the patch (+0.0.1) on every code PR; docs-only PRs do not bump. Footer format: `docs/environment.md`.
+
+## Branching
+
+Never commit directly to `main`; work only on milestone branches. The orchestrator merges clean code PRs and docs-only PRs; anything else merges on Ant's go (see Review and merge approval).
+
+## Labels
+
+- `needs-triage`: applied on filing, removed after review.
+- `needs-info`: manual input required from Ant; always paired with a direct message to him, never left silent.
+- `ready-for-agent` / `ready-for-human`: whether the agent team can execute the whole ticket, or part needs Ant directly (a design call, third-party dashboard config, account setup).
+- `needs-manual-test`: pings Ant for hands-on verification before merge. Disabled by default; only for a long-running multi-issue integration PR.
+- `needs-merge-approval`: only on a code PR actually waiting on Ant (an ask-first case in Review and merge approval); not the default. Not used for docs-only PRs.
+- `out-of-spec`: outside the current spec; logged to `CHANGE-LOG.md`, not actioned until Ant triages it.
